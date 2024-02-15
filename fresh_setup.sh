@@ -44,3 +44,13 @@ echo "installing pip packages"
 cd csss-site-backend
 python3.11 -m pip install -r requirements.txt
 
+echo "setup gunicorn (& uvicorn)"
+chmod u+x gunicorn_start
+mkdir run
+
+echo "configure supervisor"
+mkdir logs
+cp config/supervisor.conf /etc/supervisor/conf.d/csss-site.conf
+sudo supervisorctl reread
+sudo supervisorctl update
+

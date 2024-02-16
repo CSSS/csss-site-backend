@@ -71,4 +71,10 @@ chmod g=rwx /home/csss-site/csss-site-backend/src -R
 sudo ln -s /etc/nginx/sites-available/csss-site /etc/nginx/sites-enabled/
 sudo nginx -t
 
+echo "setup certbot for https"
+sudo apt install snapd
+sudo snap install core; sudo snap refresh core
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+sudo certbot --nginx #NOTE: you'll have to fill this out manually: csss-sysadmin@sfu.ca
 

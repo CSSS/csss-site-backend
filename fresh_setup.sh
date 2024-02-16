@@ -33,10 +33,10 @@ sudo systemctl enable supervisor
 sudo systemctl start supervisor
 
 echo "clone csss-site backend"
+cd /home/csss-site
 git clone git@github.com:CSSS/csss-site-backend.git
 
 echo "creating a virtual environment for python"
-cd /home/csss-site
 python3.11 -m venv .venv
 source .venv/bin/activate
 
@@ -46,11 +46,29 @@ python3.11 -m pip install -r requirements.txt
 
 echo "setup gunicorn (& uvicorn)"
 chmod u+x gunicorn_start
+pushd src
 mkdir run
+popd
+
+echo "update ownership for supervisor"
+chown csss-site ./src -R
+chown csss-site ./gunicorn_start -R
+chgrp csss-site ./src -R
+chgrp csss-site ./gunicorn_start -R
 
 echo "configure supervisor"
 mkdir logs
 cp config/supervisor.conf /etc/supervisor/conf.d/csss-site.conf
 sudo supervisorctl reread
 sudo supervisorctl update
+
+# NOTE: there was some trial & error with these permissions, they may not work first time
+echo "configure nginx"
+cp config/nginx.conf /etc/nginx/sites-available/csss-site
+sudo usermod -aG csss-site www-data
+chmod g=rx /home/csss-site/csss-site-backend
+chmod g=rwx /home/csss-site/csss-site-backend/src -R
+sudo ln -s /etc/nginx/sites-available/csss-site /etc/nginx/sites-enabled/
+sudo nginx -t
+
 

@@ -70,6 +70,7 @@ chmod g=rx /home/csss-site/csss-site-backend
 chmod g=rwx /home/csss-site/csss-site-backend/src -R
 sudo ln -s /etc/nginx/sites-available/csss-site /etc/nginx/sites-enabled/
 sudo nginx -t
+sudo systemctl restart nginx
 
 echo "setup certbot for https"
 sudo apt install snapd

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-import officers
+from officers import officers
 
 app = FastAPI()
 app.include_router(officers.router)

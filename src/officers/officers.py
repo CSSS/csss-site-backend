@@ -30,7 +30,7 @@ async def enter_info():
 
 
 @router.get(
-    "my_info",
+    "/my_info",
     description="Get info about whether you are still an executive or not / what your position is."
 )
 async def my_info():
@@ -38,7 +38,7 @@ async def my_info():
 
 
 @router.post(
-    "new",
+    "/new",
     description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Updates the system with a new officer, and enables the user to login to the system to input their information."
 )
 async def add_new_officer():
@@ -46,7 +46,7 @@ async def add_new_officer():
 
 
 @router.post(
-    "remove",
+    "/remove",
     description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Removes the officer from the system entirely. BE CAREFUL WITH THIS OPTION aaaaaaaaaaaaaaaaaa."
 )
 async def remove_officer():
@@ -54,7 +54,7 @@ async def remove_officer():
 
 
 @router.post(
-    "update",
+    "/update",
     description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Modify the stored info of an existing officer."
 )
 async def update_officer():

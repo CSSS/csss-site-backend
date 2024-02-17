@@ -1,0 +1,14 @@
+[Unit]
+Description=CSSS Backend
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+Restart=always
+RestartSec=1
+User=csss-site
+ExecStart=/home/csss-site/csss-site-backend/gunicorn_start.sh
+
+[Install]
+WantedBy=multi-user.target

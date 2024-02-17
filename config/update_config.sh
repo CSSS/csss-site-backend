@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "1. update nginx configs"
-cp config/nginx.conf /etc/nginx/sites-available/csss-site
+cp /home/csss-site/csss-site-backend/config/nginx.conf /etc/nginx/sites-available/csss-site
 sudo nginx -t
 sudo systemctl restart nginx
 

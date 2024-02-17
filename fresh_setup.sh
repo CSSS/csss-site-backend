@@ -51,9 +51,13 @@ chown csss-site ./gunicorn_start -R
 chgrp csss-site ./src -R
 chgrp csss-site ./gunicorn_start -R
 
+echo "setup csss-site systemd service"
 cp config/csss-site.service /etc/systemd/system/csss-site.service
 systemctl start csss-site
 systemctl enable csss-site
+
+echo "setup sudo access to nginx and csss-site"
+cp config/sudoers.conf /etc/sudoers.d/csss-site
 
 # NOTE: there was some trial & error with these permissions, they may not work first time
 echo "configure nginx"

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd /home/csss-site/csss-site-backend/
+
 echo "getting new changes from git"
 git fetch
 git pull

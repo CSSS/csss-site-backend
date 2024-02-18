@@ -26,6 +26,7 @@ sudo apt install python3.11 python3.11-venv -y # default on debian 12
 
 echo "installing supervisor & nginx"
 sudo apt install nginx -y
+#chmod g=rwx /home/csss-site/csss-site-backend/src -R
 
 echo "clone csss-site backend"
 cd /home/csss-site
@@ -40,16 +41,13 @@ cd csss-site-backend
 python3.11 -m pip install -r requirements.txt
 
 echo "setup gunicorn (& uvicorn)"
-chmod u+x gunicorn_start
-pushd src
+cd src
 mkdir run
-popd
+cd .. 
 
 echo "update ownership"
-chown csss-site ./src -R
-chown csss-site ./gunicorn_start -R
-chgrp csss-site ./src -R
-chgrp csss-site ./gunicorn_start -R
+chown csss-site:csss-site ./src -R
+chown csss-site:csss-site ./gunicorn_start.sh -R
 
 echo "setup csss-site systemd service"
 cp config/csss-site.service /etc/systemd/system/csss-site.service
@@ -63,8 +61,6 @@ cp config/sudoers.conf /etc/sudoers.d/csss-site
 echo "configure nginx"
 cp config/nginx.conf /etc/nginx/sites-available/csss-site
 sudo usermod -aG csss-site www-data
-chmod g=rx /home/csss-site/csss-site-backend
-chmod g=rwx /home/csss-site/csss-site-backend/src -R
 sudo ln -s /etc/nginx/sites-available/csss-site /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx

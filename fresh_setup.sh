@@ -38,6 +38,7 @@ source .venv/bin/activate
 
 echo "installing pip packages"
 cd csss-site-backend
+#sudo apt install swig gcc-11
 python3.11 -m pip install -r requirements.txt
 
 echo "setup gunicorn (& uvicorn)"
@@ -61,6 +62,10 @@ cp config/sudoers.conf /etc/sudoers.d/csss-site
 echo "configure nginx"
 cp config/nginx.conf /etc/nginx/sites-available/csss-site
 sudo usermod -aG csss-site www-data
+sudo usermod -aG www-data csss-site
+sudo chown www-data:www-data /var/www
+sudo chmod g=rwx /var/www/html
+sudo chmod g=rwx /var/www/
 sudo ln -s /etc/nginx/sites-available/csss-site /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
@@ -71,6 +76,22 @@ sudo snap install core; sudo snap refresh core
 sudo snap install --classic certbot
 sudo ln -s /snap/bin/certbot /usr/bin/certbot
 sudo certbot --nginx #NOTE: you'll have to fill this out manually: csss-sysadmin@sfu.ca
+
+echo "install postgres"
+# get the official apt repository
+# see https://www.postgresql.org/download/linux/debian/ for more details
+sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+sudo apt-get update
+sudo apt-get -y install postgresql-15 postgresql-contrib
+
+echo "update postgres config"
+# see https://towardsdatascience.com/setting-up-postgresql-in-debian-based-linux-e4985b0b766f for more details
+sudo -i -u postgres
+createdb --no-password main
+createuser --no-password csss-site
+psql --command='GRANT ALL PRIVILEGES ON DATABASE main TO "csss-site"'
+psql main --command='GRANT ALL ON SCHEMA public TO "csss-site"'
 
 # NOTE: file permissions during this setup process needs some work
 

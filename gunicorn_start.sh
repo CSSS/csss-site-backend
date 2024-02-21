@@ -7,7 +7,7 @@ GROUP=csss-site
 WORKERS=2 # TODO: should we increase this?
 WORKER_CLASS=uvicorn.workers.UvicornWorker
 VENV=/home/csss-site/.venv/bin/activate
-BIND=unix:$DIR/run/gunicorn.sock
+BIND=unix:/var/www/gunicorn.sock
 LOG_LEVEL=error
 
 cd $DIR

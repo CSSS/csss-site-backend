@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 
-from officers import officers
+import database
+from auth import auth
+#from officers import officers
 
-app = FastAPI()
-app.include_router(officers.router)
+app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend")
+app.include_router(auth.router)
+#app.include_router(officers.router)
 
 @app.get("/")
 async def read_root():
-    return { "message": "your random number is 4" }
+    return { "message": "Hello! You might be lost, this is actually the sfucsss.org's backend api." }

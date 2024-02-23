@@ -55,8 +55,7 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
-#SQLALCHEMY_DATABASE_URL = "postgresql://csss-site@localhost/main"
-SQLALCHEMY_DATABASE_URL = "postgresql:///main"
+SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
 
 # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
 sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, { "echo": True })

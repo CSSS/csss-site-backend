@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-import models
+from auth import models
 
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,24 +20,26 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
         )
         db_session.add(new_user_session)
 
+async def remove_user_session(db_session: AsyncSession, session_id: str) -> dict:
+    query = sqlalchemy.select(models.UserSession).where(models.UserSession.session_id == session_id)
+    user_session = await db_session.scalars(query)
+    db_session.delete(user_session.first())
+
 async def check_session_validity(db_session: AsyncSession, session_id: str) -> dict:
     query = sqlalchemy.select(models.UserSession).where(models.UserSession.session_id == session_id)
     existing_user_session = (await db_session.scalars(query)).first()
 
-    # TODO: use a match statement?!
     if existing_user_session:
         return { "is_valid" : True, "computing_id" : existing_user_session.computing_id }
     else:
         return { "is_valid" : False }
 
-USER_SESSION_MAX_LENGTH_SEC = 24 * 60 * 60
-
 # remove all out of date user sessions
 async def task_clean_expired_user_sessions(db_session: AsyncSession) -> None:
-    current_time = datetime.now()
-    query = sqlalchemy.select(models.UserSession).where(
-        (current_time - models.UserSession.issue_time).total_seconds() >= USER_SESSION_MAX_LENGTH_SEC
+    one_day_ago = datetime.now() - timedelta(days=0.5)
+
+    query = sqlalchemy.delete(models.UserSession).where(
+        models.UserSession.issue_time < one_day_ago
     )
-    expired_user_sessions = await db_session.scalars(query)
-    expired_user_sessions.all().delete()
+    await db_session.execute(query)
     await db_session.commit()

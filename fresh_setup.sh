@@ -41,11 +41,6 @@ cd csss-site-backend
 #sudo apt install swig gcc-11
 python3.11 -m pip install -r requirements.txt
 
-echo "setup gunicorn (& uvicorn)"
-cd src
-mkdir run
-cd .. 
-
 echo "update ownership"
 chown csss-site:csss-site ./src -R
 chown csss-site:csss-site ./gunicorn_start.sh -R
@@ -92,6 +87,10 @@ createdb --no-password main
 createuser --no-password csss-site
 psql --command='GRANT ALL PRIVILEGES ON DATABASE main TO "csss-site"'
 psql main --command='GRANT ALL ON SCHEMA public TO "csss-site"'
+
+# not neccesary because it's checked into the git repo
+# echo "alembic setup"
+# alembic init --template async alembic
 
 # NOTE: file permissions during this setup process needs some work
 

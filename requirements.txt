@@ -1,3 +1,12 @@
+# major
 fastapi==0.109.1
 gunicorn==21.2.0
 uvicorn[standard]==0.27.1
+sqlalchemy==2.0.27
+asyncpg==0.29.0
+alembic==1.13.1
+
+# minor
+pyOpenSSL==24.0.0 # for generating cryptographically secure random numbers
+xmltodict==0.13.0 # for parsing responses from sfu it's auth api
+requests==2.31.0

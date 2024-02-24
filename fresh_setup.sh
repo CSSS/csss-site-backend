@@ -51,8 +51,8 @@ echo "configure sudo for csss-site..."
 cp /home/csss-site/csss-site-backend/config/sudoers.conf /etc/sudoers.d/csss-site
 
 echo "configure nginx..."
-cp /home/csss-site/csss-site-backend/config/nginx.conf /etc/nginx/sites-available/csss-site
-ln -s /etc/nginx/sites-available/csss-site /etc/nginx/sites-enabled/
+cp /home/csss-site/csss-site-backend/config/nginx.conf /etc/nginx/sites-available/csss-site-backend
+ln -s /etc/nginx/sites-available/csss-site-backend /etc/nginx/sites-enabled
 echo "You'll need to fill out the certbot configuration manually."
 echo "Use csss-sysadmin@sfu.ca for contact email."
 certbot --nginx
@@ -60,6 +60,8 @@ nginx -t
 
 echo "configure www-data user and /var/www..."
 usermod -aG www-data csss-site
+mkdir /var/www/logs
+mkdir /var/www/logs/csss-site-backend
 chown -R www-data:www-data /var/www
 chmod -R ug=rwx,o=rx /var/www
 

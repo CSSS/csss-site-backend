@@ -51,7 +51,7 @@ cd /home/csss-site
 
 echo "----"
 echo "clone repository csss-site-backend..."
-sudo -u csss-site git clone https://github.com/CSSS/csss-site-backend.git csss-site-backend
+sudo -u csss-site git clone https://github.com/CSSS/csss-site-backend csss-site-backend
 
 echo "----"
 echo "configure sudo for csss-site..."
@@ -59,6 +59,13 @@ cp csss-site-backend/config/sudoers.conf /etc/sudoers.d/csss-site
 
 echo "----"
 echo "configure nginx..."
+# www-data and /var/www stuff
+usermod -aG www-data csss-site
+mkdir /var/www/logs
+mkdir /var/www/logs/csss-site-backend
+chown -R www-data:www-data /var/www
+chmod -R ug=rwx,o=rx /var/www
+# nginx config files
 cp csss-site-backend/config/nginx.conf /etc/nginx/sites-available/csss-site-backend
 # remove default configuration to prevent funky certbot behaviour
 rm /etc/nginx/sites-enabled/default
@@ -71,6 +78,7 @@ while true; do
 
 	if [ $choice = 'M' ]; then
 		vim /etc/nginx/sites-available/csss-site-backend
+		break
 	elif [ $choice = 'c' ]; then
 		break
 	else
@@ -78,19 +86,11 @@ while true; do
 	fi
 done
 
+ln -s /etc/nginx/sites-available/csss-site-backend /etc/nginx/sites-enabled/csss-site-backend
 echo "You'll need to fill out the certbot configuration manually."
 echo "Use csss-sysadmin@sfu.ca for contact email."
 certbot --nginx
-ln -s /etc/nginx/sites-available/csss-site-backend /etc/nginx/sites-enabled/csss-site-backend
 nginx -t
-
-echo "----"
-echo "configure www-data user and /var/www..."
-usermod -aG www-data csss-site
-mkdir /var/www/logs
-mkdir /var/www/logs/csss-site-backend
-chown -R www-data:www-data /var/www
-chmod -R ug=rwx,o=rx /var/www
 
 echo "----"
 echo "start nginx..."

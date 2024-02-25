@@ -1,10 +1,17 @@
 #!/bin/bash
 
+# this is a script for seting up the website from a fresh install
+
 # TODO:
 # - look into `apt install unattended-upgrades`
 # - look into activating fail2ban for ssh protection (I doubt we'll need this unless we get too much random traffic)
 
-# this is a script for seting up the website from a fresh install
+# make sure user is root
+user=$(whoami)
+if [ $user != 'root' ]; then
+	echo "this script must be run as the superuser."
+	exit 1
+fi
 
 echo "hi sysadmin!"
 echo "this script will install (almost) everything needed to run the csss website"

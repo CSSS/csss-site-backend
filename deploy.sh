@@ -1,11 +1,8 @@
 #!/bin/bash
 
-cd /home/csss-site/csss-site-backend/
+# NOTE: this script assumes that the local filetree contains what you intend to deploy
+# please run the config/update_config.sh if the configuration files are new, or fresh_start.sh if nothing has been installed yet
 
-echo "getting new changes from git"
-git fetch
-git pull
-
-echo "restarting gunicorn, gracefully"
+echo "restarting nginx and gunicorn, gracefully"
 sudo systemctl restart nginx
 sudo systemctl restart csss-site

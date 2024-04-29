@@ -6,7 +6,7 @@ The backend & REST API for the CSSS website. Anything the website frontend does 
 - (pending) and more! 
 
 ## Local Development
-see ![the csss-backend wiki](https://github.com/CSSS/csss-site-backend/wiki/Local-Setup) for details on how to run the REST API locally on your own machine.
+see [the csss-backend wiki](https://github.com/CSSS/csss-site-backend/wiki/Local-Setup) for details on how to run the REST API locally on your own machine.
 
 ## Important Directories
 - `config/` configuration files for the server machine

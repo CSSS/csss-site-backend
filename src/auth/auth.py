@@ -82,7 +82,7 @@ async def check_authentication(
 
     return JSONResponse(response_dict)
 
-@router.get(
+@router.post(
     "/logout",
     description="Logs out the current user by invalidating the session_id cookie"
 )

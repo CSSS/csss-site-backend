@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>login test</title>
+    </head>
+
+    <body style="background-color: #666; margin: 0; font-family: sans-serif;">
+        <div style="max-width: 900px; min-height: 250px; margin: auto; padding: 20px; background-color: #fff;">
+            <p>please <a id="login" href="">log in here</a></p>
+            <p>current status <span id="status"></span></p>
+            <p>please <a id="logout" href="" onclick="logOut()">log out here</a></p>
+        </div>
+    </body>
+
+    <script>
+        const CAS_LOGIN_URL = "https://cas.sfu.ca/cas/login?service="
+        const API_LOGIN_URL = "http://localhost:8000/auth/login"
+        const API_CHECK_URL = "http://localhost:8000/auth/check"
+        const API_LOGOUT_URL = "http://localhost:8000/auth/logout"
+
+        let str = CAS_LOGIN_URL + API_LOGIN_URL + "?next=" + encodeURIComponent(window.location.href)
+        console.log(str)
+
+        document.getElementById("login").href = str
+        fetch(API_CHECK_URL).then(response => {
+            response.json().then(json => {
+                document.getElementById("status").innerHTML = json.is_valid ? "logged in" : "not logged in"
+                if (Object.hasOwn(json, 'computing_id')) {
+                    document.getElementById("status").innerHTML += "<br>computing_id = " + json.computing_id
+                }
+            })
+        })
+
+        function logOut() {
+            fetch(API_LOGOUT_URL, {
+                method: "POST"
+            })
+        }
+    </script>
+</html>

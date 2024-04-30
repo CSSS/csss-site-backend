@@ -1,4 +1,5 @@
 # csss-site-backend
+
 The backend & REST API for the CSSS website. Anything the website frontend does that stores or retrieves information goes through this api. The services this website provides are the following:
 - authentication
 - (pending) information about executives
@@ -6,9 +7,13 @@ The backend & REST API for the CSSS website. Anything the website frontend does 
 - (pending) and more! 
 
 ## Local Development
-see [the csss-backend wiki](https://github.com/CSSS/csss-site-backend/wiki/Local-Setup) for details on how to run the REST API locally on your own machine.
+
+See [the csss-backend wiki](https://github.com/CSSS/csss-site-backend/wiki/Local-Setup) for details on how to run the REST API locally on your own machine.
+
+If you're planning to read through the source code, please check out this project's [naming conventions](https://github.com/CSSS/csss-site-backend/wiki/Naming-conventions).
 
 ## Important Directories
+
 - `config/` configuration files for the server machine
 - `src/`
     - `alembic` for database migrations

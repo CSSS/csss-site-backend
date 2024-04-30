@@ -10,17 +10,32 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
+import asyncpg, asyncio
+
 #Base = sqlalchemy.ext.declarative.declarative_base()
 Base = sqlalchemy.orm.declarative_base()
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
-    def __init__(self, host: str, engine_kwargs: dict[str, Any] = {}):
+    def __init__(self, db_url: str, engine_kwargs: dict[str, Any] = {}):
         #engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
-        self._engine = sqlalchemy.ext.asyncio.create_async_engine(host, **engine_kwargs)
+        self._engine = sqlalchemy.ext.asyncio.create_async_engine(db_url, **engine_kwargs)
         #SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
         self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
 
+        # check if the database exists by making a test connection
+        asyncio.get_event_loop().run_until_complete(
+            DatabaseSessionManager.test_connection()
+        )
+
+    # test if the database is working & raise an exception if not
+    async def test_connection(db_name:str="main"):
+        try:
+            conn = await asyncpg.connect(database=db_name)
+            await conn.close()
+        except Exception as e:
+            raise Exception(f"Postgres database might not exist. Got: {e}. Try restarting postgresql.")
+        
     async def close(self):
         if self._engine is None:
             raise Exception("DatabaseSessionManager is not initialized")
@@ -73,5 +88,6 @@ async def lifespan(app: FastAPI):
 async def _db_session():
     async with sessionmanager.session() as session:
         yield session
+
 
 DBSession = Annotated[AsyncSession, Depends(_db_session)]

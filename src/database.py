@@ -25,17 +25,21 @@ class DatabaseSessionManager:
 
         # check if the database exists by making a test connection
         asyncio.get_event_loop().run_until_complete(
-            DatabaseSessionManager.test_connection()
+            DatabaseSessionManager.test_connection(db_url)
         )
 
     # test if the database is working & raise an exception if not
-    async def test_connection(db_name:str="main"):
+    async def test_connection(sqlalchemy_db_url:str):
         try:
-            conn = await asyncpg.connect(database=db_name)
+            asyncpg_db_url = sqlalchemy_db_url.replace("+asyncpg", "")
+            conn = await asyncpg.connect(asyncpg_db_url)
             await conn.close()
         except Exception as e:
-            raise Exception(f"Postgres database might not exist. Got: {e}. Try restarting postgresql.")
+            raise Exception(f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}")
         
+        # TODO: setup logging
+        print("successful connection test")
+
     async def close(self):
         if self._engine is None:
             raise Exception("DatabaseSessionManager is not initialized")
@@ -75,6 +79,7 @@ if os.environ.get("DB_PORT") != None:
     SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
 else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
+
 
 # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
 sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, { "echo": True })

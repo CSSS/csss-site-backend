@@ -1,4 +1,3 @@
-import os
 import contextlib
 from typing import Any, Annotated, AsyncIterator
 
@@ -10,15 +9,16 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-#Base = sqlalchemy.ext.declarative.declarative_base()
+# Base = sqlalchemy.ext.declarative.declarative_base()
 Base = sqlalchemy.orm.declarative_base()
+
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
     def __init__(self, host: str, engine_kwargs: dict[str, Any] = {}):
-        #engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
+        # engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
         self._engine = sqlalchemy.ext.asyncio.create_async_engine(host, **engine_kwargs)
-        #SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        # SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
         self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
 
     async def close(self):
@@ -55,10 +55,12 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
+
 SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
 
 # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
-sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, { "echo": True })
+sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
+
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,8 +72,10 @@ async def lifespan(app: FastAPI):
         # Close the DB connection
         await sessionmanager.close()
 
+
 async def _db_session():
     async with sessionmanager.session() as session:
         yield session
+
 
 DBSession = Annotated[AsyncSession, Depends(_db_session)]

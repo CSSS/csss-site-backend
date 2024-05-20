@@ -3,7 +3,7 @@ The backend & REST API for the CSSS website. Anything the website frontend does 
 - authentication
 - (pending) information about executives
 - (pending) personalized exams from our bank
-- (pending) and more! 
+- (pending) and more!
 
 ## Local Development
 see [the csss-backend wiki](https://github.com/CSSS/csss-site-backend/wiki/Local-Setup) for details on how to run the REST API locally on your own machine.

@@ -10,18 +10,24 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-import asyncpg, asyncio
+import asyncpg
+import asyncio
 
-#Base = sqlalchemy.ext.declarative.declarative_base()
+# Base = sqlalchemy.ext.declarative.declarative_base()
 Base = sqlalchemy.orm.declarative_base()
+
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
     def __init__(self, db_url: str, engine_kwargs: dict[str, Any] = {}):
-        #engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
-        self._engine = sqlalchemy.ext.asyncio.create_async_engine(db_url, **engine_kwargs)
-        #SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
+        # engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
+        self._engine = sqlalchemy.ext.asyncio.create_async_engine(
+            db_url, **engine_kwargs
+        )
+        # SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(
+            autocommit=False, bind=self._engine
+        )
 
         # check if the database exists by making a test connection
         asyncio.get_event_loop().run_until_complete(
@@ -29,14 +35,16 @@ class DatabaseSessionManager:
         )
 
     # test if the database is working & raise an exception if not
-    async def test_connection(sqlalchemy_db_url:str):
+    async def test_connection(sqlalchemy_db_url: str):
         try:
             asyncpg_db_url = sqlalchemy_db_url.replace("+asyncpg", "")
             conn = await asyncpg.connect(asyncpg_db_url)
             await conn.close()
         except Exception as e:
-            raise Exception(f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}")
-        
+            raise Exception(
+                f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}"
+            )
+
         # TODO: setup logging
         print("successful connection test")
 
@@ -74,7 +82,8 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
-if os.environ.get("DB_PORT") != None:
+
+if os.environ.get("DB_PORT") is not None:
     db_port = os.environ.get("DB_PORT")
     SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
 else:
@@ -82,7 +91,8 @@ else:
 
 
 # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
-sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, { "echo": True })
+sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
+
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -94,8 +104,10 @@ async def lifespan(app: FastAPI):
         # Close the DB connection
         await sessionmanager.close()
 
+
 async def _db_session():
     async with sessionmanager.session() as session:
         yield session
+
 
 DBSession = Annotated[AsyncSession, Depends(_db_session)]

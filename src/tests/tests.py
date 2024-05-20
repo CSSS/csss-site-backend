@@ -5,17 +5,11 @@ from fastapi.responses import HTMLResponse
 
 # ----------------------- #
 
-router = APIRouter(
-    prefix="/tests"
-)
+router = APIRouter(prefix="/tests")
 
-@router.get(
-    "/{test_name}",
-    description="For use in testing the backend api."
-)
-async def get_test(
-    test_name: str
-):
+
+@router.get("/{test_name}", description="For use in testing the backend api.")
+async def get_test(test_name: str):
     test_path = pathlib.Path(f"../tests/{test_name}")
     test_dir_path = pathlib.Path("../tests/")
 

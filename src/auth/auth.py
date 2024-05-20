@@ -44,8 +44,7 @@ async def login_user(
 ):
     # verify the ticket is valid
     url = "https://cas.sfu.ca/cas/serviceValidate?service={}&ticket={}".format(
-        "{}/auth/login%3Fnext%3D{}".format(urllib.parse.quote(root_ip_address), urllib.parse.quote(next)),
-        ticket,
+        "{}/auth/login%3Fnext%3D{}".format(urllib.parse.quote(root_ip_address), urllib.parse.quote(next)), ticket
     )
     cas_response = xmltodict.parse(requests.get(url).text)
 
@@ -69,6 +68,7 @@ async def login_user(
         return response
 
 
+
 @router.get(
     "/check",
     description="Check if the current user is logged in based on session_id from cookies",
@@ -87,6 +87,7 @@ async def check_authentication(
 
     return JSONResponse(response_dict)
 
+  
 
 @router.post(
     "/logout",

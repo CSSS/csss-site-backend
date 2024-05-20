@@ -10,3 +10,7 @@ alembic==1.13.1
 pyOpenSSL==24.0.0 # for generating cryptographically secure random numbers
 xmltodict==0.13.0 # for parsing responses from sfu it's auth api
 requests==2.31.0
+
+# dev
+ruff
+pre-commit

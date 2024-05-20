@@ -1,4 +1,3 @@
-import os
 import contextlib
 from typing import Any, Annotated, AsyncIterator
 
@@ -75,12 +74,12 @@ class DatabaseSessionManager:
             await session.close()
 
 
+            
 if os.environ.get("DB_PORT") is not None:
     db_port = os.environ.get("DB_PORT")
     SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
 else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
-
 
 # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
 sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})

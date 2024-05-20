@@ -44,23 +44,17 @@ async def login_user(
 ):
     # verify the ticket is valid
     url = "https://cas.sfu.ca/cas/serviceValidate?service={}&ticket={}".format(
-        "{}/auth/login%3Fnext%3D{}".format(
-            urllib.parse.quote(root_ip_address), urllib.parse.quote(next)
-        ),
+        "{}/auth/login%3Fnext%3D{}".format(urllib.parse.quote(root_ip_address), urllib.parse.quote(next)),
         ticket,
     )
     cas_response = xmltodict.parse(requests.get(url).text)
 
     if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
-        raise HTTPException(
-            status_code=400, detail="authentication error, ticket likely invalid"
-        )
+        raise HTTPException(status_code=400, detail="authentication error, ticket likely invalid")
 
     else:
         session_id = generate_session_id_b64(256)
-        computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"][
-            "cas:user"
-        ]
+        computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
 
         await crud.create_user_session(db_session, session_id, computing_id)
         await db_session.commit()

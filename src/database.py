@@ -21,18 +21,12 @@ Base = sqlalchemy.orm.declarative_base()
 class DatabaseSessionManager:
     def __init__(self, db_url: str, engine_kwargs: dict[str, Any] = {}):
         # engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
-        self._engine = sqlalchemy.ext.asyncio.create_async_engine(
-            db_url, **engine_kwargs
-        )
+        self._engine = sqlalchemy.ext.asyncio.create_async_engine(db_url, **engine_kwargs)
         # SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(
-            autocommit=False, bind=self._engine
-        )
+        self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
 
         # check if the database exists by making a test connection
-        asyncio.get_event_loop().run_until_complete(
-            DatabaseSessionManager.test_connection(db_url)
-        )
+        asyncio.get_event_loop().run_until_complete(DatabaseSessionManager.test_connection(db_url))
 
     # test if the database is working & raise an exception if not
     async def test_connection(sqlalchemy_db_url: str):
@@ -41,9 +35,7 @@ class DatabaseSessionManager:
             conn = await asyncpg.connect(asyncpg_db_url)
             await conn.close()
         except Exception as e:
-            raise Exception(
-                f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}"
-            )
+            raise Exception(f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}")
 
         # TODO: setup logging
         print("successful connection test")

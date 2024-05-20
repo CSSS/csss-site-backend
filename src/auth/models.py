@@ -11,9 +11,7 @@ class UserSession(Base):
     id = Column(Integer, primary_key=True)
 
     issue_time = Column(DateTime, nullable=False)
-    session_id = Column(
-        String(512), nullable=False
-    )  # the space needed to store 256 bytes in base64
+    session_id = Column(String(512), nullable=False)  # the space needed to store 256 bytes in base64
     computing_id = Column(
         String(32), nullable=False
     )  # technically a max of 8 digits https://www.sfu.ca/computing/about/support/tips/sfu-userid.html

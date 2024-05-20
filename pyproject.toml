@@ -1,0 +1,7 @@
+[project]
+name = "csss-site-backend"
+version = "0.1"
+requires-python = ">= 3.11" # older versions untested
+
+[project.urls]
+Homepage = "https://api.sfucsss.org/"

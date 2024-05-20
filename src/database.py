@@ -70,7 +70,11 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
-SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
+if os.environ.get("DB_PORT") != None:
+    db_port = os.environ.get("DB_PORT")
+    SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
+else:
+    SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
 
 # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
 sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, { "echo": True })
@@ -88,6 +92,5 @@ async def lifespan(app: FastAPI):
 async def _db_session():
     async with sessionmanager.session() as session:
         yield session
-
 
 DBSession = Annotated[AsyncSession, Depends(_db_session)]

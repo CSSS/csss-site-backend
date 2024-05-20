@@ -1,4 +1,5 @@
 import contextlib
+import os
 from typing import Any, Annotated, AsyncIterator
 
 from fastapi import FastAPI, Depends
@@ -74,7 +75,6 @@ class DatabaseSessionManager:
             await session.close()
 
 
-            
 if os.environ.get("DB_PORT") is not None:
     db_port = os.environ.get("DB_PORT")
     SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"

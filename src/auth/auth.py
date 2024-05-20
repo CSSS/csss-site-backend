@@ -68,7 +68,6 @@ async def login_user(
         return response
 
 
-
 @router.get(
     "/check",
     description="Check if the current user is logged in based on session_id from cookies",
@@ -87,7 +86,6 @@ async def check_authentication(
 
     return JSONResponse(response_dict)
 
-  
 
 @router.post(
     "/logout",

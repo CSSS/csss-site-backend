@@ -38,7 +38,7 @@ class DatabaseSessionManager:
             raise Exception(f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}")
 
         # TODO: setup logging
-        print("successful connection test")
+        print(f"successful connection test to {sqlalchemy_db_url}")
 
     async def close(self):
         if self._engine is None:

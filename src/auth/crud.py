@@ -6,8 +6,12 @@ import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-# updates the past user session if there exists one, so no duplicates can ever occur
 async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str) -> None:
+    """
+    Updates the past user session if one exists, so no duplicate sessions can ever occur.
+
+    Also, adds the new user to the User table if it's their first time logging in.
+    """
     query = sqlalchemy.select(models.UserSession).where(models.UserSession.computing_id == computing_id)
     existing_user_session = (await db_session.scalars(query)).first()
     if existing_user_session:
@@ -21,11 +25,20 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
         )
         db_session.add(new_user_session)
 
+        # add new user to User table if it's their first time logging in
+        query = sqlalchemy.select(models.User).where(models.User.computing_id == computing_id)
+        existing_user = (await db_session.scalars(query)).first()
+        if existing_user is None:
+            new_user = models.User(
+                computing_id=computing_id,
+            )
+            db_session.add(new_user)
+
 
 async def remove_user_session(db_session: AsyncSession, session_id: str) -> dict:
     query = sqlalchemy.select(models.UserSession).where(models.UserSession.session_id == session_id)
     user_session = await db_session.scalars(query)
-    db_session.delete(user_session.first())
+    await db_session.delete(user_session.first())  # TODO: what to do with this result?
 
 
 async def check_session_validity(db_session: AsyncSession, session_id: str) -> dict:

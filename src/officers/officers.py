@@ -27,7 +27,10 @@ async def enter_info():
     return {}
 
 
-@router.get("/my_info", description="Get info about whether you are still an executive or not / what your position is.")
+@router.get(
+    "/my_info",
+    description="Get info about whether you are still an executive or not / what your position is.",
+)
 async def my_info():
     return {}
 

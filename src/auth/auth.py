@@ -68,7 +68,10 @@ async def login_user(
         return response
 
 
-@router.get("/check", description="Check if the current user is logged in based on session_id from cookies")
+@router.get(
+    "/check",
+    description="Check if the current user is logged in based on session_id from cookies",
+)
 async def check_authentication(
     request: Request,  # NOTE: these are the request headers
     db_session: database.DBSession,
@@ -84,7 +87,10 @@ async def check_authentication(
     return JSONResponse(response_dict)
 
 
-@router.get("/logout", description="Logs out the current user by invalidating the session_id cookie")
+@router.post(
+    "/logout",
+    description="Logs out the current user by invalidating the session_id cookie",
+)
 async def logout_user(
     request: Request,
     db_session: database.DBSession,

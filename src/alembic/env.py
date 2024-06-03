@@ -8,6 +8,10 @@ from alembic import context
 
 import database
 
+# ruff: noqa: F401
+import auth.models
+import officers.models
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -17,12 +21,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# TODO: what is this??
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+# add your model's MetaData object here for --autogenerate support
+target_metadata = database.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -54,13 +54,6 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
-
-    with context.begin_transaction():
-        context.run_migrations()
-
-
 async def run_async_migrations() -> None:
     """
     In this scenario we need to create an Engine
@@ -73,6 +66,12 @@ async def run_async_migrations() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+
+    def do_run_migrations(connection: Connection) -> None:
+        context.configure(connection=connection, target_metadata=target_metadata)
+
+        with context.begin_transaction():
+            context.run_migrations()
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

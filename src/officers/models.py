@@ -31,10 +31,7 @@ class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
     id = Column(Integer, primary_key=True, unique=True)
-    computing_id = Column(
-        String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id"),
-    )
+    computing_id = Column(String(COMPUTING_ID_LEN), ForeignKey("site_user.computing_id"), nullable=False)
 
     is_active = Column(Boolean, nullable=False)
     # a record will only be set as publically visible if sufficient data has been given
@@ -68,6 +65,7 @@ class OfficerInfo(Base):
 
     legal_name = Column(String(128), nullable=False)  # some people have long names, you never know
 
+    # a null discord id would mean you don't have discord
     discord_id = Column(String(DISCORD_ID_LEN))
     discord_name = Column(String(DISCORD_NAME_LEN))
     # this is their nickname in the csss server

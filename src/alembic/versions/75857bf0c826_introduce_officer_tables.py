@@ -20,6 +20,30 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # drop all existing user session data
+    # TODO: combine all past migrations into this one
+    op.drop_table("user_session")
+    op.create_table(
+        "user_session",
+        sa.Column("session_id", sa.String(512), nullable=False, primary_key=True),
+        sa.Column("issue_time", sa.DateTime, nullable=False),
+        sa.Column("computing_id", sa.String(32), nullable=False),
+    )
+    op.create_unique_constraint("unique__user_session__session_id", "user_session", ["session_id"])
+    op.create_unique_constraint("unique__user_session__computing_id", "user_session", ["computing_id"])
+
+    # drop all existing site user data
+    # TODO: combine all past migrations into this one
+    op.drop_table("site_user")
+    op.create_table(
+        "site_user",
+        sa.Column("computing_id", sa.String(32), nullable=False, primary_key=True),
+    )
+    op.create_unique_constraint("unique__site_user__computing_id", "site_user", ["computing_id"])
+    op.create_foreign_key(
+        "fk__site_user__user_session__computing_id", "site_user", "user_session", ["computing_id"], ["computing_id"]
+    )
+
     op.create_table(
         "officer_info",
         sa.Column("legal_name", sa.String(length=128), nullable=False),
@@ -62,32 +86,18 @@ def upgrade() -> None:
         sa.UniqueConstraint("id", name="unique__officer_term__id"),
     )
 
-    # drop all existing site user data
-    # TODO: combine all past migrations into this one
+
+def downgrade() -> None:
+    op.drop_table("officer_term")
+    op.drop_table("officer_info")
+
     op.drop_table("site_user")
     op.create_table(
         "site_user",
-        sa.Column("computing_id", sa.String(32), nullable=False, primary_key=True),
-    )
-    op.create_unique_constraint("unique__site_user__computing_id", "site_user", ["computing_id"])
-    op.create_foreign_key(
-        "fk__site_user__user_session__computing_id", "site_user", "user_session", ["computing_id"], ["computing_id"]
-    )
-
-    # drop all existing user session data
-    # TODO: combine all past migrations into this one
-    op.drop_table("user_session")
-    op.create_table(
-        "user_session",
-        sa.Column("session_id", sa.String(512), nullable=False, primary_key=True),
-        sa.Column("issue_time", sa.DateTime, nullable=False),
+        sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("computing_id", sa.String(32), nullable=False),
     )
-    op.create_unique_constraint("unique__user_session__session_id", "user_session", ["session_id"])
-    op.create_unique_constraint("unique__user_session__computing_id", "user_session", ["computing_id"])
 
-
-def downgrade() -> None:
     op.drop_table("user_session")
     op.create_table(
         "user_session",
@@ -96,13 +106,3 @@ def downgrade() -> None:
         sa.Column("session_id", sa.String(512), nullable=False),
         sa.Column("computing_id", sa.String(32), nullable=False),
     )
-
-    op.drop_table("site_user")
-    op.create_table(
-        "site_user",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("computing_id", sa.String(32), nullable=False),
-    )
-
-    op.drop_table("officer_term")
-    op.drop_table("officer_info")

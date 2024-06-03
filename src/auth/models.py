@@ -1,27 +1,27 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, Integer, String
-# from sqlalchemy.orm import relationship
+from sqlalchemy import Column, DateTime, String, ForeignKey
+from sqlalchemy.orm import relationship
 
+from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
 from database import Base
 
 
 class UserSession(Base):
     __tablename__ = "user_session"
 
-    # primary key for a given user session
-    id = Column(Integer, primary_key=True)
+    # note: a primary key is required for every database table
+    computing_id = Column(
+        String(COMPUTING_ID_LEN), nullable=False, primary_key=True, unique=True
+    )
 
     # time the CAS ticket was issued
     issue_time = Column(DateTime, nullable=False)
 
-    # session ID given to a browser to store in cookies
-    # 512 bytes: the space needed to store 256 bytes in base64
-    session_id = Column(String(512), nullable=False)
+    session_id = Column(
+        String(SESSION_ID_LEN), nullable=False, unique=True
+    )  # the space needed to store 256 bytes in base64
 
-    # SFU computing ID of the user
-    computing_id = Column(
-        String(32), nullable=False
-    )  # used to refer to a row in the site_user table
+    site_user = relationship("User")
 
 
 class User(Base):
@@ -30,12 +30,16 @@ class User(Base):
     __tablename__ = "site_user"
 
     # note: a primary key is required for every database table
-    id = Column(Integer, primary_key=True)
-
-    # SFU computing ID of the user
     computing_id = Column(
-        String(32), nullable=False
-    )  # technically a max of 8 digits https://www.sfu.ca/computing/about/support/tips/sfu-userid.html
+        String(COMPUTING_ID_LEN),
+        ForeignKey("user_session.computing_id"),
+        nullable=False,
+        primary_key=True,
+        unique=True,
+    )
+
+    officer_term = relationship("OfficerTerm")
+    officer_info = relationship("OfficerInfo")
 
     # first and last time logged into the CSSS API
     # note: default date (for pre-existing columns) is June 16th, 2024

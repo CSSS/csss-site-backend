@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Optional
 
 from auth import models
 
@@ -49,6 +50,16 @@ async def check_session_validity(db_session: AsyncSession, session_id: str) -> d
         return {"is_valid": True, "computing_id": existing_user_session.computing_id}
     else:
         return {"is_valid": False}
+
+
+async def get_computing_id(db_session: AsyncSession, session_id: str) -> Optional[str]:
+    query = sqlalchemy.select(models.UserSession).where(models.UserSession.session_id == session_id)
+    existing_user_session = (await db_session.scalars(query)).first()
+
+    if existing_user_session:
+        return existing_user_session.computing_id
+    else:
+        return None
 
 
 # remove all out of date user sessions

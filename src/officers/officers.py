@@ -3,8 +3,7 @@ import database
 import auth.crud
 from src.permission.types import OfficerPrivateInfo
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request
 
 
 router = APIRouter(
@@ -13,7 +12,10 @@ router = APIRouter(
 )
 
 
-@router.get("/current", description="Get information about all the officers. More information is given if you're authenticated & have permissions.")
+@router.get(
+    "/current",
+    description="Get information about all the officers. More information is given if you're authenticated & have permissions.",
+)
 async def current_officers(
     request: Request,  # NOTE: these are the request headers
     db_session: database.DBSession,
@@ -38,10 +40,10 @@ async def current_officers(
     # TODO: use a logging library that enables logging to separate files as modules, so we
     # can have an officers module, etc...
 
-    # TODO: where are root level exceptions raised to? 
+    # TODO: where are root level exceptions raised to?
 
-    # It will also be helpful to have a hook in the logging library to send an email to 
-    # csss-sysadmin@sfu.ca & (csss-webmaster@sfu.ca)? when errors or warnings are logged 
+    # It will also be helpful to have a hook in the logging library to send an email to
+    # csss-sysadmin@sfu.ca & (csss-webmaster@sfu.ca)? when errors or warnings are logged
 
     return {"officers": "no current officers yet!"}
 
@@ -66,20 +68,20 @@ async def past_officers():
 )
 async def enter_info():
     # provide data as json, the response determines if data was inserted into the database or not
-    
+
     # the current user can only input the info for another user if they have permissions
-    
+
     return {}
 
 
-'''
+"""
 @router.get(
     "/my_info",
     description="Get info about whether you are still an executive or not / what your position is.",
 )
 async def my_info():
     return {}
-'''
+"""
 
 
 @router.post(

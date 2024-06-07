@@ -1,16 +1,12 @@
 from typing import Optional
 
-import sqlalchemy
-
 from models import OfficerTerm
 
 import database
 # rom . import schemas
 
-def most_recent_exec_term(
-    db_session: database.DBSession, 
-    computing_id: str
-) -> Optional[OfficerTerm]:
+
+def most_recent_exec_term(db_session: database.DBSession, computing_id: str) -> Optional[OfficerTerm]:
     """
     Returns the most recent OfficerTerm an exec has had
     """
@@ -18,11 +14,12 @@ def most_recent_exec_term(
     query = db_session.query(OfficerTerm)
     query = query.filter(OfficerTerm.computing_id == computing_id)
     query = query.order_by(OfficerTerm.start_date.desc())
-    
+
     # TODO: confirm that the result is an instance of OfficerTerm (or None)
     return query.first()
 
-'''
+
+"""
 # get info about which officers are private
 def get_current_officers_info(db: Session, get_private: bool) -> list:
     query = db.query(Assignment)
@@ -64,4 +61,4 @@ def create_personal_info():
 
 def create_officer():
     pass
-'''
+"""

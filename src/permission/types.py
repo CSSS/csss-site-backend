@@ -1,21 +1,20 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-from enum import Enum
-from typing import Any
 
 from data.semesters import current_semester_start, step_semesters
 
 import database
 
 import officers.crud
-#from officers.crud import latest_exec_term # TODO: figure out the function to import
+# from officers.crud import latest_exec_term # TODO: figure out the function to import
+
 
 class Permission:
     pass
 
+
 # TODO: how to export this from __init__, but still place it in permission.py
 class OfficerPrivateInfo(Permission):
-
     @staticmethod
     def user_has_permission(db_session: database.DBSession, computing_id: str) -> bool:
         """

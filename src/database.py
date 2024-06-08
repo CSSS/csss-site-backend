@@ -1,17 +1,16 @@
+import asyncio
 import contextlib
 import os
-from typing import Any, Annotated, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Depends
-
+import asyncpg
 import sqlalchemy
+from fastapi import Depends, FastAPI
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncSession,
 )
-
-import asyncpg
-import asyncio
 
 # Base = sqlalchemy.ext.declarative.declarative_base()
 Base = sqlalchemy.orm.declarative_base()
@@ -19,7 +18,7 @@ Base = sqlalchemy.orm.declarative_base()
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
-    def __init__(self, db_url: str, engine_kwargs: dict[str, Any] = {}):
+    def __init__(self, db_url: str, engine_kwargs: dict[str, Any]):
         # engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
         self._engine = sqlalchemy.ext.asyncio.create_async_engine(db_url, **engine_kwargs)
         # SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -29,13 +28,14 @@ class DatabaseSessionManager:
         asyncio.get_event_loop().run_until_complete(DatabaseSessionManager.test_connection(db_url))
 
     # test if the database is working & raise an exception if not
+    @staticmethod
     async def test_connection(sqlalchemy_db_url: str):
         try:
             asyncpg_db_url = sqlalchemy_db_url.replace("+asyncpg", "")
             conn = await asyncpg.connect(asyncpg_db_url)
             await conn.close()
         except Exception as e:
-            raise Exception(f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}")
+            raise Exception(f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}") from e
 
         # TODO: setup logging
         print(f"successful connection test to {sqlalchemy_db_url}")

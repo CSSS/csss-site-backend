@@ -1,12 +1,12 @@
 from typing import Optional
 
+import database
 from models import OfficerTerm
 
-import database
 # rom . import schemas
 
 
-def most_recent_exec_term(db_session: database.DBSession, computing_id: str) -> Optional[OfficerTerm]:
+def most_recent_exec_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
     """
     Returns the most recent OfficerTerm an exec has had
     """

@@ -1,10 +1,9 @@
-from datetime import datetime, timezone
-
-from data.semesters import current_semester_start, step_semesters
+from datetime import UTC, datetime, timezone
 
 import database
-
 import officers.crud
+from data.semesters import current_semester_start, step_semesters
+
 # from officers.crud import latest_exec_term # TODO: figure out the function to import
 
 
@@ -26,7 +25,7 @@ class OfficerPrivateInfo(Permission):
         if len(most_recent_exec_term) == 0:
             return False
 
-        current_date = datetime.now(timezone.utc)
+        current_date = datetime.now(UTC)
         semester_start = current_semester_start(current_date)
         NUM_SEMESTERS = 5
         cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)

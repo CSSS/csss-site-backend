@@ -1,7 +1,6 @@
-from fastapi import FastAPI
-
 import database
 from auth import auth
+from fastapi import FastAPI
 
 # from officers import officers
 from tests import tests

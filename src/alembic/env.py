@@ -1,16 +1,14 @@
 import asyncio
 from logging.config import fileConfig
 
+# ruff: noqa: F401
+import auth.models
+import database
+import officers.models
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from alembic import context
-
-import database
-
-# ruff: noqa: F401
-import auth.models
-import officers.models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

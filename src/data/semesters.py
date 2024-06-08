@@ -40,7 +40,7 @@ def current_semester_start(the_date: date) -> date:
         return date(year=the_date.year, month=1, day=1)
 
 
-def current_semester(the_date: date) -> str:
+def current_semester(the_date: date) -> Semester:
     if the_date.month >= 9:
         return Semester.Fall
     elif the_date.month >= 5:
@@ -52,7 +52,7 @@ def current_semester(the_date: date) -> str:
         assert_never()
 
 
-def get_semester_start(semester: Semester, year: int):
+def get_semester_start(year: int, semester: Semester):
     match semester:
         case Semester.Fall:
             return date(year, month=9, day=1)

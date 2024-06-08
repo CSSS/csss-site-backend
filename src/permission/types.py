@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 
-
 from data.semesters import current_semester_start, step_semesters
 
 import database

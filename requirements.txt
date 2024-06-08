@@ -13,4 +13,7 @@ requests==2.31.0
 
 # dev
 ruff
-pre-commit
+# pre-commit
+
+# test
+pytest

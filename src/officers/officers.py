@@ -1,10 +1,8 @@
-import database
-
 import auth.crud
-from src.permission.types import OfficerPrivateInfo
-
+import database
 from fastapi import APIRouter, Request
 
+from src.permission.types import OfficerPrivateInfo
 
 router = APIRouter(
     prefix="/officers",

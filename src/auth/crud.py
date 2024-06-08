@@ -1,10 +1,9 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-from auth import models
-
-import logging
 import sqlalchemy
+from auth import models
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -81,7 +80,7 @@ async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
         return {"is_valid": False}
 
 
-async def get_computing_id(db_session: AsyncSession, session_id: str) -> Optional[str]:
+async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
     query = sqlalchemy.select(models.UserSession).where(models.UserSession.session_id == session_id)
     existing_user_session = (await db_session.scalars(query)).first()
 

@@ -1,3 +1,12 @@
+# from sqlalchemy.orm import relationship
+from constants import (
+    COMPUTING_ID_LEN,
+    DISCORD_ID_LEN,
+    DISCORD_NAME_LEN,
+    DISCORD_NICKNAME_LEN,
+    GITHUB_USERNAME_LEN,
+)
+from database import Base
 from sqlalchemy import (
     Boolean,
     Column,
@@ -7,17 +16,6 @@ from sqlalchemy import (
     String,
     Text,
 )
-# from sqlalchemy.orm import relationship
-
-from constants import (
-    COMPUTING_ID_LEN,
-    DISCORD_ID_LEN,
-    DISCORD_NAME_LEN,
-    DISCORD_NICKNAME_LEN,
-    GITHUB_USERNAME_LEN,
-)
-from database import Base
-
 
 position_to_email = {
     "President": "csss-president@sfu.ca",

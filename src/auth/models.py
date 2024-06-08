@@ -1,9 +1,9 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, String, ForeignKey
-from sqlalchemy.orm import relationship
 
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
 from database import Base
+from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy.orm import relationship
 
 
 class UserSession(Base):

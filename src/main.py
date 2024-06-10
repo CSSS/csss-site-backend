@@ -2,12 +2,12 @@ import database
 from auth import auth
 from fastapi import FastAPI
 
-# from officers import officers
+from officers import officers
 from tests import tests
 
 app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend")
 app.include_router(auth.router)
-# app.include_router(officers.router)
+app.include_router(officers.router)
 app.include_router(tests.router)
 
 

@@ -5,10 +5,7 @@ from pydantic import BaseModel
 # TODO: leave the following, but create one for current_officers private info & non-private info
 # make it so that the docs shows the expected return schema
 
-"""
-# TODO: add structs for returning data from the other api calls
-
-class OfficerPrivateData_Download(BaseModel):
+class OfficerPrivateData(BaseModel):
     computing_id: str | None
     phone_number: str | None
     github_username: str | None
@@ -18,7 +15,7 @@ class OfficerPrivateData_Download(BaseModel):
         orm_mode = True
 
 
-class OfficerPublicData_Download(BaseModel):
+class OfficerData(BaseModel):
     is_current_officer: bool
 
     # an officer may have multiple positions, such as FroshWeekChair & DirectorOfEvents
@@ -37,14 +34,17 @@ class OfficerPublicData_Download(BaseModel):
     favourite_language_0: str | None
     favourite_language_1: str | None
 
-    sfu_email: str | None
+    csss_email: str | None
     biography: str | None
     photo_url: str | None  # some urls get big...
 
-    private_data: OfficerPrivateData_Download | None
+    private_data: OfficerPrivateData | None
 
     class Config:
         orm_mode = True
+
+"""
+# TODO: add structs for returning data from the other api calls
 
 
 # the data that has to be provided when a new officer is created

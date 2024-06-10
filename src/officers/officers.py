@@ -1,8 +1,14 @@
+import logging
+
 import auth.crud
 import database
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
-from src.permission.types import OfficerPrivateInfo
+import officers.crud
+from permission.types import OfficerPrivateInfo
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/officers",
@@ -12,38 +18,29 @@ router = APIRouter(
 
 @router.get(
     "/current",
-    description="Get information about all the officers. More information is given if you're authenticated & have permissions.",
+    description="Get information about all the officers. More information is given if you're authenticated & have access to private executive data.",
 )
 async def current_officers(
-    request: Request,  # NOTE: these are the request headers
+    # the request headers
+    request: Request,
     db_session: database.DBSession,
 ):
-    # TODO: get info about officers that satisfy is_active
-    # If there are more than 1 active for a certain thing, log it to a file
-
     # determine if the user has access to this private data
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         has_private_access = False
     else:
-        computing_id = auth.crud.get_computing_id(db_session, session_id)
-        has_private_access = OfficerPrivateInfo.user_has_permission(db_session, computing_id)
+        computing_id = await auth.crud.get_computing_id(db_session, session_id)
+        has_private_access = await OfficerPrivateInfo.user_has_permission(db_session, computing_id)
 
-    # TODO: question?
-    if has_private_access:
-        pass
-    else:
-        pass
+    current_executives = await officers.crud.current_executive_team(db_session, include_private=has_private_access)
+    json_current_executives = {
+        position: [
+            dict(officer_data) for officer_data in officer_data_list
+        ] for position, officer_data_list in current_executives
+    }
 
-    # TODO: use a logging library that enables logging to separate files as modules, so we
-    # can have an officers module, etc...
-
-    # TODO: where are root level exceptions raised to?
-
-    # It will also be helpful to have a hook in the logging library to send an email to
-    # csss-sysadmin@sfu.ca & (csss-webmaster@sfu.ca)? when errors or warnings are logged
-
-    return {"officers": "no current officers yet!"}
+    return JSONResponse(json_current_executives)
 
 
 # TODO: test this error afterwards

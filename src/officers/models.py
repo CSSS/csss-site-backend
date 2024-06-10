@@ -16,11 +16,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-
-position_to_email = {
-    "President": "csss-president@sfu.ca",
-    # TODO: add them all...
-}
+from sqlalchemy.orm import relationship
 
 
 # a row represents an assignment of a person to a position
@@ -29,7 +25,11 @@ class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
     id = Column(Integer, primary_key=True, unique=True)
-    computing_id = Column(String(COMPUTING_ID_LEN), ForeignKey("site_user.computing_id"), nullable=False)
+    computing_id = Column(
+        String(COMPUTING_ID_LEN), 
+        ForeignKey("site_user.computing_id"), 
+        nullable=False
+    )
 
     is_active = Column(Boolean, nullable=False)
     # a record will only be set as publically visible if sufficient data has been given
@@ -54,6 +54,8 @@ class OfficerTerm(Base):
 
     biography = Column(Text)
     photo_url = Column(Text)  # some urls get big, best to let it be a string
+
+    site_user = relationship("SiteUser", back_populates="officer_term")
 
 
 # this table contains information that we only need a most up-to-date version of, and

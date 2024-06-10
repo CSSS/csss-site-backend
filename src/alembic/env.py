@@ -1,7 +1,6 @@
 import asyncio
 from logging.config import fileConfig
 
-# ruff: noqa: F401
 import auth.models
 import database
 import officers.models

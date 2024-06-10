@@ -21,10 +21,10 @@ class UserSession(Base):
         String(SESSION_ID_LEN), nullable=False, unique=True
     )  # the space needed to store 256 bytes in base64
 
-    site_user = relationship("User")
+    site_user = relationship("SiteUser")
 
 
-class User(Base):
+class SiteUser(Base):
     # user is a reserved word in postgres
     # see: https://stackoverflow.com/questions/22256124/cannot-create-a-database-table-named-user-in-postgresql
     __tablename__ = "site_user"
@@ -38,7 +38,7 @@ class User(Base):
         unique=True,
     )
 
-    officer_term = relationship("OfficerTerm")
+    officer_term = relationship("OfficerTerm", back_populates="site_user")
     officer_info = relationship("OfficerInfo")
 
     # first and last time logged into the CSSS API

@@ -23,7 +23,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
         if existing_user is None:
             # log this strange case
             _logger = logging.getLogger(__name__)
-            _logger.warning("User session {} exists for non-existent user {}!".format(session_id, computing_id))
+            _logger.warning(f"User session {session_id} exists for non-existent user {computing_id}!")
             # create a user for this session
             new_user = models.User(
                 computing_id=computing_id,

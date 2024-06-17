@@ -80,7 +80,7 @@ async def check_authentication(
 
     if session_id:
         await crud.task_clean_expired_user_sessions(db_session)
-        response_dict = await crud.check_session_validity(db_session, session_id)
+        response_dict = await crud.check_user_session(db_session, session_id)
     else:
         response_dict = {"is_valid": False}
 

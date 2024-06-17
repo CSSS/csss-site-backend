@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from auth import models
 
+import logging
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +21,16 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
         query = sqlalchemy.select(models.User).where(models.User.computing_id == computing_id)
         existing_user = (await db_session.scalars(query)).first()
         if existing_user is None:
-            # @geb; throw?
+            # log this strange case
+            _logger = logging.getLogger(__name__)
+            _logger.warning("User session {} exists for non-existent user {}!".format(session_id, computing_id))
+            # create a user for this session
+            new_user = models.User(
+                computing_id=computing_id,
+                first_logged_in=datetime.now(),
+                last_logged_in=datetime.now()
+            )
+            db_session.add(new_user)
             pass
         else:
             # update the last time the user logged in to now
@@ -56,6 +66,8 @@ async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
     existing_user_session = (await db_session.scalars(query)).first()
 
     if existing_user_session:
+        # TODO: replace this select with an sqlalchemy relationship access
+        # see: https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html
         query = sqlalchemy.select(models.User).where(models.User.computing_id == existing_user_session.computing_id)
         existing_user = (await db_session.scalars(query)).first()
         return {

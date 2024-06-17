@@ -73,8 +73,8 @@ async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
         return {
             "is_valid": True,
             "computing_id": existing_user_session.computing_id,
-            "first_logged_in": existing_user.first_logged_in,
-            "last_logged_in": existing_user.last_logged_in
+            "first_logged_in": existing_user.first_logged_in.isoformat(),
+            "last_logged_in": existing_user.last_logged_in.isoformat()
         }
     else:
         return {"is_valid": False}

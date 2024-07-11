@@ -32,10 +32,16 @@ async def discord_request(
     )
     return result
 
-@router.get(
-    "/test",
-    description="test"
-)
+
+# async def get_channel_members(
+#     cid: str,
+#     id: str = guild_id
+# ):
+#     channel = await get_channel(cid, id)
+#     print(channel)
+#     return channel['recipients']
+
+
 async def get_channel(
     cid: str,
     id: str = guild_id
@@ -43,7 +49,7 @@ async def get_channel(
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
     result = await discord_request(url, tok)
-    
+
     result_json = result.json()
     channel = list(filter(lambda x: x['id'] == cid, result_json))
 
@@ -93,6 +99,40 @@ async def get_all_roles(
     json_s = result.json()
     roles = list(map(lambda x: ([x['id'], x['name']]), json_s))
     return dict(roles)
+
+async def get_guild_members_with_role(
+    rid: str,
+    id: str = guild_id
+) -> list[str]:
+    tok = os.environ.get('TOKEN')
+    # base case
+    url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1'
+    result = await discord_request(url, tok)
+
+    json_s = result.json()
+    res = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
+    match = list(filter(lambda x: rid in x[2], res))
+    matched = list(map(lambda x: x[0], match))
+    last_uid = res[-1][1]
+
+    # loop
+    while True:
+        url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1&after={last_uid}'
+        result = await discord_request(url, tok)
+
+        json_s = result.json()
+        res = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
+        match = list(filter(lambda x: rid in x[2], res))
+        match = list(map(lambda x: x[0], match))
+        matched = [*matched, *match]
+
+        if res == []:
+            break
+
+        last_uid = res[-1][1]
+    return matched
+    
+
 
 @router.get(
     "/category",

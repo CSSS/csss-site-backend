@@ -5,8 +5,7 @@ import os
 from constants import guild_id
 
 #todo remove unused imports
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import APIRouter
 
 # ----------------------- #
 # api

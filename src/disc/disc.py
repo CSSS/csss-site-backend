@@ -17,6 +17,20 @@ router = APIRouter(
     tags=["discord"],
 )
 
+async def discord_request(
+    url: str,
+    tok: str
+):
+    result = requests.get(
+        url,
+        headers={
+            'Authorization': f'Bot {tok}',
+            'Content-Type': 'application/json',
+            'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
+        }
+    )
+    return result
+
 async def get_channel(
     cid: str,
     id: str = guild_id
@@ -61,6 +75,17 @@ async def get_channels(
     "/channels",
     description="Grabs all channels in a guild"
 )
+async def get_user_roles(
+    uid: str,
+    id: str = guild_id
+):
+    tok = os.environ.get('TOKEN')
+    url = f'https://discord.com/api/v10/guilds/{id}/members/{uid}'
+    result = await discord_request(url, tok)
+    json_s = result.json()
+    return json_s['roles']
+
+
 async def get_everyone_role(
     id: str = guild_id
 ):
@@ -106,14 +131,7 @@ async def get_guild_members(
     tok = os.environ.get('TOKEN')
     # base case
     url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
-    result = requests.get(
-        url,
-        headers={
-            'Authorization': f'Bot {tok}',
-            'Content-Type': 'application/json',
-            'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
-        }
-    )
+    result = await discord_request(url, tok)
 
     json_s = result.json()
     users = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
@@ -123,14 +141,7 @@ async def get_guild_members(
     # loop
     while True:
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
-        result = requests.get(
-            url,
-            headers={
-                'Authorization': f'Bot {tok}',
-                'Content-Type': 'application/json',
-                'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
-            }
-        )
+        result = await discord_request(url, tok)
         json_s = result.json()
         res = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
         users = [*users, *res]

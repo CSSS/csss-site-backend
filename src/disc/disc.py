@@ -17,10 +17,26 @@ router = APIRouter(
     tags=["discord"],
 )
 
-@router.get(
-    "/channels",
-    description="Grabs all channels in a guild"
-)
+async def get_channel(
+    cid: str,
+    id: str = guild_id
+):
+    tok = os.environ.get('TOKEN')
+    url = f'https://discord.com/api/v10/guilds/{id}/channels'
+    result = requests.get(
+        url,
+        headers={
+            'Authorization': f'Bot {tok}',
+            'Content-Type': 'application/json',
+            'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
+        }
+    )
+
+    result_json = result.json()
+    channel = list(filter(lambda x: x['id'] == cid, result_json))
+
+    return channel
+
 async def get_channels(
     id: str = guild_id
 ):
@@ -42,9 +58,90 @@ async def get_channels(
     return list(map(lambda x: {"channel_name" : x}, channel_names))
 
 @router.get(
+    "/channels",
+    description="Grabs all channels in a guild"
+)
+async def get_everyone_role(
+    id: str = guild_id
+):
+    tok = os.environ.get('TOKEN')
+    url = f'https://discord.com/api/v10/guilds/{id}/roles'
+    result = requests.get(
+        url,
+        headers={
+            'Authorization': f'Bot {tok}',
+            'Content-Type': 'application/json',
+            'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
+        }
+    )
+    json_s = result.json()
+    role = list(filter(lambda x: x['id'] == guild_id, json_s))
+
+    return role
+
+async def get_all_roles(
+    id: str = guild_id
+):
+    tok = os.environ.get('TOKEN')
+    url = f'https://discord.com/api/v10/guilds/{id}/roles'
+    result = requests.get(
+        url,
+        headers={
+            'Authorization': f'Bot {tok}',
+            'Content-Type': 'application/json',
+            'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
+        }
+    )
+    json_s = result.json()
+    roles = list(map(lambda x: ([x['id'], x['permissions']]), json_s))
+    return dict(roles)
+
+@router.get(
     "/category",
     description="Grabs channels by category"
 )
+async def get_guild_members(
+    id: str = guild_id
+):
+    tok = os.environ.get('TOKEN')
+    # base case
+    url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
+    result = requests.get(
+        url,
+        headers={
+            'Authorization': f'Bot {tok}',
+            'Content-Type': 'application/json',
+            'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
+        }
+    )
+
+    json_s = result.json()
+    users = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
+    
+    last_uid = users[-1][1]
+
+    # loop
+    while True:
+        url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
+        result = requests.get(
+            url,
+            headers={
+                'Authorization': f'Bot {tok}',
+                'Content-Type': 'application/json',
+                'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
+            }
+        )
+        json_s = result.json()
+        res = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
+        users = [*users, *res]
+
+        if res == []:
+            break
+
+        last_uid = users[-1][1]
+    return users
+
+
 async def get_categories(
     id: str = guild_id
 ):

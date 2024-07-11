@@ -86,24 +86,6 @@ async def get_user_roles(
     return json_s['roles']
 
 
-async def get_everyone_role(
-    id: str = guild_id
-):
-    tok = os.environ.get('TOKEN')
-    url = f'https://discord.com/api/v10/guilds/{id}/roles'
-    result = requests.get(
-        url,
-        headers={
-            'Authorization': f'Bot {tok}',
-            'Content-Type': 'application/json',
-            'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
-        }
-    )
-    json_s = result.json()
-    role = list(filter(lambda x: x['id'] == guild_id, json_s))
-
-    return role
-
 async def get_all_roles(
     id: str = guild_id
 ):

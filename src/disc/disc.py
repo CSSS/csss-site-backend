@@ -43,6 +43,7 @@ async def get_channel(
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
     result = await discord_request(url, tok)
+    
     result_json = result.json()
     channel = list(filter(lambda x: x['id'] == cid, result_json))
 
@@ -54,6 +55,7 @@ async def get_channels(
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
     result = await discord_request(url, tok)
+
     result_json = result.json()
     channels = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID, result_json))
     channel_names = list(map(lambda x: x['name'], channels))
@@ -76,6 +78,7 @@ async def get_user_roles(
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/members/{uid}'
     result = await discord_request(url, tok)
+
     json_s = result.json()
     return json_s['roles']
 
@@ -86,6 +89,7 @@ async def get_all_roles(
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
     result = await discord_request(url, tok)
+
     json_s = result.json()
     roles = list(map(lambda x: ([x['id'], x['name']]), json_s))
     return dict(roles)
@@ -104,13 +108,13 @@ async def get_guild_members(
 
     json_s = result.json()
     users = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
-    
     last_uid = users[-1][1]
 
     # loop
     while True:
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
         result = await discord_request(url, tok)
+
         json_s = result.json()
         res = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
         users = [*users, *res]

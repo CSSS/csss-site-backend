@@ -1,11 +1,9 @@
 import requests
 from requests import Response
-import json
 import os
 
 from constants import guild_id
 
-#todo remove unused imports
 from fastapi import APIRouter
 
 # ----------------------- #

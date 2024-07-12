@@ -11,7 +11,7 @@ class UserSession(Base):
 
     # note: a primary key is required for every database table
     computing_id = Column(
-        String(COMPUTING_ID_LEN), nullable=False, primary_key=True, unique=True
+        String(COMPUTING_ID_LEN), nullable=False, primary_key=True
     )
 
     # time the CAS ticket was issued
@@ -35,7 +35,6 @@ class SiteUser(Base):
         ForeignKey("user_session.computing_id"),
         nullable=False,
         primary_key=True,
-        unique=True,
     )
 
     officer_term = relationship("OfficerTerm", back_populates="site_user")

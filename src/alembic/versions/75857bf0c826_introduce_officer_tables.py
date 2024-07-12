@@ -30,7 +30,6 @@ def upgrade() -> None:
         sa.Column("computing_id", sa.String(32), nullable=False),
     )
     op.create_unique_constraint("unique__user_session__session_id", "user_session", ["session_id"])
-    op.create_unique_constraint("unique__user_session__computing_id", "user_session", ["computing_id"])
 
     # drop all existing site user data
     # TODO: combine all past migrations into this one
@@ -39,7 +38,6 @@ def upgrade() -> None:
         "site_user",
         sa.Column("computing_id", sa.String(32), nullable=False, primary_key=True),
     )
-    op.create_unique_constraint("unique__site_user__computing_id", "site_user", ["computing_id"])
     op.create_foreign_key(
         "fk__site_user__user_session__computing_id", "site_user", "user_session", ["computing_id"], ["computing_id"]
     )
@@ -58,7 +56,6 @@ def upgrade() -> None:
             ["computing_id"], ["site_user.computing_id"], name="fk__officer_info__site_user__computing_id"
         ),
         sa.PrimaryKeyConstraint("computing_id", name="pk__officer_info__computing_id"),
-        sa.UniqueConstraint("computing_id", name="unique__officer_info__computing_id"),
     )
     op.create_table(
         "officer_term",
@@ -83,7 +80,7 @@ def upgrade() -> None:
             name="fk__officer_term__site_user__computing_id",
         ),
         sa.PrimaryKeyConstraint("id", name="pk__officer_term__id"),
-        sa.UniqueConstraint("id", name="unique__officer_term__id"),
+        sa.UniqueConstraint("computing_id", name="unique__officer_term__computing_id"),
     )
 
 

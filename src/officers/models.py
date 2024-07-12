@@ -24,10 +24,11 @@ from sqlalchemy.orm import relationship
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
-    id = Column(Integer, primary_key=True, unique=True)
+    id = Column(Integer, primary_key=True)
     computing_id = Column(
         String(COMPUTING_ID_LEN), 
         ForeignKey("site_user.computing_id"), 
+        unique=True,
         nullable=False
     )
 
@@ -76,7 +77,6 @@ class OfficerInfo(Base):
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),
         primary_key=True,
-        unique=True,
     )
     phone_number = Column(String(24))
     github_username = Column(String(GITHUB_USERNAME_LEN))

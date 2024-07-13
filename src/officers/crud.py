@@ -188,11 +188,5 @@ def update_officer_term(
     # instead of adding a new entry
     db_session.add(new_officer_term)
 
-def update_officer_term():
-    """
-    Will create a new officer term entry if one doesn't already exist
-    """
-    pass
-
 def remove_officer_term():
     pass

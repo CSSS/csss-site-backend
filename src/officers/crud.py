@@ -1,17 +1,17 @@
-import logging
 import dataclasses
-
-import sqlalchemy
+import logging
+from datetime import datetime
 
 import database
+import sqlalchemy
 
-from officers.models import OfficerInfo, OfficerTerm
 from officers.constants import OfficerPosition
+from officers.models import OfficerInfo, OfficerTerm
 from officers.schemas import (
-    OfficerInfoData,
-
-    OfficerPrivateData,
     OfficerData,
+    OfficerInfoData,
+    OfficerPrivateData,
+    OfficerTermData,
 )
 
 _logger = logging.getLogger(__name__)
@@ -33,17 +33,26 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
 
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
     """
-    Get info about officers that satisfy is_active. Go through all active & complete officer terms.
+    Get info about officers that are active. Go through all active & complete officer terms.
     """
 
     query = sqlalchemy.select(OfficerTerm)
-    query = query.filter(OfficerTerm.is_active and OfficerTerm.is_complete)
+    query = query.filter(
+        OfficerTerm.is_filled_in
+        and (
+            # executives without a specified end_date are considered active
+            OfficerTerm.end_date is None
+            # check that today's timestamp is before (smaller than) the term's end date
+            or (datetime.today() <= OfficerTerm.end_date)
+        )
+    )
     query = query.order_by(OfficerTerm.start_date.desc())
 
     officer_terms = (await db_session.scalars(query)).all()
     num_officers = {}
     officer_data = {}
 
+    # TODO: can i clean this up?
     for term in officer_terms:
         if term.position not in [officer.value for officer in OfficerPosition]:
             _logger.warning(
@@ -103,7 +112,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
                 f"Expected position={position.to_string()} in response current_executive_team."
             )
         elif (
-            position.num_active is not None 
+            position.num_active is not None
             and len(officer_data[position.to_string()]) != position.num_active
         ):
             _logger.warning(
@@ -140,64 +149,50 @@ def update_officer_info(db_session: database.DBSession, officer_info_data: Offic
         github_username = officer_info_data.github_username,
         google_drive_email = officer_info_data.google_drive_email,
     )
+    # TODO: check if an entry with this computing_id already exists, & update it
+    # instead of adding a new entry
     db_session.add(new_user_session)
 
-def create_officer_term():
+def update_officer_term(
+    db_session: database.DBSession,
+    officer_term_data: OfficerTermData,
+):
     """
     Creates an officer term entry
     """
-    pass
+
+    # TODO: test this
+    is_filled_in = True
+    for field in dataclasses.fields(officer_term_data):
+        if getattr(officer_term_data, field) is None:
+            is_filled_in = False
+            break
+
+    new_officer_term = OfficerTerm(
+        computing_id = officer_term_data.computing_id,
+        is_filled_in = is_filled_in,
+
+        position = officer_term_data.position,
+        start_date = officer_term_data.start_date,
+        end_date = officer_term_data.end_date,
+
+        nickname = officer_term_data.nickname,
+        favourite_course_0 = officer_term_data.favourite_course_0,
+        favourite_course_1 = officer_term_data.favourite_course_1,
+        favourite_pl_0 = officer_term_data.favourite_pl_0,
+        favourite_pl_1 = officer_term_data.favourite_pl_1,
+        biography = officer_term_data.biography,
+        photo_url = officer_term_data.photo_url,
+    )
+    # TODO: check if an entry with this (computing_id, position, start_date) already exists, & update it
+    # instead of adding a new entry
+    db_session.add(new_officer_term)
 
 def update_officer_term():
     """
     Will create a new officer term entry if one doesn't already exist
     """
     pass
-    
+
 def remove_officer_term():
     pass
-
-
-"""
-# get info about which officers are private
-def get_current_officers_info(db: Session, get_private: bool) -> list:
-    query = db.query(Assignment)
-    data = query.filter(Assignment.is_active).filter(Assignment.is_public).limit(50).all()
-    return data  # TODO: what is the type of data?
-
-
-# TODO: what do all these db functions do?
-def create_new_assignment(db: Session, new_officer_data: schemas.NewOfficerData_Upload):
-    # TODO: check if this officer already exists in the table by the computing_id
-    # new_officer = Officer()
-
-    new_assignment = Assignment(
-        is_active=True,
-        is_public=False,
-        position=new_officer_data.position,
-        start_date=new_officer_data.start_date,
-        # position = new_officer_data.position,
-        officer_id=-1,  # TODO: how to link to another table entry ???
-    )
-    db.add(new_assignment)
-    db.commit()
-    db.refresh(new_assignment)  # refresh the current db instance with updated data
-    return new_assignment
-
-
-# TODO: decide on data containers later, based on whatever makes the most sense.
-def update_assignment(
-    db: Session,
-    personal_data: schemas.OfficerPersonalData_Upload,
-    position_data: schemas.OfficerPositionData_Upload,
-):
-    pass
-
-
-def create_personal_info():
-    pass
-
-
-def create_officer():
-    pass
-"""

@@ -26,18 +26,18 @@ class OfficerTerm(Base):
 
     id = Column(Integer, primary_key=True)
     computing_id = Column(
-        String(COMPUTING_ID_LEN), 
-        ForeignKey("site_user.computing_id"), 
+        String(COMPUTING_ID_LEN),
+        ForeignKey("site_user.computing_id"),
         unique=True,
         nullable=False,
     )
 
-    is_active = Column(Boolean, nullable=False)
     # a record will only be set as publically visible if sufficient data has been given
-    is_complete = Column(Boolean, nullable=False)
+    is_filled_in = Column(Boolean, nullable=False)
 
     position = Column(String(128), nullable=False)
     start_date = Column(DateTime, nullable=False)
+    # end_date is only not-specified for positions that don't have a length (ie. webmaster)
     end_date = Column(DateTime)
 
     # Each row is information that *might* get updated each term.
@@ -45,14 +45,11 @@ class OfficerTerm(Base):
     # is not saved, so changes are lost.
 
     nickname = Column(String(128))
-
     favourite_course_0 = Column(String(32))
     favourite_course_1 = Column(String(32))
-
     # programming language
     favourite_pl_0 = Column(String(32))
     favourite_pl_1 = Column(String(32))
-
     biography = Column(Text)
     photo_url = Column(Text)  # some urls get big, best to let it be a string
 
@@ -65,6 +62,7 @@ class OfficerInfo(Base):
     __tablename__ = "officer_info"
 
     is_filled_in = Column(Boolean, nullable=False)
+    # TODO: we'll need to use SFU's API to get the legal name for users
     legal_name = Column(String(128), nullable=False)  # some people have long names, you never know
 
     # a null discord id would mean you don't have discord

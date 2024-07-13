@@ -1,6 +1,5 @@
-from datetime import datetime
-
 from dataclasses import dataclass
+from datetime import date, datetime
 
 # TODO: switch to using python dataclasses instead of pydantic base models (performance)
 from pydantic import BaseModel
@@ -16,13 +15,31 @@ class OfficerInfoData:
     discord_name: None | str
     discord_nickname: None | str
 
-    computing_id: None | str
+    computing_id: str
     phone_number: None | str
     github_username: None | str
     google_drive_email: None | str
 
+class OfficerTermData:
+    computing_id: str
+
+    position: str
+    start_date: date
+    end_date: None | date
+
+    nickname: None | str
+    favourite_course_0: None | str
+    favourite_course_1: None | str
+    favourite_pl_0: None | str
+    favourite_pl_1: None | str
+    biography: None | str
+
+    # TODO: we're going to need an API call to upload images
+    photo_url: None | str
+
 # -------------------------------------------- #
 
+# TODO: what are these for again? Returning data from endpoints?
 class OfficerPrivateData(BaseModel):
     computing_id: str | None
     phone_number: str | None

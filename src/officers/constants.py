@@ -37,7 +37,7 @@ class OfficerPosition(Enum):
 
         _logger.warning(f"Unknown OfficerPosition position = {position}. reporting N/A.")
         return None
-    
+
     def to_string(self) -> str:
         return self.value
 
@@ -89,17 +89,17 @@ class OfficerPosition(Enum):
         """
         # None means there can be any number active
         if (
-            self == OfficerPosition.ExecutiveAtLarge 
+            self == OfficerPosition.ExecutiveAtLarge
             or self == OfficerPosition.FirstYearRepresentative
         ):
             return 2
         elif (
-            self == OfficerPosition.FroshWeekChair 
+            self == OfficerPosition.FroshWeekChair
             or OfficerPosition.SocialMediaManager
         ):
             # TODO: configure this value in a database table somewhere?
             return None
-        else: 
+        else:
             return 1
 
     def is_signer(self) -> bool:
@@ -113,7 +113,7 @@ class OfficerPosition(Enum):
             or self == OfficerPosition.DirectorOfResources
             or self == OfficerPosition.DirectorOfEvents
         )
-    
+
     @staticmethod
     def expected_positions() -> list[Self]:
         return [
@@ -131,7 +131,7 @@ class OfficerPosition(Enum):
             OfficerPosition.DirectorOfArchives,
             OfficerPosition.ExecutiveAtLarge,
             # TODO: expect these only during fall & spring semesters. Also, TODO: this todo is correct...
-            #FirstYearRepresentative, 
+            #FirstYearRepresentative,
 
             #ElectionsOfficer,
             OfficerPosition.SFSSCouncilRepresentative,

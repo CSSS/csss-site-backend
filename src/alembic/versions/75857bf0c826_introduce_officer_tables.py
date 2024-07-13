@@ -44,6 +44,7 @@ def upgrade() -> None:
 
     op.create_table(
         "officer_info",
+        sa.Column("is_filled_in", sa.Boolean(), nullable=False),
         sa.Column("legal_name", sa.String(length=128), nullable=False),
         sa.Column("discord_id", sa.String(length=18), nullable=True),
         sa.Column("discord_name", sa.String(length=32), nullable=True),

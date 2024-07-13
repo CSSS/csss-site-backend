@@ -29,7 +29,7 @@ class OfficerTerm(Base):
         String(COMPUTING_ID_LEN), 
         ForeignKey("site_user.computing_id"), 
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     is_active = Column(Boolean, nullable=False)
@@ -64,6 +64,7 @@ class OfficerTerm(Base):
 class OfficerInfo(Base):
     __tablename__ = "officer_info"
 
+    is_filled_in = Column(Boolean, nullable=False)
     legal_name = Column(String(128), nullable=False)  # some people have long names, you never know
 
     # a null discord id would mean you don't have discord

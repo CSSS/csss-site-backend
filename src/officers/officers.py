@@ -31,7 +31,7 @@ async def current_officers(
         has_private_access = False
     else:
         computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        has_private_access = await OfficerPrivateInfo.user_has_permission(db_session, computing_id)
+        has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
 
     current_executives = await officers.crud.current_executive_team(db_session, include_private=has_private_access)
     json_current_executives = {

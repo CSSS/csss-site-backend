@@ -1,9 +1,27 @@
 from datetime import datetime
 
+from dataclasses import dataclass
+
+# TODO: switch to using python dataclasses instead of pydantic base models (performance)
 from pydantic import BaseModel
 
 # TODO: leave the following, but create one for current_officers private info & non-private info
 # make it so that the docs shows the expected return schema
+
+# TODO: are any of these nullable? Not sure yet...
+@dataclass
+class OfficerInfoData:
+    legal_name: None | str
+    discord_id: None | str # TODO: do we need this to get info about a person
+    discord_name: None | str
+    discord_nickname: None | str
+
+    computing_id: None | str
+    phone_number: None | str
+    github_username: None | str
+    google_drive_email: None | str
+
+# -------------------------------------------- #
 
 class OfficerPrivateData(BaseModel):
     computing_id: str | None

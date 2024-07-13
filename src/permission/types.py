@@ -7,7 +7,7 @@ from data.semesters import current_semester_start, step_semesters
 
 class OfficerPrivateInfo:
     @staticmethod
-    async def user_has_permission(db_session: database.DBSession, computing_id: str) -> bool:
+    async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
         """
         A user has access to private officer info if they've been an exec sometime in the past 5 semesters.
         A semester is defined in semester_start

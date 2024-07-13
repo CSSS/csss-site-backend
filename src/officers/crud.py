@@ -1,12 +1,18 @@
 import logging
+import dataclasses
 
 import sqlalchemy
 
 import database
 
-from officers.models import OfficerTerm
+from officers.models import OfficerInfo, OfficerTerm
 from officers.constants import OfficerPosition
-from officers.schemas import OfficerData, OfficerPrivateData
+from officers.schemas import (
+    OfficerInfoData,
+
+    OfficerPrivateData,
+    OfficerData,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -24,6 +30,7 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
     # TODO: can this be replaced with scalar to improve performance?
     return (await db_session.scalars(query)).first()
 
+
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
     """
     Get info about officers that satisfy is_active. Go through all active & complete officer terms.
@@ -36,7 +43,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
     officer_terms = (await db_session.scalars(query)).all()
     num_officers = {}
     officer_data = {}
-    
+
     for term in officer_terms:
         if term.position not in [officer.value for officer in OfficerPosition]:
             _logger.warning(
@@ -105,6 +112,50 @@ async def current_executive_team(db_session: database.DBSession, include_private
             )
 
     return officer_data
+
+
+# TODO: do we ever expect to need to remove officer info? Probably not? Just updating it.
+def update_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData):
+    """
+    Will create a new officer info entry if one doesn't already exist
+    """
+
+    # TODO: test this
+    is_filled_in = True
+    for field in dataclasses.fields(officer_info_data):
+        if getattr(officer_info_data, field) is None:
+            is_filled_in = False
+            break
+
+    new_user_session = OfficerInfo(
+        is_filled_in = is_filled_in,
+
+        legal_name = officer_info_data.legal_name,
+        discord_id = officer_info_data.discord_id,
+        discord_name = officer_info_data.discord_name,
+        discord_nickname = officer_info_data.discord_nickname,
+
+        computing_id = officer_info_data.computing_id,
+        phone_number = officer_info_data.phone_number,
+        github_username = officer_info_data.github_username,
+        google_drive_email = officer_info_data.google_drive_email,
+    )
+    db_session.add(new_user_session)
+
+def create_officer_term():
+    """
+    Creates an officer term entry
+    """
+    pass
+
+def update_officer_term():
+    """
+    Will create a new officer term entry if one doesn't already exist
+    """
+    pass
+    
+def remove_officer_term():
+    pass
 
 
 """

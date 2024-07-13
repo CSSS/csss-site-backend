@@ -10,6 +10,8 @@ from fastapi import APIRouter
 # api
 
 DISCORD_CATEGORY_ID = 4
+ADMINISTRATOR = 1 << 3
+VIEW_CHANNEL = 1 << 10
 
 router = APIRouter(
     prefix="/discord",
@@ -30,15 +32,68 @@ async def discord_request(
     )
     return result
 
+@router.get(
+    "/test",
+    description="test test test"
+)
+async def get_channel_members(
+    cid: str,
+    id: str = guild_id
+):
+    channel = await get_channel(cid, id)
+    channel_overwrites = channel[0]['permission_overwrites']
+    channel_overwrites = dict(map(lambda x: (x['id'], dict(type = x['type'], allow = x['allow'], deny = x['deny'])), channel_overwrites))
 
-# async def get_channel_members(
-#     cid: str,
-#     id: str = guild_id
-# ):
-#     channel = await get_channel(cid, id)
-#     print(channel)
-#     return channel['recipients']
+    # note that there can exist only one @everyone override, break if found
+    if id in channel_overwrites:
+        role_everyone_overrides = channel_overwrites[id]
+    else:
+         role_everyone_overrides = None
+    
+    role_everyone = await get_role_by_id(id, id)
+    base_permission = role_everyone[0]['permissions']
 
+    users = await get_guild_members(guild_id)
+    roles = await get_all_roles(guild_id)
+
+    users_with_access = []
+    # note string conversion to int
+    for user in users:
+        permission = int(base_permission)
+        print()
+        # compute base permission
+        for role in user[2]:
+            permission |= int(roles[role][1])
+
+        # check admin
+        if permission & ADMINISTRATOR == ADMINISTRATOR:
+            users_with_access.append(user)
+        
+        # check @everyone perms
+        if role_everyone_overrides is not None:
+            permission &= ~int(role_everyone_overrides['deny'])
+            permission |= int(role_everyone_overrides['allow'])
+
+        allow = 0
+        deny = 0
+        for role in user[2]:
+            if role in channel_overwrites:
+                allow |= int(channel_overwrites[role]['allow'])
+                deny |= int(channel_overwrites[role]['deny'])
+        permission &= ~deny
+        permission |= allow
+
+        # check member specific perms
+        if user[1] in channel_overwrites:
+            # switching of 'deny' and 'allow' intentional
+            permission &= ~int(channel_overwrites[user[1]]['deny'])
+            permission |= int(channel_overwrites[user[1]]['allow'])
+
+        if permission & VIEW_CHANNEL == VIEW_CHANNEL:
+            if user not in users_with_access:
+                users_with_access.append(user)
+
+    return users_with_access
 
 async def get_channel(
     cid: str,
@@ -74,6 +129,16 @@ async def get_role_name_by_id(
     roles = await get_all_roles(id)
     return roles[rid]
 
+async def get_role_by_id(
+    rid: str,
+    id: str = guild_id
+) -> list:
+    tok = os.environ.get('TOKEN')
+    url = f'https://discord.com/api/v10/guilds/{id}/roles'
+    result = await discord_request(url, tok)
+
+    json_s = result.json()
+    return list(filter(lambda x: x['id'] == guild_id, json_s))
 
 async def get_user_roles(
     uid: str,
@@ -89,13 +154,13 @@ async def get_user_roles(
 
 async def get_all_roles(
     id: str = guild_id
-) ->  dict[str, str]:
+) ->  dict[str, str, list[str]]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    roles = list(map(lambda x: ([x['id'], x['name']]), json_s))
+    roles = list(map(lambda x: ([x['id'], [x['name'], x['permissions']]]), json_s))
     return dict(roles)
 
 async def get_guild_members_with_role(
@@ -145,7 +210,7 @@ async def get_guild_members(
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    users = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
+    users = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
     last_uid = users[-1][1]
 
     # loop
@@ -154,7 +219,7 @@ async def get_guild_members(
         result = await discord_request(url, tok)
 
         json_s = result.json()
-        res = list(map(lambda x: [x['user']['username'], x['user']['id']], json_s))
+        res = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
         users = [*users, *res]
 
         if res == []:
@@ -199,9 +264,3 @@ async def get_channels_by_category_id(
     result_json = result.json()
     categories = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID and x['parent_id'] == cid, result_json))
     return list(map(lambda x: x['name'], categories))
-    
-
-        
-
-
-

@@ -4,19 +4,12 @@ import os
 
 from constants import guild_id
 
-from fastapi import APIRouter
-
 # ----------------------- #
 # api
 
 DISCORD_CATEGORY_ID = 4
 ADMINISTRATOR = 1 << 3
 VIEW_CHANNEL = 1 << 10
-
-router = APIRouter(
-    prefix="/discord",
-    tags=["discord"],
-)
 
 async def discord_request(
     url: str,
@@ -32,14 +25,10 @@ async def discord_request(
     )
     return result
 
-@router.get(
-    "/test",
-    description="test test test"
-)
 async def get_channel_members(
     cid: str,
     id: str = guild_id
-):
+) -> list:
     channel = await get_channel(cid, id)
     channel_overwrites = channel[0]['permission_overwrites']
     channel_overwrites = dict(map(lambda x: (x['id'], dict(type = x['type'], allow = x['allow'], deny = x['deny'])), channel_overwrites))
@@ -195,12 +184,6 @@ async def get_guild_members_with_role(
         last_uid = res[-1][1]
     return matched
     
-
-
-@router.get(
-    "/category",
-    description="Grabs channels by category"
-)
 async def get_guild_members(
     id: str = guild_id
 ) -> list[list]:

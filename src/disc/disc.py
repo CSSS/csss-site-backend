@@ -11,6 +11,17 @@ DISCORD_CATEGORY_ID = 4
 ADMINISTRATOR = 1 << 3
 VIEW_CHANNEL = 1 << 10
 
+class User:
+    def __init__(self, id: str, username: str, discriminator: str, global_name: str=None, avatar: str=None) -> None:
+        self.id = id
+        self.username = username
+        self.discriminator = discriminator
+        self.global_name = global_name
+        self.avatar = avatar
+    
+    def __str__(self) -> str:
+        return f"{self.username}, {self.id}"
+
 async def discord_request(
     url: str,
     tok: str
@@ -247,3 +258,14 @@ async def get_channels_by_category_id(
     result_json = result.json()
     categories = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID and x['parent_id'] == cid, result_json))
     return list(map(lambda x: x['name'], categories))
+
+async def search_user(
+    user: str,
+    id: str = guild_id
+) -> User:
+    tok = os.environ.get('TOKEN')
+    url = f'https://discord.com/api/v10/guilds/{id}/members/search?query={user}'
+    result = await discord_request(url, tok)
+    json = result.json()[0]['user']
+    user = User(json['id'], json['username'], json['discriminator'], json['global_name'], json['avatar'])
+    return user

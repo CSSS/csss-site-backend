@@ -168,7 +168,7 @@ async def get_user_roles(
 
 async def get_all_roles(
     id: str = guild_id
-) ->  dict[str, str, list[str]]:
+) ->  dict[str, list[str]]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
     result = await discord_request(url, tok)
@@ -211,15 +211,16 @@ async def get_guild_members_with_role(
     
 async def get_guild_members(
     id: str = guild_id
-) -> list[list]:
+) -> list[GuildMember]:
     tok = os.environ.get('TOKEN')
     # base case
     url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    users = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
-    last_uid = users[-1][1]
+    
+    users = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
+    last_uid = users[-1].user.id
 
     # loop
     while True:
@@ -227,13 +228,13 @@ async def get_guild_members(
         result = await discord_request(url, tok)
 
         json_s = result.json()
-        res = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
+        res = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
         users = [*users, *res]
 
         if res == []:
             break
 
-        last_uid = users[-1][1]
+        last_uid = res[-1].user.id
     return users
 
 async def get_categories(

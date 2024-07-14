@@ -53,7 +53,7 @@ async def discord_request(
 async def get_channel_members(
     cid: str,
     id: str = guild_id
-) -> list:
+) -> list[GuildMember]:
     channel = await get_channel(cid, id)
     channel_overwrites = channel[0]['permission_overwrites']
     channel_overwrites = dict(map(lambda x: (x['id'], dict(type = x['type'], allow = x['allow'], deny = x['deny'])), channel_overwrites))
@@ -65,7 +65,7 @@ async def get_channel_members(
          role_everyone_overrides = None
     
     role_everyone = await get_role_by_id(id, id)
-    base_permission = role_everyone[0]['permissions']
+    base_permission = role_everyone['permissions']
 
     users = await get_guild_members(guild_id)
     roles = await get_all_roles(guild_id)
@@ -74,9 +74,8 @@ async def get_channel_members(
     # note string conversion to int
     for user in users:
         permission = int(base_permission)
-        print()
         # compute base permission
-        for role in user[2]:
+        for role in user.roles:
             permission |= int(roles[role][1])
 
         # check admin
@@ -90,7 +89,7 @@ async def get_channel_members(
 
         allow = 0
         deny = 0
-        for role in user[2]:
+        for role in user.roles:
             if role in channel_overwrites:
                 allow |= int(channel_overwrites[role]['allow'])
                 deny |= int(channel_overwrites[role]['deny'])
@@ -98,10 +97,10 @@ async def get_channel_members(
         permission |= allow
 
         # check member specific perms
-        if user[1] in channel_overwrites:
+        if user.user.id in channel_overwrites:
             # switching of 'deny' and 'allow' intentional
-            permission &= ~int(channel_overwrites[user[1]]['deny'])
-            permission |= int(channel_overwrites[user[1]]['allow'])
+            permission &= ~int(channel_overwrites[user.user.id]['deny'])
+            permission |= int(channel_overwrites[user.user.id]['allow'])
 
         if permission & VIEW_CHANNEL == VIEW_CHANNEL:
             if user not in users_with_access:

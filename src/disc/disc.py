@@ -35,6 +35,19 @@ class GuildMember:
 
     def __repr__(self) -> str:
         return f"{self.user.username}"
+    
+class Channel:
+    def __init__(self, id: str, type: int, guild_id: str, name: str, permissions: str) -> None:
+        self.id = id
+        self.type = type
+        self.name = name
+        self.permissions = permissions
+
+    def __str__self(self) -> str:
+        return f"{self.id}, {self.name}"
+    
+    def __repr__(self) -> str:
+        return f"{self.id}, {self.name}"
 
 async def discord_request(
     url: str,

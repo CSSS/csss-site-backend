@@ -178,7 +178,6 @@ async def get_user_roles(
     json_s = result.json()
     return json_s['roles']
 
-
 async def get_all_roles(
     id: str = guild_id
 ) ->  dict[str, list[str]]:
@@ -264,7 +263,7 @@ async def get_categories(
 async def get_channels_by_category_name(
     category_name: str,
     id: str = guild_id
-) -> list[str]:
+) -> list[Channel]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
     result = await discord_request(url, tok)
@@ -273,19 +272,21 @@ async def get_channels_by_category_name(
     # TODO: edge case if there exist duplicate category names, see get_channels_by_category_id()
     category_id = list(filter(lambda x: x['type'] == DISCORD_CATEGORY_ID and x['name'] == category_name, result_json))[0]['id']
     channels = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID and x['parent_id'] == category_id, result_json))
-    return list(map(lambda x: x['name'], channels))
+    channels = list(map(lambda x: Channel(x['id'], x['type'], x['guild_id'], x['name'], x['permission_overwrites']), channels))
+    return channels
 
 async def get_channels_by_category_id(
     cid: str,
     id: str = guild_id
-) -> list[str]:
+) -> list[Channel]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
     result = await discord_request(url, tok)
 
     result_json = result.json()
-    categories = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID and x['parent_id'] == cid, result_json))
-    return list(map(lambda x: x['name'], categories))
+    channels = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID and x['parent_id'] == cid, result_json))
+    channels = list(map(lambda x: Channel(x['id'], x['type'], x['guild_id'], x['name'], x['permission_overwrites']), channels))
+    return channels
 
 async def search_user(
     user: str,

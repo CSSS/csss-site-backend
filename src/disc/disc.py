@@ -146,13 +146,13 @@ async def get_role_name_by_id(
 async def get_role_by_id(
     rid: str,
     id: str = guild_id
-) -> list:
+) -> dict:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    return list(filter(lambda x: x['id'] == guild_id, json_s))
+    return list(filter(lambda x: x['id'] == guild_id, json_s))[0]
 
 async def get_user_roles(
     uid: str,

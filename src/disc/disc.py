@@ -21,6 +21,9 @@ class User:
     
     def __str__(self) -> str:
         return f"{self.username}, {self.id}"
+    
+    def __repr__(self) -> str:
+        return f"{self.username}, {self.id}"
 
 class GuildMember:
     def __init__(self, user: User = None, roles: list[str] = None) -> None:

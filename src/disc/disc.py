@@ -37,11 +37,11 @@ class GuildMember:
         return f"{self.user.username}"
     
 class Channel:
-    def __init__(self, id: str, type: int, guild_id: str, name: str, permissions: str) -> None:
+    def __init__(self, id: str, type: int, guild_id: str, name: str, permission_overwrites: list[str] = None) -> None:
         self.id = id
         self.type = type
         self.name = name
-        self.permissions = permissions
+        self.permission_overwrites = permission_overwrites
 
     def __str__self(self) -> str:
         return f"{self.id}, {self.name}"
@@ -124,13 +124,14 @@ async def get_channel_members(
 async def get_channel(
     cid: str,
     id: str = guild_id
-) -> list:
+) -> Channel:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
     result = await discord_request(url, tok)
 
     result_json = result.json()
-    channel = list(filter(lambda x: x['id'] == cid, result_json))
+    channel = list(filter(lambda x: x['id'] == cid, result_json))[0]
+    channel = Channel(channel['id'], channel['type'], channel['guild_id'], channel['name'], channel['permission_overwrites'])
 
     return channel
 

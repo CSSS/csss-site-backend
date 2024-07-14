@@ -141,7 +141,7 @@ async def get_role_name_by_id(
     id: str = guild_id
 ) -> str:
     roles = await get_all_roles(id)
-    return roles[rid]
+    return roles[rid][0]
 
 async def get_role_by_id(
     rid: str,

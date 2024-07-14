@@ -22,6 +22,17 @@ class User:
     def __str__(self) -> str:
         return f"{self.username}, {self.id}"
 
+class GuildMember:
+    def __init__(self, user: User = None, roles: list[str] = None) -> None:
+        self.user = user
+        self.roles = roles
+    
+    def __str__(self) -> str:
+        return f"{self.user.id}, {self.user.username}, {str(self.roles)}"
+
+    def __repr__(self) -> str:
+        return f"{self.user.username}"
+
 async def discord_request(
     url: str,
     tok: str
@@ -166,17 +177,18 @@ async def get_all_roles(
 async def get_guild_members_with_role(
     rid: str,
     id: str = guild_id
-) -> list[str]:
+) -> list[GuildMember]:
     tok = os.environ.get('TOKEN')
     # base case
     url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1'
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    res = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
-    match = list(filter(lambda x: rid in x[2], res))
-    matched = list(map(lambda x: x[0], match))
-    last_uid = res[-1][1]
+
+    res = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
+    matched = list(filter(lambda x: rid in x.roles, res))
+
+    last_uid = res[-1].user.id
 
     # loop
     while True:
@@ -184,15 +196,14 @@ async def get_guild_members_with_role(
         result = await discord_request(url, tok)
 
         json_s = result.json()
-        res = list(map(lambda x: [x['user']['username'], x['user']['id'], x['roles']], json_s))
-        match = list(filter(lambda x: rid in x[2], res))
-        match = list(map(lambda x: x[0], match))
+        res = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
+        match = list(filter(lambda x: rid in x.roles, res))
         matched = [*matched, *match]
 
         if res == []:
             break
 
-        last_uid = res[-1][1]
+        last_uid = res[-1].user.id
     return matched
     
 async def get_guild_members(

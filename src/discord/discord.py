@@ -147,8 +147,8 @@ async def get_role_by_id(
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
     result = await _discord_request(url, tok)
 
-    json_s = result.json()
-    return [role for role in json_s if role['id'] == rid][0]
+    reslt_json = result.json()
+    return [role for role in reslt_json if role['id'] == rid][0]
 
 async def get_user_roles(
     uid: str,
@@ -158,8 +158,8 @@ async def get_user_roles(
     url = f'https://discord.com/api/v10/guilds/{id}/members/{uid}'
     result = await _discord_request(url, tok)
 
-    json_s = result.json()
-    return json_s['roles']
+    reslt_json = result.json()
+    return reslt_json['roles']
 
 async def get_all_roles(
     id: str = guild_id
@@ -168,8 +168,8 @@ async def get_all_roles(
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
     result = await _discord_request(url, tok)
 
-    json_s = result.json()
-    roles = [([role['id'], [role['name'], role['permissions']]]) for role in json_s]
+    reslt_json = result.json()
+    roles = [([role['id'], [role['name'], role['permissions']]]) for role in reslt_json]
     return dict(roles)
 
 async def get_guild_members_with_role(
@@ -181,10 +181,10 @@ async def get_guild_members_with_role(
     url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
     result = await _discord_request(url, tok)
 
-    json_s = result.json()
+    reslt_json = result.json()
 
     matched = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles'])
-                    for user in json_s if rid in user['roles']] 
+                    for user in reslt_json if rid in user['roles']] 
 
     last_uid = matched[-1].user.id
 
@@ -192,13 +192,15 @@ async def get_guild_members_with_role(
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
         result = await _discord_request(url, tok)
 
-        json_s = result.json()
+        reslt_json = result.json()
+
+        if res == [len(reslt_json) == 0]:
+            return matched
+        
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles'])
-                    for user in json_s if rid in user['roles']] 
+                    for user in reslt_json if rid in user['roles']] 
         matched += res
 
-        if res == []:
-            return matched
 
         last_uid = res[-1].user.id
     
@@ -210,16 +212,16 @@ async def get_guild_members(
     url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
     result = await _discord_request(url, tok)
 
-    json_s = result.json()
-    users = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
+    reslt_json = result.json()
+    users = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in reslt_json]
     last_uid = users[-1].user.id
 
     while True:
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
         result = await _discord_request(url, tok)
 
-        json_s = result.json()
-        res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
+        reslt_json = result.json()
+        res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in reslt_json]
         users += res
 
         if res == []:

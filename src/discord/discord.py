@@ -164,9 +164,13 @@ async def get_user_roles(
     result_json = result.json()
     return result_json['roles']
 
+
 async def get_all_roles(
     id: str = guild_id
 ) ->  dict[str, list[str]]:
+    """
+    Grabs all roles in a given guild.
+    """
     token = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
     result = await _discord_request(url, token)

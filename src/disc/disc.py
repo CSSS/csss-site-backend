@@ -198,10 +198,9 @@ async def get_guild_members_with_role(
         matched += res
 
         if res == []:
-            break
+            return matched
 
         last_uid = res[-1].user.id
-    return matched
     
 async def get_guild_members(
     id: str = guild_id
@@ -224,10 +223,9 @@ async def get_guild_members(
         users += res
 
         if res == []:
-            break
+            return users
 
         last_uid = res[-1].user.id
-    return users
 
 async def get_categories(
     id: str = guild_id

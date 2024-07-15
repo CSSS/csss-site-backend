@@ -201,7 +201,7 @@ async def get_guild_members_with_role(
 
         result_json = result.json()
 
-        if res == [len(result_json) == 0]:
+        if len(result_json) == 0:
             return matched
         
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles'])
@@ -229,7 +229,7 @@ async def get_guild_members(
 
         result_json = result.json()
         
-        if res == [len(result_json) == 0]:
+        if len(result_json) == 0:
             return users
         
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in result_json]

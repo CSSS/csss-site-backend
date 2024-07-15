@@ -48,6 +48,7 @@ async def _discord_request(
 
 async def get_channel_members(
     cid: str,
+    # TODO: hardcode guild_id (remove it as argument) if we ever refactor this module
     id: str = guild_id
 ) -> list[GuildMember]:
     channel = await get_channel(cid, id)

@@ -222,11 +222,12 @@ async def get_guild_members(
         result = await _discord_request(url, tok)
 
         result_json = result.json()
+        
+        if res == [len(result_json) == 0]:
+            return users
+        
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in result_json]
         users += res
-
-        if res == []:
-            return users
 
         last_uid = res[-1].user.id
 

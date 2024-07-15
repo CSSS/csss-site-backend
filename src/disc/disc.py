@@ -3,7 +3,7 @@ from requests import Response
 import os
 
 from constants import guild_id
-
+from dataclasses import dataclass 
 # ----------------------- #
 # api
 
@@ -11,44 +11,27 @@ DISCORD_CATEGORY_ID = 4
 ADMINISTRATOR = 1 << 3
 VIEW_CHANNEL = 1 << 10
 
+@dataclass
 class User:
-    def __init__(self, id: str, username: str, discriminator: str, global_name: str=None, avatar: str=None) -> None:
-        self.id = id
-        self.username = username
-        self.discriminator = discriminator
-        self.global_name = global_name
-        self.avatar = avatar
-    
-    def __str__(self) -> str:
-        return f"{self.username}, {self.id}"
-    
-    def __repr__(self) -> str:
-        return f"{self.username}, {self.id}"
+    id: str
+    username: str
+    discriminator: str
+    global_name: str = None
+    avatar: str = None
 
+@dataclass
 class GuildMember:
-    def __init__(self, user: User = None, roles: list[str] = None) -> None:
-        self.user = user
-        self.roles = roles
-    
-    def __str__(self) -> str:
-        return f"{self.user.id}, {self.user.username}, {str(self.roles)}"
+    user: User
+    roles: list[str] = None
 
-    def __repr__(self) -> str:
-        return f"{self.user.username}"
-    
+@dataclass
 class Channel:
-    def __init__(self, id: str, type: int, guild_id: str, name: str, permission_overwrites: list[str] = None) -> None:
-        self.id = id
-        self.type = type
-        self.name = name
-        self.permission_overwrites = permission_overwrites
-
-    def __str__self(self) -> str:
-        return f"{self.id}, {self.name}"
+    id: str
+    type: str
+    guild_id: str
+    name: str
+    permission_overwrites: list[str] = None
     
-    def __repr__(self) -> str:
-        return f"{self.id}, {self.name}"
-
 async def discord_request(
     url: str,
     tok: str

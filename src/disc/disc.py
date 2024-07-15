@@ -110,7 +110,7 @@ async def get_channel(
 ) -> Channel:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     result_json = result.json()
     channel = [channel for channel in result_json if channel['id'] == cid][0]
@@ -123,7 +123,7 @@ async def get_all_channels(
 ) -> list[str]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     result_json = result.json()
     channels = [channel for channel in result_json if channel['type'] != DISCORD_CATEGORY_ID]
@@ -145,7 +145,7 @@ async def get_role_by_id(
 ) -> dict:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     json_s = result.json()
     return [role for role in json_s if role['id'] == rid][0]
@@ -156,7 +156,7 @@ async def get_user_roles(
 ) -> list[str]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/members/{uid}'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     json_s = result.json()
     return json_s['roles']
@@ -166,7 +166,7 @@ async def get_all_roles(
 ) ->  dict[str, list[str]]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/roles'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     json_s = result.json()
     roles = [([role['id'], [role['name'], role['permissions']]]) for role in json_s]
@@ -179,7 +179,7 @@ async def get_guild_members_with_role(
     tok = os.environ.get('TOKEN')
     # base case
     url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     json_s = result.json()
 
@@ -190,7 +190,7 @@ async def get_guild_members_with_role(
 
     while True:
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
-        result = await discord_request(url, tok)
+        result = await _discord_request(url, tok)
 
         json_s = result.json()
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles'])
@@ -209,7 +209,7 @@ async def get_guild_members(
     tok = os.environ.get('TOKEN')
     # base case
     url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     json_s = result.json()
     users = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
@@ -217,7 +217,7 @@ async def get_guild_members(
 
     while True:
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
-        result = await discord_request(url, tok)
+        result = await _discord_request(url, tok)
 
         json_s = result.json()
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
@@ -234,7 +234,7 @@ async def get_categories(
 ) -> list[str]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     result_json = result.json()
     return [category['name'] for category in result_json if category['type'] == DISCORD_CATEGORY_ID]
@@ -245,7 +245,7 @@ async def get_channels_by_category_name(
 ) -> list[Channel]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     result_json = result.json()
     # TODO: edge case if there exist duplicate category names, see get_channels_by_category_id()
@@ -260,7 +260,7 @@ async def get_channels_by_category_id(
 ) -> list[Channel]:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/channels'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
 
     result_json = result.json()
     channels = [Channel(channel['id'], channel['type'], channel['guild_id'], channel['name'], channel['permission_overwrites']) 
@@ -273,7 +273,7 @@ async def search_user(
 ) -> User:
     tok = os.environ.get('TOKEN')
     url = f'https://discord.com/api/v10/guilds/{id}/members/search?query={user}'
-    result = await discord_request(url, tok)
+    result = await _discord_request(url, tok)
     json = result.json()[0]['user']
     user = User(json['id'], json['username'], json['discriminator'], json['global_name'], json['avatar'])
     return user

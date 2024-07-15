@@ -118,7 +118,7 @@ async def get_channel(
 
     return channel
 
-async def get_channels(
+async def get_all_channels(
     id: str = guild_id
 ) -> list[str]:
     tok = os.environ.get('TOKEN')

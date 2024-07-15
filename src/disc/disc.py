@@ -8,8 +8,8 @@ from dataclasses import dataclass
 # api
 
 DISCORD_CATEGORY_ID = 4
-ADMINISTRATOR = 1 << 3
-VIEW_CHANNEL = 1 << 10
+ADMINISTRATOR = 0b1000
+VIEW_CHANNEL = 0b0010_0000_0000
 
 @dataclass
 class User:
@@ -195,7 +195,7 @@ async def get_guild_members_with_role(
         json_s = result.json()
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles'])
                     for user in json_s if rid in user['roles']] 
-        matched = [*matched, *res]
+        matched += res
 
         if res == []:
             break
@@ -221,7 +221,7 @@ async def get_guild_members(
 
         json_s = result.json()
         res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
-        users = [*users, *res]
+        users += res
 
         if res == []:
             break

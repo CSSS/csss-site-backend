@@ -113,7 +113,7 @@ async def get_channel(
     result = await discord_request(url, tok)
 
     result_json = result.json()
-    channel = list(filter(lambda x: x['id'] == cid, result_json))[0]
+    channel = [channel for channel in result_json if channel['id'] == cid][0]
     channel = Channel(channel['id'], channel['type'], channel['guild_id'], channel['name'], channel['permission_overwrites'])
 
     return channel
@@ -126,8 +126,8 @@ async def get_all_channels(
     result = await discord_request(url, tok)
 
     result_json = result.json()
-    channels = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID, result_json))
-    channel_names = list(map(lambda x: x['name'], channels))
+    channels = [channel for channel in result_json if channel['type'] != DISCORD_CATEGORY_ID]
+    channel_names = [channel['name'] for channel in channels]
 
     return channel_names
 
@@ -148,7 +148,7 @@ async def get_role_by_id(
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    return list(filter(lambda x: x['id'] == guild_id, json_s))[0]
+    return [role for role in json_s if role['id'] == rid][0]
 
 async def get_user_roles(
     uid: str,
@@ -169,7 +169,7 @@ async def get_all_roles(
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    roles = list(map(lambda x: ([x['id'], [x['name'], x['permissions']]]), json_s))
+    roles = [([role['id'], [role['name'], role['permissions']]]) for role in json_s]
     return dict(roles)
 
 async def get_guild_members_with_role(
@@ -178,25 +178,25 @@ async def get_guild_members_with_role(
 ) -> list[GuildMember]:
     tok = os.environ.get('TOKEN')
     # base case
-    url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1'
+    url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000'
     result = await discord_request(url, tok)
 
     json_s = result.json()
 
-    res = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
-    matched = list(filter(lambda x: rid in x.roles, res))
+    matched = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles'])
+                    for user in json_s if rid in user['roles']] 
 
-    last_uid = res[-1].user.id
+    last_uid = matched[-1].user.id
 
     # loop
     while True:
-        url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1&after={last_uid}'
+        url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
         result = await discord_request(url, tok)
 
         json_s = result.json()
-        res = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
-        match = list(filter(lambda x: rid in x.roles, res))
-        matched = [*matched, *match]
+        res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles'])
+                    for user in json_s if rid in user['roles']] 
+        matched = [*matched, *res]
 
         if res == []:
             break
@@ -213,8 +213,7 @@ async def get_guild_members(
     result = await discord_request(url, tok)
 
     json_s = result.json()
-    
-    users = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
+    users = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
     last_uid = users[-1].user.id
 
     # loop
@@ -223,7 +222,7 @@ async def get_guild_members(
         result = await discord_request(url, tok)
 
         json_s = result.json()
-        res = list(map(lambda x: GuildMember(User(x['user']['id'], x['user']['username'], x['user']['discriminator'], x['user']['global_name'], x['user']['avatar']), x['roles']),json_s))
+        res = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
         users = [*users, *res]
 
         if res == []:
@@ -240,8 +239,7 @@ async def get_categories(
     result = await discord_request(url, tok)
 
     result_json = result.json()
-    categories = list(filter(lambda x: x['type'] == DISCORD_CATEGORY_ID, result_json))
-    return list(map(lambda x: x['name'], categories)) 
+    return [category['name'] for category in result_json if category['type'] == DISCORD_CATEGORY_ID]
 
 async def get_channels_by_category_name(
     category_name: str,
@@ -253,9 +251,9 @@ async def get_channels_by_category_name(
 
     result_json = result.json()
     # TODO: edge case if there exist duplicate category names, see get_channels_by_category_id()
-    category_id = list(filter(lambda x: x['type'] == DISCORD_CATEGORY_ID and x['name'] == category_name, result_json))[0]['id']
-    channels = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID and x['parent_id'] == category_id, result_json))
-    channels = list(map(lambda x: Channel(x['id'], x['type'], x['guild_id'], x['name'], x['permission_overwrites']), channels))
+    category_id = [category['id'] for category in result_json if category['type'] == DISCORD_CATEGORY_ID and category['name'] == category_name][0]
+    channels = [Channel(channel['id'], channel['type'], channel['guild_id'], channel['name'], channel['permission_overwrites']) 
+                for channel in result_json if channel['type'] != DISCORD_CATEGORY_ID and channel['parent_id'] == category_id]
     return channels
 
 async def get_channels_by_category_id(
@@ -267,8 +265,8 @@ async def get_channels_by_category_id(
     result = await discord_request(url, tok)
 
     result_json = result.json()
-    channels = list(filter(lambda x: x['type'] != DISCORD_CATEGORY_ID and x['parent_id'] == cid, result_json))
-    channels = list(map(lambda x: Channel(x['id'], x['type'], x['guild_id'], x['name'], x['permission_overwrites']), channels))
+    channels = [Channel(channel['id'], channel['type'], channel['guild_id'], channel['name'], channel['permission_overwrites']) 
+                for channel in result_json if channel['type'] != DISCORD_CATEGORY_ID and channel['parent_id'] == cid]
     return channels
 
 async def search_user(

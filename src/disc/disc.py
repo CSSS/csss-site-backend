@@ -32,7 +32,7 @@ class Channel:
     name: str
     permission_overwrites: list[str] = None
     
-async def discord_request(
+async def _discord_request(
     url: str,
     tok: str
 ) -> Response:
@@ -188,7 +188,6 @@ async def get_guild_members_with_role(
 
     last_uid = matched[-1].user.id
 
-    # loop
     while True:
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
         result = await discord_request(url, tok)
@@ -216,7 +215,6 @@ async def get_guild_members(
     users = [GuildMember(User(user['user']['id'], user['user']['username'], user['user']['discriminator'], user['user']['global_name'], user['user']['avatar']), user['roles']) for user in json_s]
     last_uid = users[-1].user.id
 
-    # loop
     while True:
         url = f'https://discord.com/api/v10/guilds/{id}/members?limit=1000&after={last_uid}'
         result = await discord_request(url, tok)

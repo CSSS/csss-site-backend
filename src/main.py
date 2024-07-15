@@ -5,13 +5,12 @@ from auth import auth
 
 # from officers import officers
 from tests import tests
-from disc import disc
+from discord import discord
 
 app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend")
 app.include_router(auth.router)
 # app.include_router(officers.router)
 app.include_router(tests.router)
-app.include_router(disc.router)
 
 
 @app.get("/")

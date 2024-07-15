@@ -15,6 +15,8 @@ VIEW_CHANNEL = 0b0010_0000_0000
 class User:
     id: str
     username: str
+    # Discriminators are what used to be the #xxxx after a discord username. Accounts which haven't
+    # migrated over yet have them still.
     discriminator: str
     global_name: str | None = None
     avatar: str | None = None

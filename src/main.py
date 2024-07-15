@@ -5,7 +5,6 @@ from auth import auth
 
 # from officers import officers
 from tests import tests
-from discord import discord
 
 app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend")
 app.include_router(auth.router)

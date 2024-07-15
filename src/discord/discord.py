@@ -16,13 +16,13 @@ class User:
     id: str
     username: str
     discriminator: str
-    global_name: str = None
-    avatar: str = None
+    global_name: str | None = None
+    avatar: str | None = None
 
 @dataclass
 class GuildMember:
     user: User
-    roles: list[str] = None
+    roles: list[str] | None = None
 
 @dataclass
 class Channel:
@@ -30,7 +30,7 @@ class Channel:
     type: str
     guild_id: str
     name: str
-    permission_overwrites: list[str] = None
+    permission_overwrites: list[str] | None = None
     
 async def _discord_request(
     url: str,

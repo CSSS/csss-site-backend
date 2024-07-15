@@ -277,5 +277,4 @@ async def search_user(
     url = f'https://discord.com/api/v10/guilds/{id}/members/search?query={user}'
     result = await _discord_request(url, token)
     json = result.json()[0]['user']
-    user = User(json['id'], json['username'], json['discriminator'], json['global_name'], json['avatar'])
-    return user
+    return User(json['id'], json['username'], json['discriminator'], json['global_name'], json['avatar'])

@@ -129,17 +129,18 @@ def update_officer_info(db_session: database.DBSession, officer_info_data: Offic
     Will create a new officer info entry if one doesn't already exist
     """
 
-    # TODO: test this
     is_filled_in = True
     for field in dataclasses.fields(officer_info_data):
-        if getattr(officer_info_data, field) is None:
+        if getattr(officer_info_data, field.name) is None:
             is_filled_in = False
             break
 
     new_user_session = OfficerInfo(
         is_filled_in = is_filled_in,
 
-        legal_name = officer_info_data.legal_name,
+        # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
+        # for now, we should insert a default value
+        legal_name = "default name" if officer_info_data.legal_name is None else officer_info_data.legal_name,
         discord_id = officer_info_data.discord_id,
         discord_name = officer_info_data.discord_name,
         discord_nickname = officer_info_data.discord_nickname,
@@ -161,10 +162,13 @@ def update_officer_term(
     Creates an officer term entry
     """
 
-    # TODO: test this
     is_filled_in = True
     for field in dataclasses.fields(officer_term_data):
-        if getattr(officer_term_data, field) is None:
+        # the photo doesn't have to be uploaded for the term to be filled.
+        if field.name == "photo_url":
+            continue
+
+        if getattr(officer_term_data, field.name) is None:
             is_filled_in = False
             break
 

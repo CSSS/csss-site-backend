@@ -80,7 +80,6 @@ def upgrade() -> None:
             name="fk__officer_term__site_user__computing_id",
         ),
         sa.PrimaryKeyConstraint("id", name="pk__officer_term__id"),
-        sa.UniqueConstraint("computing_id", name="unique__officer_term__computing_id"),
     )
 
 

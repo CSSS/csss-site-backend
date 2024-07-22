@@ -20,6 +20,7 @@ class OfficerInfoData:
     github_username: None | str
     google_drive_email: None | str
 
+@dataclass
 class OfficerTermData:
     computing_id: str
 
@@ -35,6 +36,7 @@ class OfficerTermData:
     biography: None | str
 
     # TODO: we're going to need an API call to upload images
+    # NOTE: changing the name of this variable without changing all instances is breaking
     photo_url: None | str
 
 # -------------------------------------------- #

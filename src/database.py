@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import (
 # Base = sqlalchemy.ext.declarative.declarative_base()
 Base = sqlalchemy.orm.declarative_base()
 
-
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
     def __init__(self, db_url: str, engine_kwargs: dict[str, Any]):
@@ -25,7 +24,7 @@ class DatabaseSessionManager:
         self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
 
         # check if the database exists by making a test connection
-        asyncio.get_event_loop().run_until_complete(DatabaseSessionManager.test_connection(db_url))
+        asyncio.run(DatabaseSessionManager.test_connection(db_url))
 
     # test if the database is working & raise an exception if not
     @staticmethod
@@ -78,12 +77,19 @@ class DatabaseSessionManager:
 if os.environ.get("DB_PORT") is not None:
     db_port = os.environ.get("DB_PORT")
     SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
+    SQLALCHEMY_TEST_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/test"
 else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
+    SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"
 
-# TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
-sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
+# TODO: does this work?
+# also TODO: make this nicer, using a class to hold state...
+# and use this in load_test_db for the test db as well?
+def setup_database():
+    global sessionmanager
 
+    # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
+    sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -101,4 +107,5 @@ async def _db_session():
         yield session
 
 
+# TODO: what does this do again?
 DBSession = Annotated[AsyncSession, Depends(_db_session)]

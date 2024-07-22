@@ -28,7 +28,6 @@ class OfficerTerm(Base):
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),
-        unique=True,
         nullable=False,
     )
 

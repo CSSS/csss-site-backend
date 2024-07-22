@@ -18,20 +18,19 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
     if existing_user_session:
         existing_user_session.issue_time = datetime.now()
         existing_user_session.session_id = session_id
-        query = sqlalchemy.select(models.User).where(models.User.computing_id == computing_id)
+        query = sqlalchemy.select(SiteUser).where(SiteUser.computing_id == computing_id)
         existing_user = (await db_session.scalars(query)).first()
         if existing_user is None:
             # log this strange case
             _logger = logging.getLogger(__name__)
             _logger.warning(f"User session {session_id} exists for non-existent user {computing_id}!")
             # create a user for this session
-            new_user = models.User(
+            new_user = SiteUser(
                 computing_id=computing_id,
                 first_logged_in=datetime.now(),
                 last_logged_in=datetime.now()
             )
             db_session.add(new_user)
-            pass
         else:
             # update the last time the user logged in to now
             existing_user.last_logged_in=datetime.now()
@@ -68,7 +67,7 @@ async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
     if existing_user_session:
         # TODO: replace this select with an sqlalchemy relationship access
         # see: https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html
-        query = sqlalchemy.select(models.User).where(models.User.computing_id == existing_user_session.computing_id)
+        query = sqlalchemy.select(SiteUser).where(SiteUser.computing_id == existing_user_session.computing_id)
         existing_user = (await db_session.scalars(query)).first()
         return {
             "is_valid": True,

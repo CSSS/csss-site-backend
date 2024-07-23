@@ -17,14 +17,16 @@ Base = sqlalchemy.orm.declarative_base()
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
-    def __init__(self, db_url: str, engine_kwargs: dict[str, Any]):
+    def __init__(self, db_url: str, engine_kwargs: dict[str, Any], check_db=True):
         # engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
         self._engine = sqlalchemy.ext.asyncio.create_async_engine(db_url, **engine_kwargs)
         # SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
         self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
 
-        # check if the database exists by making a test connection
-        asyncio.run(DatabaseSessionManager.test_connection(db_url))
+        if check_db:
+            # check if the database exists by making a test connection
+            # NOTE: don't do this in an async function
+            asyncio.run(DatabaseSessionManager.test_connection(db_url))
 
     # test if the database is working & raise an exception if not
     @staticmethod

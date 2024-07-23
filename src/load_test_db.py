@@ -16,20 +16,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 async def reset_db(engine):
     # reset db
-    async with sessionmanager._engine.connect() as conn:
+    async with engine.connect() as conn:
         table_list = await conn.run_sync(
             lambda sync_conn: sqlalchemy.inspect(sync_conn).get_table_names()
         )
 
     if len(table_list) != 0:
         print(f"found tables to delete: {table_list}")
-        async with sessionmanager._engine.connect() as connection:
+        async with engine.connect() as connection:
             await connection.run_sync(Base.metadata.reflect)
             await connection.run_sync(Base.metadata.drop_all)
             await connection.commit()
 
     # check tables in db
-    async with sessionmanager._engine.connect() as conn:
+    async with engine.connect() as conn:
         table_list = await conn.run_sync(
             lambda sync_conn: sqlalchemy.inspect(sync_conn).get_table_names()
         )
@@ -40,14 +40,14 @@ async def reset_db(engine):
             print("deleted tables successfully")
 
     # fill with tables
-    async with sessionmanager._engine.connect() as connection:
+    async with engine.connect() as connection:
         # TODO: need to make sure that everything that would create a table is imported...
         # TODO: come up with a better solution - https://github.com/sqlalchemy/sqlalchemy/discussions/8650
         await connection.run_sync(Base.metadata.create_all)
         await connection.commit()
 
     # check tables in db
-    async with sessionmanager._engine.connect() as conn:
+    async with engine.connect() as conn:
         table_list = await conn.run_sync(
             lambda sync_conn: sqlalchemy.inspect(sync_conn).get_table_names()
         )

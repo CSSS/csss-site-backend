@@ -34,6 +34,8 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.
+
+    Returns a mapping between officer position and officer terms
     """
 
     query = sqlalchemy.select(OfficerTerm)
@@ -54,9 +56,10 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     # TODO: can i clean this up?
     for term in officer_terms:
+        # NOTE: improve performance?
         if term.position not in [officer.value for officer in OfficerPosition]:
             _logger.warning(
-                f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request"
+                f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request."
             )
             continue
 

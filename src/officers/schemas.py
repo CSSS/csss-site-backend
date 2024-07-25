@@ -1,8 +1,6 @@
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
-
-# TODO: switch to using python dataclasses instead of pydantic base models (performance)
-from pydantic import BaseModel
 
 # TODO: leave the following, but create one for current_officers private info & non-private info
 # make it so that the docs shows the expected return schema
@@ -42,17 +40,15 @@ class OfficerTermData:
 # -------------------------------------------- #
 
 # TODO: what are these for again? Returning data from endpoints?
-class OfficerPrivateData(BaseModel):
+@dataclass
+class OfficerPrivateData:
     computing_id: str | None
     phone_number: str | None
     github_username: str | None
     google_drive_email: str | None
 
-    class Config:
-        orm_mode = True
-
-
-class OfficerData(BaseModel):
+@dataclass
+class OfficerData:
     is_current_officer: bool
 
     # an officer may have multiple positions, such as FroshWeekChair & DirectorOfEvents
@@ -77,8 +73,13 @@ class OfficerData(BaseModel):
 
     private_data: OfficerPrivateData | None
 
-    class Config:
-        orm_mode = True
+    def serializable_dict(self):
+        # we need to manually serialize datetime objects for some reason...
+        new_self = asdict(self)
+        new_self["start_date"] = new_self["start_date"].isoformat()
+        if new_self["end_date"] is not None:
+            new_self["end_date"] = new_self["end_date"].isoformat()
+        return new_self
 
 """
 # TODO: add structs for returning data from the other api calls

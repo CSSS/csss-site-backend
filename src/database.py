@@ -84,14 +84,16 @@ else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
     SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"
 
-# TODO: does this work?
 # also TODO: make this nicer, using a class to hold state...
 # and use this in load_test_db for the test db as well?
 def setup_database():
     global sessionmanager
 
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
-    sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
+    if os.environ.get("LOCAL"):
+        sessionmanager = DatabaseSessionManager(SQLALCHEMY_TEST_DATABASE_URL, {"echo": True})
+    else:
+        sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):

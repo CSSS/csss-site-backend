@@ -36,8 +36,8 @@ async def current_officers(
     current_executives = await officers.crud.current_executive_team(db_session, include_private=has_private_access)
     json_current_executives = {
         position: [
-            dict(officer_data) for officer_data in officer_data_list
-        ] for position, officer_data_list in current_executives
+            officer_data.serializable_dict() for officer_data in officer_data_list
+        ] for position, officer_data_list in current_executives.items()
     }
 
     return JSONResponse(json_current_executives)

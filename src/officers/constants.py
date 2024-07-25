@@ -95,7 +95,7 @@ class OfficerPosition(Enum):
             return 2
         elif (
             self == OfficerPosition.FroshWeekChair
-            or OfficerPosition.SocialMediaManager
+            or self == OfficerPosition.SocialMediaManager
         ):
             # TODO: configure this value in a database table somewhere?
             return None

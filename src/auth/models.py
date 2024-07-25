@@ -21,8 +21,6 @@ class UserSession(Base):
         String(SESSION_ID_LEN), nullable=False, unique=True
     )  # the space needed to store 256 bytes in base64
 
-    site_user = relationship("SiteUser")
-
 
 class SiteUser(Base):
     # user is a reserved word in postgres
@@ -32,13 +30,10 @@ class SiteUser(Base):
     # note: a primary key is required for every database table
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("user_session.computing_id"),
+        #ForeignKey("user_session.computing_id"),
         nullable=False,
         primary_key=True,
     )
-
-    officer_term = relationship("OfficerTerm", back_populates="site_user")
-    officer_info = relationship("OfficerInfo")
 
     # first and last time logged into the CSSS API
     # note: default date (for pre-existing columns) is June 16th, 2024

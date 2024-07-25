@@ -11,12 +11,10 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    ForeignKey,
     Integer,
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
 
 
 # a row represents an assignment of a person to a position
@@ -27,7 +25,6 @@ class OfficerTerm(Base):
     id = Column(Integer, primary_key=True)
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id"),
         nullable=False,
     )
 
@@ -52,8 +49,6 @@ class OfficerTerm(Base):
     biography = Column(Text)
     photo_url = Column(Text)  # some urls get big, best to let it be a string
 
-    site_user = relationship("SiteUser", back_populates="officer_term")
-
 
 # this table contains information that we only need a most up-to-date version of, and
 # don't need to keep a history of. However, it also can't be easily updated.
@@ -73,7 +68,6 @@ class OfficerInfo(Base):
     # private info will be added last
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id"),
         primary_key=True,
     )
     phone_number = Column(String(24))
@@ -84,9 +78,6 @@ class OfficerInfo(Base):
     # specifications for valid email addresses vary widely, but we will not
     # accept any that contain a comma
     google_drive_email = Column(Text)
-
-    # which assignments this person has had
-    # assignments = relationship("CurrentInfo", back_populates="officer_info")
 
     # NOTE: not sure if we'll need this, depending on implementation
     # has_signed_into_bitwarden = Column(Boolean)

@@ -7,7 +7,7 @@ from officers.constants import OfficerPosition
 from officers.crud import current_executive_team, most_recent_exec_term
 
 
-# TODO: run this again for every function?
+# run this again for every function
 @pytest.fixture(scope="function")
 async def database_setup():
     # reset the database again, just in case
@@ -36,23 +36,22 @@ async def test__read_execs(database_setup):
         assert abc11_officer_term.favourite_course_0 == "CMPT 361"
         assert abc11_officer_term.biography == "Hi! I'm person A and I want school to be over ; _ ;"
 
-        # TODO: fix current_executive_team function
         current_exec_team = await current_executive_team(db_session, include_private=False)
         assert current_exec_team is not None
         assert len(current_exec_team.keys()) == 1
-        assert current_exec_team.keys()[0] == OfficerPosition.ExecutiveAtLarge.value
-        assert current_exec_team.values()[0].favourite_course_0 == "CMPT 361"
-        assert current_exec_team.values()[0].csss_email == OfficerPosition.VicePresident.to_email()
-        assert current_exec_team.values()[0].private_data is None
+        assert next(iter(current_exec_team.keys())) == OfficerPosition.President.value
+        assert next(iter(current_exec_team.values()))[0].favourite_course_0 == "CMPT 999"
+        assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.President.to_email()
+        assert next(iter(current_exec_team.values()))[0].private_data is None
 
         current_exec_team = await current_executive_team(db_session, include_private=True)
         assert current_exec_team is not None
         assert len(current_exec_team) == 1
-        assert current_exec_team.keys()[0] == OfficerPosition.ExecutiveAtLarge.value
-        assert current_exec_team.values()[0].favourite_course_0 == "CMPT 361"
-        assert current_exec_team.values()[0].csss_email == OfficerPosition.ExecutiveAtLarge.to_email()
-        assert current_exec_team.values()[0].private_data is not None
-        assert current_exec_team.values()[0].computing_id == "abc11"
+        assert next(iter(current_exec_team.keys())) == OfficerPosition.President.value
+        assert next(iter(current_exec_team.values()))[0].favourite_course_0 == "CMPT 999"
+        assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.President.to_email()
+        assert next(iter(current_exec_team.values()))[0].private_data is not None
+        assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc33"
 
 #async def test__update_execs(database_setup):
 #    # TODO: the second time an update_officer_info call occurs, the user should be updated with info

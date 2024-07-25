@@ -140,6 +140,23 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="Hi! I'm person A and I want school to be over ; _ ;",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
+    update_officer_term(db_session, OfficerTermData(
+        computing_id="abc33",
+
+        position=OfficerPosition.President.value,
+        start_date=datetime.today(),
+        end_date=datetime.today() + timedelta(days=365),
+
+        nickname="CC",
+        favourite_course_0="CMPT 999",
+        favourite_course_1="CMPT 354",
+
+        favourite_pl_0="C++",
+        favourite_pl_1="C",
+
+        biography="I'm person C...",
+        photo_url=None, # TODO: this should be replaced with a default image
+    ))
     await db_session.commit()
 
 async def async_main(sessionmanager):

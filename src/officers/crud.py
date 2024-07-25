@@ -4,6 +4,7 @@ from datetime import datetime
 
 import database
 import sqlalchemy
+from auth.models import SiteUser
 
 from officers.constants import OfficerPosition
 from officers.models import OfficerInfo, OfficerTerm
@@ -39,7 +40,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
     """
 
     query = sqlalchemy.select(OfficerTerm)
-    query = query.filter(
+    query = query.where(
         OfficerTerm.is_filled_in
         and (
             # executives without a specified end_date are considered active
@@ -54,7 +55,6 @@ async def current_executive_team(db_session: database.DBSession, include_private
     num_officers = {}
     officer_data = {}
 
-    # TODO: can i clean this up?
     for term in officer_terms:
         # NOTE: improve performance?
         if term.position not in [officer.value for officer in OfficerPosition]:
@@ -63,17 +63,28 @@ async def current_executive_team(db_session: database.DBSession, include_private
             )
             continue
 
+        # TODO: improve performance by doing these all in one database request
+        officer_info_query = sqlalchemy.select(OfficerInfo)
+        officer_info_query = officer_info_query.where(
+            OfficerInfo.computing_id == term.computing_id
+        )
+        officer_info = (await db_session.scalars(officer_info_query)).first()
+        if officer_info is None:
+            # TODO: make sure there are daily checks that this data actually exists
+            continue
+
         if term.position not in officer_data:
-            num_officers[term.position] = 1
+            num_officers[term.position] = 0
             officer_data[term.position] = []
-        else:
-            num_officers[term.position] += 1
-            if num_officers[term.position] > OfficerPrivateData.from_string(term.position).num_active():
-                # If there are more active positions than expected, log it to a file
-                _logger.warning(
-                    f"There are more active {term.position} positions in the OfficerTerm than expected "
-                    f"({num_officers[term.position]} > {OfficerPrivateData.from_string(term.position).num_active()})"
-                )
+
+        num_officers[term.position] += 1
+        # TODO: move this to a daily cronjob & just ignore any of the extras
+        if num_officers[term.position] > OfficerPosition.from_string(term.position).num_active():
+            # If there are more active positions than expected, log it to a file
+            _logger.warning(
+                f"There are more active {term.position} positions in the OfficerTerm than expected "
+                f"({num_officers[term.position]} > {OfficerPosition.from_string(term.position).num_active()})"
+            )
 
         officer_data[term.position] += [
             OfficerData(
@@ -83,14 +94,13 @@ async def current_executive_team(db_session: database.DBSession, include_private
                 start_date = term.start_date,
                 end_date = term.end_date,
 
-                legal_name = term.site_user.officer_info.legal_name,
+                legal_name = officer_info.legal_name,
                 nickname = term.nickname,
-                discord_name = term.site_user.officer_info.discord_name,
-                discord_nickname = term.site_user.officer_info.discord_nickname,
+                discord_name = officer_info.discord_name,
+                discord_nickname = officer_info.discord_nickname,
 
                 favourite_course_0 = term.favourite_course_0,
                 favourite_course_1 = term.favourite_course_1,
-
                 favourite_language_0 = term.favourite_pl_0,
                 favourite_language_1 = term.favourite_pl_1,
 
@@ -100,9 +110,9 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
                 private_data = OfficerPrivateData(
                     computing_id = term.computing_id,
-                    phone_number = term.site_user.officer_info.phone_number,
-                    github_username = term.site_user.officer_info.github_username,
-                    google_drive_email = term.site_user.officer_info.google_drive_email,
+                    phone_number = officer_info.phone_number,
+                    github_username = officer_info.github_username,
+                    google_drive_email = officer_info.google_drive_email,
                 ) if include_private else None,
             )
         ]
@@ -157,6 +167,7 @@ def update_officer_info(db_session: database.DBSession, officer_info_data: Offic
     # instead of adding a new entry
     db_session.add(new_user_session)
 
+
 def update_officer_term(
     db_session: database.DBSession,
     officer_term_data: OfficerTermData,
@@ -195,5 +206,7 @@ def update_officer_term(
     # instead of adding a new entry
     db_session.add(new_officer_term)
 
+
 def remove_officer_term():
     pass
+

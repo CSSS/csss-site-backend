@@ -1,17 +1,21 @@
-import database
-from auth import auth
-from fastapi import FastAPI
-from officers import officers
+import logging
 
-from tests import tests
+import auth.urls
+import database
+import officers.urls
+from fastapi import FastAPI
+
+import tests.urls
+
+logging.basicConfig(level=logging.DEBUG)
 
 database.setup_database()
 
 app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend")
-app.include_router(auth.router)
-app.include_router(officers.router)
-app.include_router(tests.router)
 
+app.include_router(auth.urls.router)
+app.include_router(officers.urls.router)
+app.include_router(tests.urls.router)
 
 @app.get("/")
 async def read_root():

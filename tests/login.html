@@ -18,7 +18,7 @@
         const API_CHECK_URL = "http://localhost:8000/auth/check"
         const API_LOGOUT_URL = "http://localhost:8000/auth/logout"
 
-        let str = CAS_LOGIN_URL + API_LOGIN_URL + "?next=" + encodeURIComponent(window.location.href)
+        let str = CAS_LOGIN_URL + API_LOGIN_URL + "?next_url=" + encodeURIComponent(window.location.href)
         console.log(str)
 
         document.getElementById("login").href = str

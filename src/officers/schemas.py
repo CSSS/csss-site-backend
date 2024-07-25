@@ -39,7 +39,6 @@ class OfficerTermData:
 
 # -------------------------------------------- #
 
-# TODO: what are these for again? Returning data from endpoints?
 @dataclass
 class OfficerPrivateData:
     computing_id: str | None

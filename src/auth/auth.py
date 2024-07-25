@@ -1,24 +1,21 @@
 import base64
 import os
-
-from constants import root_ip_address
-from auth import crud
-import database
-
-import requests  # TODO: make this async
 import urllib.parse
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
-from fastapi.responses import RedirectResponse, JSONResponse
-
+import database
+import requests  # TODO: make this async
 import xmltodict
+from auth import crud
+from constants import root_ip_address
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 
 # ----------------------- #
 # utils
 
 
 # ex: rsa4096 is 512 bytes
-def generate_session_id_b64(num_bytes) -> str:
+def generate_session_id_b64(num_bytes: int) -> str:
     return base64.b64encode(os.urandom(num_bytes)).decode("utf-8")
 
 
@@ -37,14 +34,15 @@ router = APIRouter(
     description="Login to the sfucsss.org. Must redirect to this endpoint from SFU's cas authentication service for correct parameters",
 )
 async def login_user(
-    next: str,  # TODO: ensure next is a valid url? or local to our site or something...
+    next_url: str,  # TODO: ensure next_url is a valid url? or local to our site or something...
     ticket: str,
     db_session: database.DBSession,
     background_tasks: BackgroundTasks,
 ):
     # verify the ticket is valid
-    url = "https://cas.sfu.ca/cas/serviceValidate?service={}&ticket={}".format(
-        "{}/auth/login%3Fnext%3D{}".format(urllib.parse.quote(root_ip_address), urllib.parse.quote(next)), ticket
+    url = (
+        f"https://cas.sfu.ca/cas/serviceValidate?service={urllib.parse.quote(root_ip_address)}"
+        f"/auth/login%3Fnext%3D{urllib.parse.quote(next_url)}ticket={ticket}"
     )
     cas_response = xmltodict.parse(requests.get(url).text)
 
@@ -61,7 +59,7 @@ async def login_user(
         # clean old sessions after sending the response
         background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
 
-        response = RedirectResponse(next)
+        response = RedirectResponse(next_url)
         response.set_cookie(
             key="session_id", value=session_id
         )  # this overwrites any past, possibly invalid, session_id

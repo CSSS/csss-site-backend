@@ -1,7 +1,29 @@
 [project]
 name = "csss-site-backend"
 version = "0.1"
-requires-python = ">= 3.11" # older versions untested
+requires-python = ">= 3.11" # older versions untested, but we use new features often
 
 [project.urls]
 Homepage = "https://api.sfucsss.org/"
+
+[tool.pytest.ini_options]
+pythonpath = "./src/"
+log_cli = true
+log_cli_level = "INFO"
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "N", "UP", "A", "PTH", "W", "RUF", "C4", "PIE", "Q", "FLY"] # "ANN"
+ignore = ["E501", "F401", "N806"]

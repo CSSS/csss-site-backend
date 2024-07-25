@@ -6,6 +6,8 @@ from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
 from officers.crud import current_executive_team, most_recent_exec_term
 
+# TODO: setup a database on the CI machine & run this as a unit test then (since
+# this isn't really an integration test)
 
 # run this again for every function
 @pytest.fixture(scope="function")

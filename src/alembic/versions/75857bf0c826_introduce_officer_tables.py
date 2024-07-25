@@ -38,9 +38,6 @@ def upgrade() -> None:
         "site_user",
         sa.Column("computing_id", sa.String(32), nullable=False, primary_key=True),
     )
-    op.create_foreign_key(
-        "fk__site_user__user_session__computing_id", "site_user", "user_session", ["computing_id"], ["computing_id"]
-    )
 
     op.create_table(
         "officer_info",
@@ -53,9 +50,6 @@ def upgrade() -> None:
         sa.Column("phone_number", sa.String(length=24), nullable=True),
         sa.Column("github_username", sa.String(length=39), nullable=True),
         sa.Column("google_drive_email", sa.Text(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["computing_id"], ["site_user.computing_id"], name="fk__officer_info__site_user__computing_id"
-        ),
         sa.PrimaryKeyConstraint("computing_id", name="pk__officer_info__computing_id"),
     )
     op.create_table(
@@ -73,12 +67,6 @@ def upgrade() -> None:
         sa.Column("favourite_pl_1", sa.String(length=32), nullable=True),
         sa.Column("biography", sa.Text(), nullable=True),
         sa.Column("photo_url", sa.Text(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["computing_id"],
-            ["site_user.computing_id"],
-            # naming convention is "fk__<current class>__<target class>__<column name>"
-            name="fk__officer_term__site_user__computing_id",
-        ),
         sa.PrimaryKeyConstraint("id", name="pk__officer_term__id"),
     )
 

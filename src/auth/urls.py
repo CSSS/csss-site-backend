@@ -1,8 +1,8 @@
 import base64
+import logging
 import os
 import urllib.parse
 
-import logging
 import database
 import requests  # TODO: make this async
 import xmltodict

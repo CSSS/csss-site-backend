@@ -8,7 +8,6 @@ from fastapi import FastAPI
 import tests.urls
 
 logging.basicConfig(level=logging.DEBUG)
-
 database.setup_database()
 
 app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend")

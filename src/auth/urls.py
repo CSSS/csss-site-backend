@@ -43,20 +43,9 @@ async def login_user(
     background_tasks: BackgroundTasks,
 ):
     # verify the ticket is valid
-<<<<<<< HEAD:src/auth/auth.py
-    url = (
-        f"https://cas.sfu.ca/cas/serviceValidate?service={urllib.parse.quote(root_ip_address)}"
-        f"/auth/login%3Fnext%3D{urllib.parse.quote(next_url)}ticket={ticket}"
-=======
-<<<<<<< HEAD:src/auth/auth.py
-    url = "https://cas.sfu.ca/cas/serviceValidate?service={}&ticket={}".format(
-        "{}/auth/login%3Fnext%3D{}".format(urllib.parse.quote(root_ip_address), urllib.parse.quote(next)), ticket
-=======
     url = (
         f"https://cas.sfu.ca/cas/serviceValidate?service={urllib.parse.quote(root_ip_address)}"
         f"/auth/login%3Fnext_url%3D{urllib.parse.quote(next_url)}&ticket={ticket}"
->>>>>>> dc2caa2 (fix auth, rename routing files per module to urls.py):src/auth/urls.py
->>>>>>> 7facab3 (fix auth, rename routing files per module to urls.py):src/auth/urls.py
     )
     cas_response = xmltodict.parse(requests.get(url).text)
 

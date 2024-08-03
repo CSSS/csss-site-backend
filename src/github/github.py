@@ -153,7 +153,7 @@ async def delete_user_from_org(
                                           os.environ.get("GITHUB_TOKEN"))
     # Logging here potentially?
     if result.status_code != 204:
-        raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username}")
+        raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from organization {org}")
     
 async def get_teams(
         org: str = github_org_name
@@ -164,24 +164,28 @@ async def get_teams(
 
 
 async def add_user_to_team(
-        org: str,
         username: str,
-        team_id: str | None = None,
-        slug: str | None = None
+        slug: str,
+        org: str = github_org_name
 ) -> None:
-    if team_id is None and slug is None:
-        raise Exception("team_id and slug cannot both be none.")
-    result = None
-    if team_id is not None and slug is None:
-        result = await _github_request_put(f"https://api.github.com/orgs/{org}/team/{team_id}/memberships/{username}",
-                                           os.environ.get("GITHUB_TOKEN"),
-                                           dumps({"role":"member"}))
-    else:
-        result = await _github_request_put(f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
-                                           os.environ.get("GITHUB_TOKEN"),
-                                           dumps({"role":"member"}))
+    if slug is None:
+        raise Exception("Slug cannot be none.")
+    result = await _github_request_put(f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
+                                        os.environ.get("GITHUB_TOKEN"),
+                                        dumps({"role":"member"}))
     result_json = result.json()
     # Logging here potentially?
     if result.status_code != 200:
         raise Exception(f"Status code {result.status_code} returned when attempting to add user to team: {result_json['message']}")
     
+    async def remove_user_from_team(
+            username: str,
+            slug: str,
+            org: str = github_org_name
+    ) -> None:
+        if slug is None:
+            raise Exception("Slug cannot be none.")
+    result = await _github_request_delete(f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
+                                          os.environ.get("GITHUB_TOKEN"))
+    if result.status_code != 204:
+        raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from team {slug}")

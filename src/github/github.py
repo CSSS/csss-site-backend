@@ -70,6 +70,11 @@ async def _github_request_delete(
 async def get_user_by_username(
         username: str
 ) -> GithubUser:
+    """
+        Takes in a Github username and returns an instance of GithubUser.
+
+        May return an empty list if no such user was found.
+    """
     result = await _github_request_get(f"https://api.github.com/users/{username}",
                               os.environ.get("GITHUB_TOKEN"))
     result_json = result.json()
@@ -78,6 +83,11 @@ async def get_user_by_username(
 async def get_user_by_id(
     id: str    
 ) -> int:
+    """
+        Takes in a Github user id and returns an instance of GithubUser.
+
+        May return an empty list if no such user was found.
+    """
     result = await _github_request_get(f"https://api.github.com/user/{id}",
                               os.environ.get("GITHUB_TOKEN"))
     result_json = result.json()
@@ -103,5 +113,18 @@ async def add_user_to_org(
                                dumps({"email":email, "role":"direct_member"}))
     result_json = result.json()
     # Logging here potentially?
-    if(result_json["status"] == "422"):
-        raise Exception(result_json["message"] + ": " + str([error["message"] for error in result_json["errors"]]))
+    if(result.status_code != 201):
+        raise Exception(f"{result.status_code}: {result_json['message']}: {str([error['message'] for error in result_json['errors']])}")
+    
+async def delete_user_from_org(
+        username: str,
+        org: str = github_org_name
+) -> None:
+    if username is None:
+        raise Exception("Username cannot be empty")
+    result = await _github_request_delete(f"https://api.github.com/orgs/{org}/memberships/{username}",
+                                          os.environ.get("GITHUB_TOKEN"))
+    # Logging here potentially?
+    if(result.status_code != 204):
+        raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username}")
+    

@@ -109,7 +109,7 @@ async def get_user_by_username(
 
 async def get_user_by_id(
     id: str    
-) -> int:
+) -> GithubUser:
     """
         Takes in a Github user id and returns an instance of GithubUser.
 

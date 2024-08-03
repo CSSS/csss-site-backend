@@ -46,7 +46,6 @@ async def _discord_request(
             'User-Agent' : 'DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)'
         }
     )
-    
     rate_limit_reset = float(result.headers["x-ratelimit-reset-after"])
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
 

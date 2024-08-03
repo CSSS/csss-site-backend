@@ -1,10 +1,12 @@
-from constants import github_org_name
 from dataclasses import dataclass
 from json import dumps
 import os
+from typing import Any
+
 import requests
 from requests import Response
-from typing import Any
+
+from constants import github_org_name
 
 @dataclass
 class GithubUser:
@@ -35,7 +37,7 @@ async def _github_request_get(
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
         raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
-    
+
     return result
 
 async def _github_request_post(
@@ -108,7 +110,7 @@ async def get_user_by_username(
     return [GithubUser(user["login"], user["id"], user["name"]) for user in [result_json]]
 
 async def get_user_by_id(
-    uid: str    
+    uid: str
 ) -> GithubUser:
     """
         Takes in a Github user id and returns an instance of GithubUser.
@@ -154,7 +156,7 @@ async def delete_user_from_org(
     # Logging here potentially?
     if result.status_code != 204:
         raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from organization {org}")
-  
+
 async def get_teams(
         org: str = github_org_name
 ) -> list[str]:

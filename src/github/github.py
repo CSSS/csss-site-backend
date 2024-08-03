@@ -1,9 +1,10 @@
+from constants import guild_id, github_org_name
 from dataclasses import dataclass
-from typing import Any
-
+from json import dumps
+import os
 import requests
-from constants import guild_id
 from requests import Response
+from typing import Any
 
 async def _github_request_get(
         url: str,
@@ -34,3 +35,22 @@ async def _github_request_post(
         data=post_data
     )
     return result
+
+async def add_user_to_org(
+        org: str = github_org_name,
+        uid: str | None = None,
+        email: str | None = None
+) -> None:
+    if uid == None and email == None:
+        raise Exception("uid and username cannot both be empty")
+    
+    # Arbitrarily prefer uid
+    if uid is not None and email is None:
+        res = _github_request_post(f"https://api.github.com/orgs/{org}/invitations", 
+                               os.environ.get("GITHUB_TOKEN"), 
+                               dumps({"invitee_id":uid, "role":"direct_member"}))
+    # Assume at this point both exist, but use email
+    else:
+        res = _github_request_post(f"https://api.github.com/orgs/{org}/invitations", 
+                               os.environ.get("GITHUB_TOKEN"), 
+                               dumps({"email":email, "role":"direct_member"}))

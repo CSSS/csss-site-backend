@@ -1,4 +1,4 @@
-from constants import guild_id, github_org_name
+from constants import github_org_name
 from dataclasses import dataclass
 from json import dumps
 import os

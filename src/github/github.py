@@ -168,8 +168,6 @@ async def add_user_to_team(
         slug: str,
         org: str = github_org_name
 ) -> None:
-    if slug is None:
-        raise Exception("Slug cannot be none.")
     result = await _github_request_put(f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
                                         os.environ.get("GITHUB_TOKEN"),
                                         dumps({"role":"member"}))
@@ -178,13 +176,11 @@ async def add_user_to_team(
     if result.status_code != 200:
         raise Exception(f"Status code {result.status_code} returned when attempting to add user to team: {result_json['message']}")
     
-    async def remove_user_from_team(
-            username: str,
-            slug: str,
-            org: str = github_org_name
-    ) -> None:
-        if slug is None:
-            raise Exception("Slug cannot be none.")
+async def remove_user_from_team(
+        username: str,
+        slug: str,
+        org: str = github_org_name
+) -> None:
     result = await _github_request_delete(f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
                                           os.environ.get("GITHUB_TOKEN"))
     if result.status_code != 204:

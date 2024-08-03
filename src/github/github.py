@@ -7,6 +7,7 @@ import requests
 from constants import github_org_name
 from requests import Response
 
+
 @dataclass
 class GithubUser:
     username: str

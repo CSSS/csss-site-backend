@@ -1,12 +1,11 @@
+import os
 from dataclasses import dataclass
 from json import dumps
-import os
 from typing import Any
 
 import requests
-from requests import Response
-
 from constants import github_org_name
+from requests import Response
 
 @dataclass
 class GithubUser:

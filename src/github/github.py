@@ -24,6 +24,10 @@ async def _github_request_get(
             "X-GitHub-Api-Version": "2022-11-28"
         }
     )
+    rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
+    if(rate_limit_remaining) < 50:
+        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+    
     return result
 
 async def _github_request_post(
@@ -40,6 +44,27 @@ async def _github_request_post(
         },
         data=post_data
     )
+    rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
+    if(rate_limit_remaining) < 50:
+        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+
+    return result
+
+async def _github_request_delete(
+        url: str,
+        token: str
+) -> Response:
+    result = requests.delete(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28"}
+    )
+    rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
+    if(rate_limit_remaining) < 50:
+        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+
     return result
 
 async def get_user_by_username(

@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from time import sleep
 
 import requests
 from constants import guild_id
@@ -47,6 +48,16 @@ async def _discord_request(
             "User-Agent" : "DiscordBot (https://github.com/CSSS/csss-site-backend, 1.0)"
         }
     )
+    rate_limit_reset = float(result.headers["x-ratelimit-reset-after"])
+    rate_limit_remaining_requests = int(result.headers["x-ratelimit-remaining"])
+
+    if rate_limit_remaining_requests <= 2:
+        # this rate limits the current thread from doing too many requests, however it won't
+        # limit other threads.
+        # TODO: in the future, we'll want to create a singleton that thread locks
+        # usage of the same api key to N at a time, and waits if there are no requests remaining
+        sleep(rate_limit_reset)
+
     return result
 
 async def get_channel_members(
@@ -330,6 +341,7 @@ async def search_user(
     url = f"https://discord.com/api/v10/guilds/{gid}/members/search?query={user}"
     result = await _discord_request(url, token)
     json = result.json()
+
     if len(json) == 0:
         return None
     json = json[0]["user"]

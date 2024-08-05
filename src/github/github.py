@@ -36,7 +36,7 @@ async def _github_request_get(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        return None
 
     return result
 
@@ -56,7 +56,7 @@ async def _github_request_post(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        return None
 
     return result
 
@@ -73,7 +73,7 @@ async def _github_request_delete(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        return None
 
     return result
 
@@ -92,7 +92,7 @@ async def _github_request_put(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        return None
 
     return result
 

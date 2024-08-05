@@ -82,34 +82,41 @@ def apply_watermark(
     return watermarked_pdf
 
 def raster_pdf(
-        pdf_path: BytesIO | Path | str,
+        pdf_path: BytesIO,
         dpi: int = 300
 ) -> BytesIO:
     raster_buffer = BytesIO()
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
-    if isinstance(pdf_path, BytesIO):
-        with p_open(stream=pdf_path) as doc:
-            page_count = doc.page_count
-            with p_open() as target:
-                for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
-                    zoom = _dpi / 72
-                    mat = Matrix(zoom, zoom)
-                    pix = page.get_pixmap(matrix=mat)
-                    tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
-                    tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
+    with p_open(stream=pdf_path) as doc:
+        page_count = doc.page_count
+        with p_open() as target:
+            for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
+                zoom = _dpi / 72
+                mat = Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=mat)
+                tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
+                tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
 
-                target.save(raster_buffer)
-    else:
-        with p_open(filename=pdf_path) as doc:
-            page_count = doc.page_count
-            with p_open() as target:
-                for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
-                    zoom = _dpi / 72
-                    mat = Matrix(zoom, zoom)
-                    pix = page.get_pixmap(matrix=mat)
-                    tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
-                    tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
+            target.save(raster_buffer)
+    raster_buffer.seek(0)
+    return raster_buffer
 
-                target.save(raster_buffer)
+def raster_pdf_from_path(
+        pdf_path: Path | str,
+        dpi: int = 300
+) -> BytesIO:
+    raster_buffer = BytesIO()
+    # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
+    with p_open(filename=pdf_path) as doc:
+        page_count = doc.page_count
+        with p_open() as target:
+            for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
+                zoom = _dpi / 72
+                mat = Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=mat)
+                tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
+                tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
+
+            target.save(raster_buffer)
     raster_buffer.seek(0)
     return raster_buffer

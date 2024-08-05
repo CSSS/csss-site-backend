@@ -78,7 +78,7 @@ async def get_channel_members(
     # NOTE: the @everyone role is exactly the guild id
     # this is by design and described in the discord role api
     role_everyone = await get_role_by_id(gid, gid)
-    # I'm assuming that the everyone role always exists
+    # the @everyone role always exists
     assert role_everyone is not None
     base_permission = role_everyone["permissions"]
 

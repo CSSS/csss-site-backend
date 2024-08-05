@@ -49,9 +49,9 @@ async def _discord_request(
         }
     )
     rate_limit_reset = float(result.headers["x-ratelimit-reset-after"])
-    rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
+    rate_limit_remaining_requests = int(result.headers["x-ratelimit-remaining"])
 
-    if rate_limit_remaining <= 2:
+    if rate_limit_remaining_requests <= 2:
         sleep(rate_limit_reset)
 
     return result

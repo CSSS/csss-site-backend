@@ -54,7 +54,13 @@ async def get_channel_members(
     # TODO: hardcode guild_id (remove it as argument) if we ever refactor this module
     gid: str = guild_id
 ) -> list[GuildMember]:
+    """
+    Returns empty list if invalid channel id is provided.
+    """
     channel = await get_channel(cid, gid)
+    if channel is None:
+        return []
+
     channel_overwrites = {
         x["id"]: {
             "type": x["type"],
@@ -116,16 +122,17 @@ async def get_channel_members(
 async def get_channel(
     cid: str,
     gid: str = guild_id
-) -> Channel:
+) -> Channel | None:
     token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
     result = await _discord_request(url, token)
 
     result_json = result.json()
-    channel = next(channel for channel in result_json if channel["id"] == cid)
-    channel = Channel(channel["id"], channel["type"], channel["guild_id"], channel["name"], channel["permission_overwrites"])
-
-    return channel
+    channel = next((channel for channel in result_json if channel["id"] == cid), None)
+    if channel is None:
+        return None
+    else:
+        return Channel(channel["id"], channel["type"], channel["guild_id"], channel["name"], channel["permission_overwrites"])
 
 async def get_all_channels(
     gid: str = guild_id

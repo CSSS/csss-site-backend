@@ -124,19 +124,21 @@ async def get_user_by_id(
 
 async def add_user_to_org(
         org: str = github_org_name,
+        # We need one of either uid or email. We'll fail if we're provided both.
         uid: str | None = None,
         email: str | None = None
 ) -> None:
+    result = None
     if uid is None and email is None:
         raise ValueError("uid and username cannot both be empty")
-    result = None
+    elif uid is not None and email is not None:
+        raise ValueError("cannot populate both uid and email")
     # Arbitrarily prefer uid
-    if uid is not None and email is None:
+    elif uid is not None:
         result = await _github_request_post(f"https://api.github.com/orgs/{org}/invitations",
                                os.environ.get("GITHUB_TOKEN"),
                                dumps({"invitee_id":uid, "role":"direct_member"}))
-    # Assume at this point both exist, but use email
-    else:
+    elif email is not None:
         result = await _github_request_post(f"https://api.github.com/orgs/{org}/invitations",
                                os.environ.get("GITHUB_TOKEN"),
                                dumps({"email":email, "role":"direct_member"}))

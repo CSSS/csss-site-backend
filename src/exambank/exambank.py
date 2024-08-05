@@ -16,6 +16,9 @@ def create_watermark(
         computing_id: str,
         density: int = 5
 ) -> BytesIO:
+    """
+        Returns a PDF with one page containing the watermark as text.
+    """
     # Generate the tiling watermark
     stamp_buffer = BytesIO()
     stamp_pdf = canvas.Canvas(stamp_buffer, pagesize=A4)

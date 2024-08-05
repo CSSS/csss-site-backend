@@ -1,9 +1,11 @@
-import requests
-from requests import Response
 import os
+from dataclasses import dataclass
+from time import sleep
 
+import requests
 from constants import guild_id
-from dataclasses import dataclass 
+from requests import Response
+
 # ----------------------- #
 # api
 
@@ -50,7 +52,6 @@ async def _discord_request(
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
 
     if rate_limit_remaining <= 2:
-        from time import sleep
         sleep(rate_limit_reset)
 
     return result

@@ -36,6 +36,7 @@ async def _github_request_get(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
+        # Less than 50 api calls remaining before being rate limited
         return None
 
     return result
@@ -56,6 +57,7 @@ async def _github_request_post(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
+        # Less than 50 api calls remaining before being rate limited, please try again later
         return None
 
     return result
@@ -73,6 +75,7 @@ async def _github_request_delete(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
+        # Less than 50 api calls remaining before being rate limited
         return None
 
     return result
@@ -92,39 +95,46 @@ async def _github_request_put(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
+        # Less than 50 api calls remaining before being rate limited
         return None
 
     return result
 
 async def get_user_by_username(
         username: str
-) -> GithubUser:
+) -> GithubUser | None:
     """
         Takes in a Github username and returns an instance of GithubUser.
 
-        May return None if no such user was found.
+        Returns None if no such user was found.
     """
-    result = await _github_request_get(f"https://api.github.com/users/{username}",
-                              os.environ.get("GITHUB_TOKEN"))
+    result = await _github_request_get(
+        f"https://api.github.com/users/{username}",
+        os.environ.get("GITHUB_TOKEN"),
+    )
     result_json = result.json()
     if result_json["status"] == "404":
         return None
-    return GithubUser(result_json["login"], result_json["id"], result_json["name"])
+    else:
+        return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def get_user_by_id(
     uid: str
-) -> GithubUser:
+) -> GithubUser | None:
     """
         Takes in a Github user id and returns an instance of GithubUser.
 
-        May return None if no such user was found.
+        Returns None if no such user was found.
     """
-    result = await _github_request_get(f"https://api.github.com/user/{uid}",
-                              os.environ.get("GITHUB_TOKEN"))
+    result = await _github_request_get(
+        f"https://api.github.com/user/{uid}",
+        os.environ.get("GITHUB_TOKEN"),
+    )
     result_json = result.json()
     if result_json["status"] == "404":
         return None
-    return GithubUser(result_json["login"], result_json["id"], result_json["name"])
+    else:
+        return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def add_user_to_org(
         org: str = github_org_name,
@@ -151,7 +161,10 @@ async def add_user_to_org(
     result_json = result.json()
     # Logging here potentially?
     if result.status_code != 201:
-        raise Exception(f"Status code {result.status_code} returned when attempting to add user to org: {result_json['message']}: {[error['message'] for error in result_json['errors']]}")
+        raise Exception(
+            f"Status code {result.status_code} returned when attempting to add user to org: "
+            f"{result_json['message']}: {[error['message'] for error in result_json['errors']]}"
+        )
 
 async def delete_user_from_org(
         username: str,

@@ -79,7 +79,7 @@ def apply_watermark(
 
 def raster_pdf(
         pdf_path: BytesIO | Path | str,
-        dpi: int
+        dpi: int = 300
 ) -> BytesIO:
     raster_buffer = BytesIO()
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
@@ -92,7 +92,7 @@ def raster_pdf(
                     mat = pymupdf.Matrix(zoom, zoom)
                     pix = page.get_pixmap(matrix=mat)
                     tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
-                    tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("JPEG"))
+                    tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
 
                 target.save(raster_buffer)
     else:
@@ -104,7 +104,7 @@ def raster_pdf(
                     mat = pymupdf.Matrix(zoom, zoom)
                     pix = page.get_pixmap(matrix=mat)
                     tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
-                    tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("JPEG"))
+                    tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
 
                 target.save(raster_buffer)
     raster_buffer.seek(0)

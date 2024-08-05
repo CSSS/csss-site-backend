@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Union
 from io import BytesIO
-import collections.abc
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch

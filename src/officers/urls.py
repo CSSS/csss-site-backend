@@ -69,12 +69,11 @@ async def past_officers(
     """
     return JSONResponse(all_officers)
 
-
+"""
 # TODO: test this error later
 @router.get("/please_error", description="Raises an error & should send an email to the sysadmin")
 async def raise_error():
     raise ValueError("This is an error, you're welcome")
-
 
 @router.post(
     "/enter_info",
@@ -87,15 +86,12 @@ async def enter_info():
 
     return {}
 
-
-"""
 @router.get(
     "/my_info",
     description="Get info about whether you are still an executive or not / what your position is.",
 )
 async def my_info():
     return {}
-"""
 
 
 @router.post(
@@ -120,3 +116,4 @@ async def remove_officer():
 )
 async def update_officer():
     return {}
+"""

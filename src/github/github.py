@@ -128,10 +128,12 @@ async def get_user_by_id(
 
 async def add_user_to_org(
         org: str = github_org_name,
-        # We need one of either uid or email. We'll fail if we're provided both.
         uid: str | None = None,
         email: str | None = None
 ) -> None:
+    """
+        Takes one of either uid or email. Fails if provided both.
+    """
     result = None
     if uid is None and email is None:
         raise ValueError("uid and username cannot both be empty")

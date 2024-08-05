@@ -1,6 +1,5 @@
 from io import BytesIO
 from pathlib import Path
-from typing import Union
 
 from pymupdf import Matrix
 from pymupdf import open as p_open

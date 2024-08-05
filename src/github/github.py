@@ -182,7 +182,9 @@ async def remove_user_from_team(
         slug: str,
         org: str = github_org_name
 ) -> None:
-    result = await _github_request_delete(f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
-                                          os.environ.get("GITHUB_TOKEN"))
+    result = await _github_request_delete(
+        f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
+        os.environ.get("GITHUB_TOKEN"),
+    )
     if result.status_code != 204:
         raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from team {slug}")

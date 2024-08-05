@@ -52,8 +52,8 @@ async def _discord_request(
     rate_limit_remaining_requests = int(result.headers["x-ratelimit-remaining"])
 
     if rate_limit_remaining_requests <= 2:
-        # this rate limits the current thread from doing too many requests, however it won't 
-        # limit other threads. 
+        # this rate limits the current thread from doing too many requests, however it won't
+        # limit other threads.
         # TODO: in the future, we'll want to create a singleton that thread locks
         # usage of the same api key to N at a time, and waits if there are no requests remaining
         sleep(rate_limit_reset)

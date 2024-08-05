@@ -102,12 +102,14 @@ async def get_user_by_username(
     """
         Takes in a Github username and returns an instance of GithubUser.
 
-        May return an empty list if no such user was found.
+        May return None if no such user was found.
     """
     result = await _github_request_get(f"https://api.github.com/users/{username}",
                               os.environ.get("GITHUB_TOKEN"))
     result_json = result.json()
-    return [GithubUser(user["login"], user["id"], user["name"]) for user in [result_json]]
+    if result_json["status"] == "404":
+        return None
+    return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def get_user_by_id(
     uid: str
@@ -115,12 +117,14 @@ async def get_user_by_id(
     """
         Takes in a Github user id and returns an instance of GithubUser.
 
-        May return an empty list if no such user was found.
+        May return None if no such user was found.
     """
     result = await _github_request_get(f"https://api.github.com/user/{uid}",
                               os.environ.get("GITHUB_TOKEN"))
     result_json = result.json()
-    return [GithubUser(user["login"], user["id"], user["name"]) for user in [result_json]]
+    if result_json["status"] == "404":
+        return None
+    return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def add_user_to_org(
         org: str = github_org_name,

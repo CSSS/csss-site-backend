@@ -75,7 +75,11 @@ async def get_channel_members(
     else:
         role_everyone_overrides = None
 
+    # NOTE: the @everyone role is exactly the guild id
+    # this is by design and described in the discord role api
     role_everyone = await get_role_by_id(gid, gid)
+    # I'm assuming that the everyone role always exists
+    assert role_everyone is not None
     base_permission = role_everyone["permissions"]
 
     users = await get_guild_members(guild_id)
@@ -158,13 +162,13 @@ async def get_role_name_by_id(
 async def get_role_by_id(
     rid: str,
     gid: str = guild_id
-) -> dict:
+) -> dict | None:
     token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/roles"
     result = await _discord_request(url, token)
 
     result_json = result.json()
-    return next(role for role in result_json if role["id"] == rid)
+    return next((role for role in result_json if role["id"] == rid), None)
 
 async def get_user_roles(
     uid: str,

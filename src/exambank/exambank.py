@@ -1,15 +1,15 @@
+from io import BytesIO
 from pathlib import Path
 from typing import Union
-from io import BytesIO
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
+from pymupdf import Matrix
+from pymupdf import open as p_open
+from pypdf import PdfReader, PdfWriter
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 
-from pypdf import PdfReader, PdfWriter
-
-import pymupdf
 
 def create_watermark(
         computing_id: str,
@@ -54,7 +54,7 @@ def create_watermark(
     watermark_pdf.write(watermark_buffer)
     watermark_buffer.seek(0)
     return watermark_buffer
-    
+
 def apply_watermark(
         pdf_path: Path | str,
         # expect a BytesIO instance (at position 0), accept a file/path
@@ -83,24 +83,24 @@ def raster_pdf(
     raster_buffer = BytesIO()
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
     if isinstance(pdf_path, BytesIO):
-        with pymupdf.open(stream=pdf_path) as doc:
+        with p_open(stream=pdf_path) as doc:
             page_count = doc.page_count
-            with pymupdf.open() as target:
-                for page, _dpi in zip(doc, [dpi] * page_count):
+            with p_open() as target:
+                for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
                     zoom = _dpi / 72
-                    mat = pymupdf.Matrix(zoom, zoom)
+                    mat = Matrix(zoom, zoom)
                     pix = page.get_pixmap(matrix=mat)
                     tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
                     tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
 
                 target.save(raster_buffer)
     else:
-        with pymupdf.open(filename=pdf_path) as doc:
+        with p_open(filename=pdf_path) as doc:
             page_count = doc.page_count
-            with pymupdf.open() as target:
-                for page, _dpi in zip(doc, [dpi] * page_count):
+            with p_open() as target:
+                for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
                     zoom = _dpi / 72
-                    mat = pymupdf.Matrix(zoom, zoom)
+                    mat = Matrix(zoom, zoom)
                     pix = page.get_pixmap(matrix=mat)
                     tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
                     tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))

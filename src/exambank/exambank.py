@@ -1,8 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 
-from pymupdf import Matrix
-from pymupdf import open as p_open
+import pymupdf
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -87,12 +86,12 @@ def raster_pdf(
 ) -> BytesIO:
     raster_buffer = BytesIO()
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
-    with p_open(stream=pdf_path) as doc:
+    with pymupdf.open(stream=pdf_path) as doc:
         page_count = doc.page_count
-        with p_open() as target:
+        with pymupdf.open() as target:
             for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
                 zoom = _dpi / 72
-                mat = Matrix(zoom, zoom)
+                mat = pymupdf.Matrix(zoom, zoom)
                 pix = page.get_pixmap(matrix=mat)
                 tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
                 tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
@@ -107,12 +106,12 @@ def raster_pdf_from_path(
 ) -> BytesIO:
     raster_buffer = BytesIO()
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
-    with p_open(filename=pdf_path) as doc:
+    with pymupdf.open(filename=pdf_path) as doc:
         page_count = doc.page_count
-        with p_open() as target:
+        with pymupdf.open() as target:
             for page, _dpi in zip(doc, [dpi] * page_count, strict=False):
                 zoom = _dpi / 72
-                mat = Matrix(zoom, zoom)
+                mat = pymupdf.Matrix(zoom, zoom)
                 pix = page.get_pixmap(matrix=mat)
                 tarpage = target.new_page(width=page.rect.width, height=page.rect.height)
                 tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))

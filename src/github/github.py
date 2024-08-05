@@ -128,7 +128,7 @@ async def add_user_to_org(
         email: str | None = None
 ) -> None:
     if uid is None and email is None:
-        raise Exception("uid and username cannot both be empty")
+        raise ValueError("uid and username cannot both be empty")
     result = None
     # Arbitrarily prefer uid
     if uid is not None and email is None:

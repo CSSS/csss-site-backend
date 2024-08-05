@@ -10,7 +10,7 @@ from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
 # param to describe margin for exam generation text
-border = 20
+BORDER = 20
 
 def create_watermark(
         computing_id: str,

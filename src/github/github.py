@@ -25,7 +25,7 @@ class GithubTeam:
 async def _github_request_get(
         url: str,
         token: str
-) -> Response:
+) -> Response | None:
     result = requests.get(
         url,
         headers={
@@ -36,7 +36,8 @@ async def _github_request_get(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        # Less than 50 api calls remaining before being rate limited
+        return None
 
     return result
 
@@ -44,7 +45,7 @@ async def _github_request_post(
         url: str,
         token: str,
         post_data: Any
-) -> Response:
+) -> Response | None:
     result = requests.post(
         url,
         headers={
@@ -56,14 +57,15 @@ async def _github_request_post(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        # Less than 50 api calls remaining before being rate limited, please try again later
+        return None
 
     return result
 
 async def _github_request_delete(
         url: str,
         token: str
-) -> Response:
+) -> Response | None:
     result = requests.delete(
         url,
         headers={
@@ -73,7 +75,8 @@ async def _github_request_delete(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        # Less than 50 api calls remaining before being rate limited
+        return None
 
     return result
 
@@ -81,7 +84,7 @@ async def _github_request_put(
         url: str,
         token: str,
         put_data: Any
-) -> Response:
+) -> Response | None:
     result = requests.put(
         url,
         headers={
@@ -92,58 +95,76 @@ async def _github_request_put(
     )
     rate_limit_remaining = int(result.headers["x-ratelimit-remaining"])
     if rate_limit_remaining < 50:
-        raise Exception("Less than 50 api calls remaining before being rate limited, please try again later")
+        # Less than 50 api calls remaining before being rate limited
+        return None
 
     return result
 
 async def get_user_by_username(
         username: str
-) -> GithubUser:
+) -> GithubUser | None:
     """
         Takes in a Github username and returns an instance of GithubUser.
 
-        May return an empty list if no such user was found.
+        Returns None if no such user was found.
     """
-    result = await _github_request_get(f"https://api.github.com/users/{username}",
-                              os.environ.get("GITHUB_TOKEN"))
+    result = await _github_request_get(
+        f"https://api.github.com/users/{username}",
+        os.environ.get("GITHUB_TOKEN"),
+    )
     result_json = result.json()
-    return [GithubUser(user["login"], user["id"], user["name"]) for user in [result_json]]
+    if result_json["status"] == "404":
+        return None
+    else:
+        return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def get_user_by_id(
     uid: str
-) -> GithubUser:
+) -> GithubUser | None:
     """
         Takes in a Github user id and returns an instance of GithubUser.
 
-        May return an empty list if no such user was found.
+        Returns None if no such user was found.
     """
-    result = await _github_request_get(f"https://api.github.com/user/{uid}",
-                              os.environ.get("GITHUB_TOKEN"))
+    result = await _github_request_get(
+        f"https://api.github.com/user/{uid}",
+        os.environ.get("GITHUB_TOKEN"),
+    )
     result_json = result.json()
-    return [GithubUser(user["login"], user["id"], user["name"]) for user in [result_json]]
+    if result_json["status"] == "404":
+        return None
+    else:
+        return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def add_user_to_org(
         org: str = github_org_name,
         uid: str | None = None,
         email: str | None = None
 ) -> None:
-    if uid is None and email is None:
-        raise Exception("uid and username cannot both be empty")
+    """
+        Takes one of either uid or email. Fails if provided both.
+    """
     result = None
+    if uid is None and email is None:
+        raise ValueError("uid and username cannot both be empty")
+    elif uid is not None and email is not None:
+        raise ValueError("cannot populate both uid and email")
     # Arbitrarily prefer uid
-    if uid is not None and email is None:
+    elif uid is not None:
         result = await _github_request_post(f"https://api.github.com/orgs/{org}/invitations",
                                os.environ.get("GITHUB_TOKEN"),
                                dumps({"invitee_id":uid, "role":"direct_member"}))
-    # Assume at this point both exist, but use email
-    else:
+    elif email is not None:
         result = await _github_request_post(f"https://api.github.com/orgs/{org}/invitations",
                                os.environ.get("GITHUB_TOKEN"),
                                dumps({"email":email, "role":"direct_member"}))
     result_json = result.json()
     # Logging here potentially?
     if result.status_code != 201:
-        raise Exception(f"Status code {result.status_code} returned when attempting to add user to org: {result_json['message']}: {[error['message'] for error in result_json['errors']]}")
+        raise Exception(
+            f"Status code {result.status_code} returned when attempting to add user to org: "
+            f"{result_json['message']}: {[error['message'] for error in result_json['errors']]}"
+        )
 
 async def delete_user_from_org(
         username: str,
@@ -182,7 +203,9 @@ async def remove_user_from_team(
         slug: str,
         org: str = github_org_name
 ) -> None:
-    result = await _github_request_delete(f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
-                                          os.environ.get("GITHUB_TOKEN"))
+    result = await _github_request_delete(
+        f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
+        os.environ.get("GITHUB_TOKEN"),
+    )
     if result.status_code != 204:
         raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from team {slug}")

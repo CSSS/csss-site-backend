@@ -25,7 +25,7 @@ class GithubTeam:
 async def _github_request_get(
         url: str,
         token: str
-) -> Response:
+) -> Response | None:
     result = requests.get(
         url,
         headers={
@@ -44,7 +44,7 @@ async def _github_request_post(
         url: str,
         token: str,
         post_data: Any
-) -> Response:
+) -> Response | None:
     result = requests.post(
         url,
         headers={
@@ -63,7 +63,7 @@ async def _github_request_post(
 async def _github_request_delete(
         url: str,
         token: str
-) -> Response:
+) -> Response | None:
     result = requests.delete(
         url,
         headers={
@@ -81,7 +81,7 @@ async def _github_request_put(
         url: str,
         token: str,
         put_data: Any
-) -> Response:
+) -> Response | None:
     result = requests.put(
         url,
         headers={

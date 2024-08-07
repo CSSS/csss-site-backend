@@ -88,7 +88,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
         officer_data[term.position] += [
             OfficerData(
-                is_current_officer = True,
+                is_active = True,
 
                 position = term.position,
                 start_date = term.start_date,
@@ -135,6 +135,59 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     return officer_data
 
+
+async def all_officer_terms(db_session: database.DBSession, include_private: bool) -> list[OfficerData]:
+    """
+    Orders officers recent first.
+
+    This could be a lot of data, so be careful.
+
+    TODO: optionally paginate data, so it's not so bad.
+    """
+    query = sqlalchemy.select(OfficerTerm)
+    query = query.order_by(OfficerTerm.start_date.desc())
+    officer_terms = (await db_session.scalars(query)).all()
+
+    officer_data_list = []
+    for term in officer_terms:
+        officer_info_query = sqlalchemy.select(OfficerInfo)
+        officer_info_query = officer_info_query.where(
+            OfficerInfo.computing_id == term.computing_id
+        )
+        officer_info = (await db_session.scalars(officer_info_query)).first()
+
+        officer_data_list += [
+            OfficerData(
+                is_active = (term.end_date is None) or (datetime.today() <= term.end_date),
+
+                position = term.position,
+                start_date = term.start_date,
+                end_date = term.end_date,
+
+                legal_name = officer_info.legal_name,
+                nickname = term.nickname,
+                discord_name = officer_info.discord_name,
+                discord_nickname = officer_info.discord_nickname,
+
+                favourite_course_0 = term.favourite_course_0,
+                favourite_course_1 = term.favourite_course_1,
+                favourite_language_0 = term.favourite_pl_0,
+                favourite_language_1 = term.favourite_pl_1,
+
+                csss_email = OfficerPosition.from_string(term.position).to_email(),
+                biography = term.biography,
+                photo_url = term.photo_url,
+
+                private_data = OfficerPrivateData(
+                    computing_id = term.computing_id,
+                    phone_number = officer_info.phone_number,
+                    github_username = officer_info.github_username,
+                    google_drive_email = officer_info.google_drive_email,
+                ) if include_private else None,
+            )
+        ]
+
+    return officer_data_list
 
 # TODO: do we ever expect to need to remove officer info? Probably not? Just updating it.
 def update_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData):

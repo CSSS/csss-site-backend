@@ -48,7 +48,7 @@ class OfficerPrivateData:
 
 @dataclass
 class OfficerData:
-    is_current_officer: bool
+    is_active: bool
 
     # an officer may have multiple positions, such as FroshWeekChair & DirectorOfEvents
     position: str
@@ -62,7 +62,6 @@ class OfficerData:
 
     favourite_course_0: str | None
     favourite_course_1: str | None
-
     favourite_language_0: str | None
     favourite_language_1: str | None
 
@@ -128,7 +127,7 @@ class OfficerPositionData_Upload(BaseModel):
 """
 # TODO: this is for another api call, where the doa should be able to change any aspect of the person's configuration, just in case
 class OfficerDataUpdate_Upload(BaseModel):
-    is_current_officer: bool
+    is_active: bool
 
     # an officer may have multiple positions, such as FroshWeekChair & DirectorOfEvents
     position: str

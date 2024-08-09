@@ -4,6 +4,7 @@ from logging.config import fileConfig
 import auth.models
 import database
 import officers.models
+import blog.models
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -42,6 +43,7 @@ def run_migrations_offline() -> None:
     # url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=database.SQLALCHEMY_DATABASE_URL,
+        # url=database.SQLALCHEMY_TEST_DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -58,6 +60,7 @@ async def run_async_migrations() -> None:
     """
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = database.SQLALCHEMY_DATABASE_URL
+    # configuration["sqlalchemy.url"] = database.SQLALCHEMY_TEST_DATABASE_URL
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",

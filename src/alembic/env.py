@@ -2,9 +2,9 @@ import asyncio
 from logging.config import fileConfig
 
 import auth.models
+import blog.models
 import database
 import officers.models
-import blog.models
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection

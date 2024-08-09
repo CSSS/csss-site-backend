@@ -1,22 +1,17 @@
 from constants import COMPUTING_ID_LEN
 from database import Base
-from sqlalchemy import (
-    Column, 
-    DateTime, 
-    ForeignKey, 
-    String,
-    Text 
-)
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+
 
 # blog table
 class BlogPosts(Base):
     # table name
     __tablename__ = "blog_posts"
-    
+
     # title of post ( meant to be an unique key but for simplicity,
     # using already defined primay_key )
     title = Column(String(128), primary_key=True, nullable=False)
-    
+
     # computing id
     # TODO: add foreign key
     computing_id = Column(String(COMPUTING_ID_LEN),

@@ -3,6 +3,7 @@ from logging.config import fileConfig
 
 import auth.models
 import database
+import elections.models
 import officers.models
 from alembic import context
 from sqlalchemy import pool

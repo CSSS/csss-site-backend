@@ -10,7 +10,7 @@ from database import Base
 from sqlalchemy import (
     Column,
     DateTime,
-    ForeignKeyConstraint,
+    ForeignKey,
     PrimaryKeyConstraint,
     String,
     Text,
@@ -44,19 +44,14 @@ class Nominee(Base):
     discord_id = Column(String(DISCORD_ID_LEN))
     discord_username = Column(String(DISCORD_NICKNAME_LEN))
 
-class NomineeSpeech(Base):
-    __tablename__ = "nominee_speech"
+class NomineeApplication(Base):
+    __tablename__ = "nominee_application"
 
-    computing_id = Column(String(COMPUTING_ID_LEN), primary_key=True)
-    nominee_election = Column(String(32), primary_key=True)
+    computing_id = Column(ForeignKey("election_nominee.computing_id"), primary_key=True)
+    nominee_election = Column(ForeignKey("election.slug"), primary_key=True)
     speech = Column(Text)
+    position = Column(String(64), nullable=False)
 
     __table_args__ = (
         PrimaryKeyConstraint(computing_id, nominee_election),
-        ForeignKeyConstraint(
-            ["computing_id"], ["election_nominee.computing_id"]
-        ),
-        ForeignKeyConstraint(
-            ["nominee_election"], ["election.slug"]
-        )
     )

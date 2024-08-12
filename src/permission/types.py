@@ -23,3 +23,23 @@ class OfficerPrivateInfo:
         cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)
 
         return most_recent_exec_term > cutoff_date
+
+class WebsiteAdmin:
+    WEBSITE_ADMIN_POSITIONS = [
+        OfficerPosition.President,
+        OfficerPosition.VicePresident,
+        OfficerPosition.DirectorOfArchives,
+        OfficerPosition.SystemAdministrator,
+        OfficerPosition.Webmaster,
+    ]
+
+    @staticmethod
+    async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
+        """
+        A website admin has to be one of the following positions, and
+        """
+        position = await officers.crud.current_officer_position(db_session, computing_id)
+        if position is None:
+            return False
+
+        return position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS

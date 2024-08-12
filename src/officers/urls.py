@@ -45,9 +45,9 @@ async def current_officers(
 
 @router.get(
     "/all",
-    description="Information from past exec terms. If year is not included, all years will be returned. If semester is not included, all semesters that year will be returned. If semester is given, but year is not, return all years and all semesters.",
+    description="Information from all exec terms. If year is not included, all years will be returned. If semester is not included, all semesters that year will be returned. If semester is given, but year is not, return all years and all semesters.",
 )
-async def past_officers(
+async def all_officers(
     request: Request,
     db_session: database.DBSession,
 ):

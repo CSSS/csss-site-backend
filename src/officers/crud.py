@@ -31,6 +31,28 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
     # TODO: can this be replaced with scalar to improve performance?
     return (await db_session.scalars(query)).first()
 
+# TODO: test this function
+async def current_officer_position(db_session: database.DBSession, computing_id: str) -> str | None:
+    """
+    Returns None if the user is not currently an officer
+    """
+    query = sqlalchemy.select(OfficerTerm)
+    query = query.where(OfficerTerm.computing_id == computing_id)
+    # TODO: assert this constraint at the SQL level, so that we don't even have to check it.
+    query = query.where(
+        # TODO: turn this query into a utility function, so it can be reused
+        OfficerTerm.is_filled_in
+        and (
+            # executives without a specified end_date are considered active
+            OfficerTerm.end_date is None
+            # check that today's timestamp is before (smaller than) the term's end date
+            or (datetime.today() <= OfficerTerm.end_date)
+        )
+    )
+    query = query.limit(1)
+
+    # TODO: can this be replaced with scalar to improve performance?
+    return (await db_session.scalars(query)).first()
 
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
     """

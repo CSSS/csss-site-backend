@@ -1,8 +1,10 @@
 from datetime import UTC, datetime, timezone
+from typing import ClassVar
 
 import database
 import officers.crud
 from data.semesters import current_semester_start, step_semesters
+from officers.constants import OfficerPosition
 
 
 class OfficerPrivateInfo:
@@ -25,7 +27,7 @@ class OfficerPrivateInfo:
         return most_recent_exec_term > cutoff_date
 
 class WebsiteAdmin:
-    WEBSITE_ADMIN_POSITIONS = [
+    WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [
         OfficerPosition.President,
         OfficerPosition.VicePresident,
         OfficerPosition.DirectorOfArchives,

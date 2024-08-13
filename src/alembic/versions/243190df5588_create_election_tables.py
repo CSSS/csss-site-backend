@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.create_table("election",
     sa.Column("slug", sa.String(length=32), nullable=False),
     sa.Column("name", sa.String(length=32), nullable=False),
-    sa.Column("officer_id", sa.String(length=32), nullable=False, unique=True),
+    sa.Column("officer_id", sa.String(length=32), nullable=False),
     sa.Column("type", sa.String(length=64), nullable=True),
     sa.Column("date", sa.DateTime(), nullable=False),
     sa.Column("end_date", sa.DateTime(), nullable=True),

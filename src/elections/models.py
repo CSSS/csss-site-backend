@@ -17,16 +17,17 @@ from sqlalchemy import (
 )
 
 
-# Each row represents an instance of an election
+# Each row represents an instance of an
 class Election(Base):
     __tablename__ = "election"
 
     # Slugs are unique identifiers
     slug = Column(String(32), primary_key=True)
     name = Column(String(32), nullable=False)
+    officer_id = Column(String(COMPUTING_ID_LEN), nullable=False)
     # Can be one of (general_election: General Election, by_election: By-Election, council_rep_election: Council Rep Election)
     type = Column(String(64), default="general_election")
-    date = Column(DateTime, default=datetime.now())
+    date = Column(DateTime, nullable=False)
     end_date = Column(DateTime)
     websurvey = Column(String(300))
 

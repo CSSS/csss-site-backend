@@ -43,19 +43,37 @@ async def current_officers(
     return JSONResponse(json_current_executives)
 
 
-# TODO: test this error afterwards
+@router.get(
+    "/all",
+    description="Information from all exec terms. If year is not included, all years will be returned. If semester is not included, all semesters that year will be returned. If semester is given, but year is not, return all years and all semesters.",
+)
+async def all_officers(
+    request: Request,
+    db_session: database.DBSession,
+):
+    # determine if user has access to this private data
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        has_private_access = False
+    else:
+        computing_id = await auth.crud.get_computing_id(db_session, session_id)
+        has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+
+    all_officers = await officers.crud.all_officers(db_session, include_private=has_private_access)
+    """
+    json_current_executives = {
+        position: [
+            officer_data.serializable_dict() for officer_data in officer_data_list
+        ] for position, officer_data_list in all_officers.items()
+    }
+    """
+    return JSONResponse(all_officers)
+
+"""
+# TODO: test this error later
 @router.get("/please_error", description="Raises an error & should send an email to the sysadmin")
 async def raise_error():
     raise ValueError("This is an error, you're welcome")
-
-
-@router.get(
-    "/past",
-    description="Information from past exec terms. If year is not included, all years will be returned. If semester is not included, all semesters that year will be returned. If semester is given, but year is not, return all years and all semesters.",
-)
-async def past_officers():
-    return {"officers": "none"}
-
 
 @router.post(
     "/enter_info",
@@ -68,15 +86,12 @@ async def enter_info():
 
     return {}
 
-
-"""
 @router.get(
     "/my_info",
     description="Get info about whether you are still an executive or not / what your position is.",
 )
 async def my_info():
     return {}
-"""
 
 
 @router.post(
@@ -101,3 +116,4 @@ async def remove_officer():
 )
 async def update_officer():
     return {}
+"""

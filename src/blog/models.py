@@ -1,6 +1,5 @@
 from constants import COMPUTING_ID_LEN
 from database import Base
-
 from sqlalchemy import Column, DateTime, ForeignKeyConstraint, String, Text
 
 

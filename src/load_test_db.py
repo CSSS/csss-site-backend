@@ -10,7 +10,7 @@ from auth.crud import create_user_session
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from officers.constants import OfficerPosition
 from officers.crud import update_officer_info, update_officer_term
-from officers.schemas import OfficerInfoData, OfficerTermData
+from officers.types import OfficerInfoData, OfficerTermData
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

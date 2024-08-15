@@ -7,8 +7,8 @@ import sqlalchemy
 from auth.models import SiteUser
 
 from officers.constants import OfficerPosition
-from officers.models import OfficerInfo, OfficerTerm
-from officers.schemas import (
+from officers.tables import OfficerInfo, OfficerTerm
+from officers.types import (
     OfficerData,
     OfficerInfoData,
     OfficerPrivateData,
@@ -157,7 +157,6 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     return officer_data
 
-
 async def all_officer_terms(db_session: database.DBSession, include_private: bool) -> list[OfficerData]:
     """
     Orders officers recent first.
@@ -212,10 +211,35 @@ async def all_officer_terms(db_session: database.DBSession, include_private: boo
     return officer_data_list
 
 # TODO: do we ever expect to need to remove officer info? Probably not? Just updating it.
-def update_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData):
+async def create_new_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData) -> bool:
     """
-    Will create a new officer info entry if one doesn't already exist
+    Return False if the officer already exists
     """
+    query = sqlalchemy.select(OfficerInfo)
+    query = query.where(OfficerInfo.computing_id == officer_info_data.computing_id)
+    officer_info = (await db_session.scalar(query)).first()
+    if officer_info is not None:
+        return False
+
+    # TODO: make this a class function
+    is_filled_in = True
+    for field in dataclasses.fields(officer_info_data):
+        if getattr(officer_info_data, field.name) is None:
+            is_filled_in = False
+            break
+
+    new_user_session = OfficerInfo.from_data(is_filled_in, officer_info_data)
+    await db_session.add(new_user_session)
+
+async def update_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData) -> bool:
+    """
+    Return False if the officer doesn't exist yet
+    """
+    query = sqlalchemy.select(OfficerInfo)
+    query = query.where(OfficerInfo.computing_id == officer_info_data.computing_id)
+    officer_info = (await db_session.scalar(query)).first()
+    if officer_info is None:
+        return False
 
     is_filled_in = True
     for field in dataclasses.fields(officer_info_data):
@@ -223,24 +247,14 @@ def update_officer_info(db_session: database.DBSession, officer_info_data: Offic
             is_filled_in = False
             break
 
-    new_user_session = OfficerInfo(
-        is_filled_in = is_filled_in,
-
-        # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
-        # for now, we should insert a default value
-        legal_name = "default name" if officer_info_data.legal_name is None else officer_info_data.legal_name,
-        discord_id = officer_info_data.discord_id,
-        discord_name = officer_info_data.discord_name,
-        discord_nickname = officer_info_data.discord_nickname,
-
-        computing_id = officer_info_data.computing_id,
-        phone_number = officer_info_data.phone_number,
-        github_username = officer_info_data.github_username,
-        google_drive_email = officer_info_data.google_drive_email,
+    query = (
+        sqlalchemy
+        .update(OfficerInfo)
+        .where(OfficerInfo.computing_id == officer_info.computing_id)
+        .values(OfficerInfo.update_dict(is_filled_in, officer_info_data))
     )
-    # TODO: check if an entry with this computing_id already exists, & update it
-    # instead of adding a new entry
-    db_session.add(new_user_session)
+    # TODO: do we need to handle the result?
+    await db_session.execute(query)
 
 
 def update_officer_term(
@@ -280,7 +294,6 @@ def update_officer_term(
     # TODO: check if an entry with this (computing_id, position, start_date) already exists, & update it
     # instead of adding a new entry
     db_session.add(new_officer_term)
-
 
 def remove_officer_term():
     pass

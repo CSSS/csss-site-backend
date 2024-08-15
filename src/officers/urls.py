@@ -2,7 +2,7 @@ import logging
 
 import auth.crud
 import database
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Body, Request
 from fastapi.responses import JSONResponse
 from permission.types import OfficerPrivateInfo
 
@@ -69,22 +69,45 @@ async def all_officers(
     """
     return JSONResponse(all_officers)
 
+@router.post(
+    "/new",
+    description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Updates the system with a new officer, and enables the user to login to the system to input their information.",
+)
+async def add_new_officer(
+    db_session: database.DBSession,
+    # request body
+    computing_id: str = Body(),
+):
+    # TODO: how to get request data w/ fastapi
+
+    #officers.crud.create_new_officer_info()
+    return {}
+
+@router.post(
+    "/enter_info",
+    description=(
+        "After elections, officer computing ids are input into our system. "
+        "If you have been elected as a new officer, you may authenticate with SFU CAS, "
+        "then input your information & the valid token for us. Admins may update this info."
+    ),
+)
+async def enter_info(
+    request: Request,
+    db_session: database.DBSession,
+):
+    # provide data as json, the response determines if data was inserted into the database or not
+
+    # the current user can only input the info for another user if they have permissions
+
+    return {}
+
 """
 # TODO: test this error later
 @router.get("/please_error", description="Raises an error & should send an email to the sysadmin")
 async def raise_error():
     raise ValueError("This is an error, you're welcome")
 
-@router.post(
-    "/enter_info",
-    description="After elections, officer computing ids are input into our system. If you have been elected as a new officer, you may authenticate with SFU CAS, then input your information & the valid token for us.",
-)
-async def enter_info():
-    # provide data as json, the response determines if data was inserted into the database or not
 
-    # the current user can only input the info for another user if they have permissions
-
-    return {}
 
 @router.get(
     "/my_info",

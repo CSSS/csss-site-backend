@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # from sqlalchemy.orm import relationship
 from constants import (
     COMPUTING_ID_LEN,
@@ -15,6 +17,8 @@ from sqlalchemy import (
     String,
     Text,
 )
+
+from officers.types import OfficerInfoData
 
 
 # a row represents an assignment of a person to a position
@@ -84,3 +88,21 @@ class OfficerInfo(Base):
 
     # TODO: can we represent more complicated data structures?
     # has_autheticated_github = Column(Boolean)
+
+    @staticmethod
+    def update_dict(is_filled_in: bool, officer_info_data: OfficerInfoData) -> dict:
+        # should only NOT contain the pkey (computing_id)
+        return {
+            "is_filled_in": is_filled_in,
+
+            # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
+            # for now, we should insert a default value
+            "legal_name": "default name" if officer_info_data.legal_name is None else officer_info_data.legal_name,
+            "discord_id": officer_info_data.discord_id,
+            "discord_name": officer_info_data.discord_name,
+            "discord_nickname": officer_info_data.discord_nickname,
+
+            "phone_number": officer_info_data.phone_number,
+            "github_username": officer_info_data.github_username,
+            "google_drive_email": officer_info_data.google_drive_email,
+        }

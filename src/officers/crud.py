@@ -4,7 +4,7 @@ from datetime import datetime
 
 import database
 import sqlalchemy
-from auth.models import SiteUser
+from auth.tables import SiteUser
 
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm

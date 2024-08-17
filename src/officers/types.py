@@ -2,21 +2,38 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 
+from constants import COMPUTING_ID_MAX
+from fastapi import HTTPException
+from utils import is_iso_format
+
+from officers.constants import OfficerPosition
+
 # TODO: leave the following, but create one for current_officers private info & non-private info
 # make it so that the docs shows the expected return schema
 
 # TODO: are any of these nullable? Not sure yet...
 @dataclass
 class OfficerInfoData:
-    legal_name: None | str
-    discord_id: None | str # TODO: do we need this to get info about a person
-    discord_name: None | str
-    discord_nickname: None | str
-
     computing_id: str
-    phone_number: None | str
-    github_username: None | str
-    google_drive_email: None | str
+
+    legal_name: None | str = None
+    discord_id: None | str = None # TODO: do we need this to get info about a person
+    discord_name: None | str = None
+    discord_nickname: None | str = None
+
+    phone_number: None | str = None
+    github_username: None | str = None
+    google_drive_email: None | str = None
+
+    def validate(self) -> None | HTTPException:
+        if len(self.computing_id) > COMPUTING_ID_MAX:
+            return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
+        elif self.legal_name is not None and self.legal_name == "":
+            return HTTPException(status_code=400, detail="legal name must not be empty")
+        # TODO: more checks
+        else:
+            return None
+
 
 @dataclass
 class OfficerTermData:
@@ -24,18 +41,29 @@ class OfficerTermData:
 
     position: str
     start_date: date
-    end_date: None | date
+    end_date: None | date = None
 
-    nickname: None | str
-    favourite_course_0: None | str
-    favourite_course_1: None | str
-    favourite_pl_0: None | str
-    favourite_pl_1: None | str
-    biography: None | str
+    nickname: None | str = None
+    favourite_course_0: None | str = None
+    favourite_course_1: None | str = None
+    favourite_pl_0: None | str = None
+    favourite_pl_1: None | str = None
+    biography: None | str = None
 
     # TODO: we're going to need an API call to upload images
     # NOTE: changing the name of this variable without changing all instances is breaking
-    photo_url: None | str
+    photo_url: None | str = None
+
+    def validate(self) -> None | HTTPException:
+        if len(self.computing_id) > COMPUTING_ID_MAX:
+            return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
+        elif self.position not in OfficerPosition.__members__.values():
+            raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
+        # TODO: more checks
+        elif not is_iso_format(self.start_date):
+            raise HTTPException(status_code=400, detail=f"start_date={self.start_date} must be a valid iso date")
+        else:
+            return None
 
 # -------------------------------------------- #
 

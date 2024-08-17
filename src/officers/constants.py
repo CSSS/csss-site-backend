@@ -4,7 +4,7 @@ from typing import Self
 
 _logger = logging.getLogger(__name__)
 
-
+# TODO: remove enum, b/d python enums suck
 class OfficerPosition(Enum):
     President = "president"
     VicePresident = "vice-president"

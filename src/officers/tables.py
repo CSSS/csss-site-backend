@@ -18,7 +18,7 @@ from sqlalchemy import (
     Text,
 )
 
-from officers.types import OfficerInfoData
+from officers.types import OfficerInfoData, OfficerTermData
 
 
 # a row represents an assignment of a person to a position
@@ -26,7 +26,7 @@ from officers.types import OfficerInfoData
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True) # TODO: is this automatically autoincrement?
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         nullable=False,
@@ -53,6 +53,43 @@ class OfficerTerm(Base):
     biography = Column(Text)
     photo_url = Column(Text)  # some urls get big, best to let it be a string
 
+    @staticmethod
+    def from_data(is_filled_in: bool, officer_term_data: OfficerTermData) -> OfficerTerm:
+        return OfficerTerm(
+            computing_id = officer_term_data.computing_id,
+            is_filled_in = is_filled_in,
+
+            position = officer_term_data.position,
+            start_date = officer_term_data.start_date,
+            end_date = officer_term_data.end_date,
+
+            nickname = officer_term_data.nickname,
+            favourite_course_0 = officer_term_data.favourite_course_0,
+            favourite_course_1 = officer_term_data.favourite_course_1,
+            favourite_pl_0 = officer_term_data.favourite_pl_0,
+            favourite_pl_1 = officer_term_data.favourite_pl_1,
+            biography = officer_term_data.biography,
+            photo_url = officer_term_data.photo_url,
+        )
+
+    @staticmethod
+    def update_dict(is_filled_in: bool, officer_term_data: OfficerTermData) -> dict:
+        # should only NOT contain the pkey (computing_id)
+        # TODO: make into a compound pkey
+        return {
+            "is_filled_in": is_filled_in,
+
+            "end_date": officer_term_data.end_date,
+            "nickname": officer_term_data.nickname,
+
+            "favourite_course_0": officer_term_data.favourite_course_0,
+            "favourite_course_1": officer_term_data.favourite_course_1,
+            "favourite_pl_0": officer_term_data.favourite_pl_0,
+            "favourite_pl_1": officer_term_data.favourite_pl_1,
+
+            "biography": officer_term_data.biography,
+            "photo_url": officer_term_data.photo_url,
+        }
 
 # this table contains information that we only need a most up-to-date version of, and
 # don't need to keep a history of. However, it also can't be easily updated.
@@ -88,6 +125,23 @@ class OfficerInfo(Base):
 
     # TODO: can we represent more complicated data structures?
     # has_autheticated_github = Column(Boolean)
+
+    @staticmethod
+    def from_data(is_filled_in: bool, officer_info_data: OfficerInfoData) -> OfficerTerm:
+        return OfficerTerm(
+            is_filled_in = is_filled_in,
+            legal_name = officer_info_data.legal_name,
+
+            discord_id = officer_info_data.discord_id,
+            discord_name = officer_info_data.discord_name,
+            discord_nickname = officer_info_data.discord_nickname,
+
+            computing_id = officer_info_data.computing_id,
+            phone_number = officer_info_data.phone_number,
+            github_username = officer_info_data.github_username,
+
+            google_drive_email = officer_info_data.google_drive_email,
+        )
 
     @staticmethod
     def update_dict(is_filled_in: bool, officer_info_data: OfficerInfoData) -> dict:

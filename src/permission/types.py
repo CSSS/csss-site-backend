@@ -1,9 +1,11 @@
 from datetime import UTC, datetime, timezone
 from typing import ClassVar
 
+import auth.crud
 import database
 import officers.crud
 from data.semesters import current_semester_start, step_semesters
+from fastapi import HTTPException, Request
 from officers.constants import OfficerPosition
 
 
@@ -45,3 +47,17 @@ class WebsiteAdmin:
             return False
 
         return position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS
+
+    @staticmethod
+    async def validate_request(db_session: database.DBSession, request: Request) -> bool:
+        """
+        Checks if the provided request satisfies these permissions, and raises the neccessary
+        exceptions if not
+        """
+        session_id = request.cookies.get("session_id", None)
+        if session_id is None:
+            raise HTTPException(status_code=401, detail="must be logged in")
+        else:
+            computing_id = await auth.crud.get_computing_id(db_session, session_id)
+            if not await WebsiteAdmin.has_permission(db_session, computing_id):
+                raise HTTPException(status_code=401, detail="must have website admin permissions")

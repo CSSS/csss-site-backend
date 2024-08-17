@@ -18,6 +18,9 @@ from officers.types import (
 _logger = logging.getLogger(__name__)
 
 
+# TODO:
+# - make sure that no functions assume that the computing_id exists in SiteUser
+
 async def most_recent_exec_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
     """
     Returns the most recent OfficerTerm an exec has had
@@ -53,6 +56,34 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
 
     # TODO: can this be replaced with scalar to improve performance?
     return (await db_session.scalars(query)).first()
+
+async def officer_terms(
+    db_session: database.DBSession,
+    computing_id: str,
+    max_terms: None | int,
+    # will not include officer term info that has not been filled in yet.
+    hide_filled_in: bool
+) -> list[OfficerData]:
+    query = sqlalchemy.select(OfficerTerm)
+    query = query.where(OfficerTerm.computing_id == computing_id)
+    if hide_filled_in:
+        query = query.where(
+            # TODO: turn this query into a utility function, so it can be reused
+            OfficerTerm.is_filled_in
+            and (
+                # executives without a specified end_date are considered active
+                OfficerTerm.end_date is None
+                # check that today's timestamp is before (smaller than) the term's end date
+                or (datetime.today() <= OfficerTerm.end_date)
+            )
+        )
+
+    query = query.order_by(OfficerTerm.start_date.desc())
+    if max_terms is not None:
+        query.limit(max_terms)
+
+    # TODO: can this be replaced with scalar to improve performance?
+    return (await db_session.scalars(query)).all()
 
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
     """
@@ -100,7 +131,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
             officer_data[term.position] = []
 
         num_officers[term.position] += 1
-        # TODO: move this to a daily cronjob & just ignore any of the extras
+        # TODO: move this to a ~~daily cronjob~~ SQL model checking
         if num_officers[term.position] > OfficerPosition.from_string(term.position).num_active():
             # If there are more active positions than expected, log it to a file
             _logger.warning(

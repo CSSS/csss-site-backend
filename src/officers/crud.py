@@ -169,12 +169,7 @@ async def create_new_officer_info(db_session: database.DBSession, officer_info_d
     if officer_info is not None:
         return False
 
-    # TODO: make this a class function
-    is_filled_in = True
-    for field in dataclasses.fields(officer_info_data):
-        if getattr(officer_info_data, field.name) is None:
-            is_filled_in = False
-            break
+    is_filled_in = officer_info_data.is_filled_in()
 
     new_user_session = OfficerInfo.from_data(is_filled_in, officer_info_data)
     db_session.add(new_user_session)
@@ -190,19 +185,14 @@ async def update_officer_info(db_session: database.DBSession, officer_info_data:
     if officer_info is None:
         return False
 
-    is_filled_in = True
-    for field in dataclasses.fields(officer_info_data):
-        if getattr(officer_info_data, field.name) is None:
-            is_filled_in = False
-            break
-
+    is_filled_in = officer_info_data.is_filled_in()
     query = (
         sqlalchemy
         .update(OfficerInfo)
         .where(OfficerInfo.computing_id == officer_info.computing_id)
         .values(OfficerInfo.update_dict(is_filled_in, officer_info_data))
     )
-    # TODO: do we need to handle the result?
+
     await db_session.execute(query)
     return True
 
@@ -219,16 +209,7 @@ async def create_new_officer_term(
         # if an entry with this (computing_id, position, start_date) already exists, do nothing
         return False
 
-    # TODO: turn this into a function
-    is_filled_in = True
-    for field in dataclasses.fields(officer_term_data):
-        if field.name == "photo_url" or field.name == "end_date":
-            # photo doesn't have to be uploaded for the term to be filled.
-            continue
-        elif getattr(officer_term_data, field.name) is None:
-            is_filled_in = False
-            print(f"NOT FILLED IN: {officer_term_data}")
-            break
+    is_filled_in = officer_term_data.is_filled_in()
 
     db_session.add(OfficerTerm.from_data(is_filled_in, officer_term_data))
     return True
@@ -243,8 +224,7 @@ async def update_officer_term(
 
     Returns false if the above entry does not exist.
     """
-    # TODO: turn these into a compound key so we know it's unique !
-    # TODO: or actually, just use a term_id?
+    # TODO: we should move towards using the term_id, so that the start_date can be updated if needed?
     query = (
         sqlalchemy
         .select(OfficerTerm)
@@ -256,17 +236,7 @@ async def update_officer_term(
     if officer_term is None:
         return False
 
-    # TODO: turn this into a function
-    is_filled_in = True
-    for field in dataclasses.fields(officer_term_data):
-        # the photo doesn't have to be uploaded for the term to be filled.
-        if field.name == "photo_url" or field.name == "end_date":
-            continue
-
-        if getattr(officer_term_data, field.name) is None:
-            is_filled_in = False
-            break
-
+    is_filled_in = officer_term_data.is_filled_in()
     query = (
         sqlalchemy
         .update(OfficerTerm)
@@ -275,8 +245,7 @@ async def update_officer_term(
         .where(OfficerTerm.start_date == officer_term_data.start_date)
         .values(OfficerTerm.update_dict(is_filled_in, officer_term_data))
     )
-    print(OfficerTerm.update_dict(is_filled_in, officer_term_data))
-    # TODO: do we need to handle the result?
+
     await db_session.execute(query)
     return True
 

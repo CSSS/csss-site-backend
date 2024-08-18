@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import date, datetime
 
 from constants import COMPUTING_ID_MAX
@@ -35,6 +34,13 @@ class OfficerInfoData:
         else:
             return None
 
+    def is_filled_in(self):
+        for field in fields(self):
+            if getattr(self, field.name) is None:
+                return False
+
+        return True
+
 
 @dataclass
 class OfficerTermData:
@@ -66,6 +72,17 @@ class OfficerTermData:
         #    raise HTTPException(status_code=400, detail=f"start_date={self.start_date} must be a valid iso date")
         else:
             return None
+
+    def is_filled_in(self):
+        for field in fields(self):
+            if field.name == "photo_url" or field.name == "end_date":
+                # photo & end_date don't have to be uploaded for the term to be "filled"
+                # TODO: this definition might have to be updated
+                continue
+            elif getattr(self, field.name) is None:
+                return False
+
+        return True
 
 # -------------------------------------------- #
 

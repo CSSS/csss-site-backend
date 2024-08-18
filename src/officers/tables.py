@@ -128,7 +128,7 @@ class OfficerInfo(Base):
 
     @staticmethod
     def from_data(is_filled_in: bool, officer_info_data: OfficerInfoData) -> OfficerTerm:
-        return OfficerTerm(
+        return OfficerInfo(
             is_filled_in = is_filled_in,
             legal_name = officer_info_data.legal_name,
 

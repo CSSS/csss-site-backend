@@ -9,7 +9,7 @@ import sqlalchemy
 from auth.crud import create_user_session
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.crud import update_officer_info, update_officer_term
+from officers.crud import create_new_officer_info, create_new_officer_term, update_officer_info, update_officer_term
 from officers.types import OfficerInfoData, OfficerTermData
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,7 +68,7 @@ async def load_test_officers_data(db_session: AsyncSession):
 
     print("add officer info")
     # this person has uploaded all of their info
-    update_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfoData(
         legal_name="Person A",
         discord_id=str(88_1234_7182_4877_1111),
         discord_name="person_a_yeah",
@@ -80,7 +80,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         google_drive_email="person_a@gmail.com",
     ))
     # this person has not joined the CSSS discord, so their discord name & nickname could not be found
-    update_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfoData(
         legal_name="Person B",
         discord_id=str(88_1234_7182_4877_2222),
         discord_name=None,
@@ -92,7 +92,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         google_drive_email="person_b@gmail.com",
     ))
     # this person has uploaded the minimal amount of information
-    update_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfoData(
         legal_name="Person C",
         discord_id=None,
         discord_name=None,
@@ -105,8 +105,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
-
-    update_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc11",
 
         position=OfficerPosition.VicePresident.value,
@@ -123,7 +122,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="Hi! I'm person A and I do lots of cool things! :)",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
-    update_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc11",
 
         position=OfficerPosition.ExecutiveAtLarge.value,
@@ -140,7 +139,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="Hi! I'm person A and I want school to be over ; _ ;",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
-    update_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc33",
 
         position=OfficerPosition.President.value,
@@ -156,6 +155,37 @@ async def load_test_officers_data(db_session: AsyncSession):
 
         biography="I'm person C...",
         photo_url=None, # TODO: this should be replaced with a default image
+    ))
+    await db_session.commit()
+
+    await update_officer_info(db_session, OfficerInfoData(
+        legal_name="Person C",
+        discord_id=None,
+        discord_name=None,
+        discord_nickname=None,
+
+        computing_id="abc33",
+        # adds a phone number
+        phone_number="123-456-7890",
+        github_username=None,
+        google_drive_email=None,
+    ))
+    await update_officer_term(db_session, OfficerTermData(
+        computing_id="abc33",
+
+        position=OfficerPosition.President.value,
+        start_date=datetime.today(),
+        end_date=datetime.today() + timedelta(days=365),
+
+        nickname="SEE SEE",
+        favourite_course_0="CMPT 999",
+        favourite_course_1="CMPT 354",
+
+        favourite_pl_0="C++",
+        favourite_pl_1="C",
+
+        biography="You see, I'm person C...",
+        photo_url=None,
     ))
     await db_session.commit()
 

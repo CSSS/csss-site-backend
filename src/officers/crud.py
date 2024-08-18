@@ -31,8 +31,7 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
     query = query.order_by(OfficerTerm.start_date.desc())
     query = query.limit(1)
 
-    # TODO: can this be replaced with scalar to improve performance?
-    return (await db_session.scalars(query)).first()
+    return await db_session.scalar(query)
 
 # TODO: test this function
 async def current_officer_position(db_session: database.DBSession, computing_id: str) -> str | None:
@@ -41,7 +40,7 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     """
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
-    # TODO: assert this constraint at the SQL level, so that we don't even have to check it.
+    # TODO: assert this constraint at the SQL level, so that we don't even have to check it?
     query = query.where(
         # TODO: turn this query into a utility function, so it can be reused
         OfficerTerm.is_filled_in
@@ -54,8 +53,11 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     )
     query = query.limit(1)
 
-    # TODO: can this be replaced with scalar to improve performance?
-    return (await db_session.scalars(query)).first()
+    officer_term = await db_session.scalar(query)
+    if officer_term is None:
+        return None
+    else:
+        return officer_term.position
 
 async def officer_terms(
     db_session: database.DBSession,
@@ -63,7 +65,7 @@ async def officer_terms(
     max_terms: None | int,
     # will not include officer term info that has not been filled in yet.
     hide_filled_in: bool
-) -> list[OfficerData]:
+) -> list[OfficerTerm]:
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
     if hide_filled_in:
@@ -82,7 +84,7 @@ async def officer_terms(
     if max_terms is not None:
         query.limit(max_terms)
 
-    # TODO: can this be replaced with scalar to improve performance?
+    # TODO: is this a list by default?
     return (await db_session.scalars(query)).all()
 
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
@@ -140,6 +142,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
             )
 
         officer_data[term.position] += [
+            # TODO: turn this into a util function
             OfficerData(
                 is_active = True,
 
@@ -206,9 +209,10 @@ async def all_officer_terms(db_session: database.DBSession, include_private: boo
         officer_info_query = officer_info_query.where(
             OfficerInfo.computing_id == term.computing_id
         )
-        officer_info = (await db_session.scalars(officer_info_query)).first()
+        officer_info = await db_session.scalar(officer_info_query)
 
         officer_data_list += [
+            # TODO: also turn this into a util function
             OfficerData(
                 is_active = (term.end_date is None) or (datetime.today() <= term.end_date),
 
@@ -247,7 +251,7 @@ async def create_new_officer_info(db_session: database.DBSession, officer_info_d
     """
     query = sqlalchemy.select(OfficerInfo)
     query = query.where(OfficerInfo.computing_id == officer_info_data.computing_id)
-    officer_info = (await db_session.scalar(query)).first()
+    officer_info = await db_session.scalar(query)
     if officer_info is not None:
         return False
 
@@ -259,7 +263,7 @@ async def create_new_officer_info(db_session: database.DBSession, officer_info_d
             break
 
     new_user_session = OfficerInfo.from_data(is_filled_in, officer_info_data)
-    await db_session.add(new_user_session)
+    db_session.add(new_user_session)
     return True
 
 async def update_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData) -> bool:
@@ -268,7 +272,7 @@ async def update_officer_info(db_session: database.DBSession, officer_info_data:
     """
     query = sqlalchemy.select(OfficerInfo)
     query = query.where(OfficerInfo.computing_id == officer_info_data.computing_id)
-    officer_info = (await db_session.scalar(query)).first()
+    officer_info = await db_session.scalar(query)
     if officer_info is None:
         return False
 
@@ -292,11 +296,11 @@ async def create_new_officer_term(
     db_session: database.DBSession,
     officer_term_data: OfficerTermData
 ) -> bool:
-    query = sqlalchemy.select(OfficerData)
-    query = query.where(OfficerData.computing_id == officer_term_data.computing_id)
-    query = query.where(OfficerData.start_date == officer_term_data.start_date)
-    query = query.where(OfficerData.position == officer_term_data.position)
-    officer_data = (await db_session.scalar(query)).first()
+    query = sqlalchemy.select(OfficerTerm)
+    query = query.where(OfficerTerm.computing_id == officer_term_data.computing_id)
+    query = query.where(OfficerTerm.start_date == officer_term_data.start_date)
+    query = query.where(OfficerTerm.position == officer_term_data.position)
+    officer_data = await db_session.scalar(query)
     if officer_data is not None:
         # if an entry with this (computing_id, position, start_date) already exists, do nothing
         return False
@@ -310,7 +314,7 @@ async def create_new_officer_term(
             is_filled_in = False
             break
 
-    await db_session.add(OfficerTerm.from_data(is_filled_in, officer_term_data))
+    db_session.add(OfficerTerm.from_data(is_filled_in, officer_term_data))
     return True
 
 async def update_officer_term(
@@ -331,7 +335,7 @@ async def update_officer_term(
         .where(OfficerTerm.position == officer_term_data.position)
         .where(OfficerTerm.start_date == officer_term_data.start_date)
     )
-    officer_term = (await db_session.scalar(query)).first()
+    officer_term = await db_session.scalar(query)
     if officer_term is None:
         return False
 

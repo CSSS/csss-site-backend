@@ -4,10 +4,8 @@ from datetime import datetime
 
 import database
 import sqlalchemy
+import utils
 from auth.tables import SiteUser
-
-# we can't use and/or in sql expressions, so we must use these functions
-from sqlalchemy.sql.expression import and_, or_
 
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
@@ -20,9 +18,6 @@ from officers.types import (
 
 _logger = logging.getLogger(__name__)
 
-
-# TODO:
-# - make sure that no functions assume that the computing_id exists in SiteUser
 
 async def most_recent_exec_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
     """
@@ -42,19 +37,7 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     """
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
-    # TODO: assert this constraint at the SQL level, so that we don't even have to check it?
-    query = query.where(
-        # TODO: turn this query into a utility function, so it can be reused
-        and_(
-            OfficerTerm.is_filled_in,
-            or_(
-                # executives without a specified end_date are considered active
-                OfficerTerm.end_date.is_(None),
-                # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date
-            )
-        )
-    )
+    query = utils.is_active_officer(query)
     query = query.limit(1)
 
     officer_term = await db_session.scalar(query)
@@ -73,18 +56,7 @@ async def officer_terms(
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
     if hide_filled_in:
-        query = query.where(
-        # TODO: turn this query into a utility function, so it can be reused
-        and_(
-            OfficerTerm.is_filled_in,
-            or_(
-                # executives without a specified end_date are considered active
-                OfficerTerm.end_date.is_(None),
-                # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date
-            )
-        )
-    )
+        query = utils.is_active_officer(query)
 
     query = query.order_by(OfficerTerm.start_date.desc())
     if max_terms is not None:
@@ -101,18 +73,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
     """
 
     query = sqlalchemy.select(OfficerTerm)
-    query = query.where(
-        # TODO: turn this query into a utility function, so it can be reused
-        and_(
-            OfficerTerm.is_filled_in,
-            or_(
-                # executives without a specified end_date are considered active
-                OfficerTerm.end_date.is_(None),
-                # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date
-            )
-        )
-    )
+    query = utils.is_active_officer(query)
     query = query.order_by(OfficerTerm.start_date.desc())
 
     officer_terms = (await db_session.scalars(query)).all()

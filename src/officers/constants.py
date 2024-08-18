@@ -51,7 +51,6 @@ class OfficerPosition:
             position == OfficerPosition.FroshWeekChair
             or position == OfficerPosition.SocialMediaManager
         ):
-            # TODO: configure this value in a database table somewhere?
             return None
         else:
             return 1

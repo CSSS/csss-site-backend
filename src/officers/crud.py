@@ -121,7 +121,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     for term in officer_terms:
         # NOTE: improve performance?
-        if term.position not in [officer.value for officer in OfficerPosition]:
+        if term.position not in OfficerPosition.position_list():
             _logger.warning(
                 f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request."
             )
@@ -143,11 +143,11 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
         num_officers[term.position] += 1
         # TODO: move this to a ~~daily cronjob~~ SQL model checking
-        if num_officers[term.position] > OfficerPosition.from_string(term.position).num_active():
+        if num_officers[term.position] > OfficerPosition.num_active(term.position):
             # If there are more active positions than expected, log it to a file
             _logger.warning(
                 f"There are more active {term.position} positions in the OfficerTerm than expected "
-                f"({num_officers[term.position]} > {OfficerPosition.from_string(term.position).num_active()})"
+                f"({num_officers[term.position]} > {OfficerPosition.num_active(term.position)})"
             )
 
         officer_data[term.position] += [
@@ -169,7 +169,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
                 favourite_language_0 = term.favourite_pl_0,
                 favourite_language_1 = term.favourite_pl_1,
 
-                csss_email = OfficerPosition.from_string(term.position).to_email(),
+                csss_email = OfficerPosition.to_email(term.position),
                 biography = term.biography,
                 photo_url = term.photo_url,
 
@@ -245,7 +245,7 @@ async def all_officer_terms(
                 favourite_language_0 = term.favourite_pl_0,
                 favourite_language_1 = term.favourite_pl_1,
 
-                csss_email = OfficerPosition.from_string(term.position).to_email(),
+                csss_email = OfficerPosition.to_email(term.position),
                 biography = term.biography,
                 photo_url = term.photo_url,
 

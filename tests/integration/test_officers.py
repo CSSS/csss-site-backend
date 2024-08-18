@@ -31,7 +31,7 @@ async def test__read_execs(database_setup):
         abc11_officer_term = await most_recent_exec_term(db_session, "abc11")
 
         assert abc11_officer_term.computing_id == "abc11"
-        assert abc11_officer_term.position == OfficerPosition.ExecutiveAtLarge.value
+        assert abc11_officer_term.position == OfficerPosition.EXECUTIVE_AT_LARGE
         assert abc11_officer_term.start_date is not None
         assert abc11_officer_term.end_date is None
         assert abc11_officer_term.nickname == "the holy A"
@@ -41,7 +41,7 @@ async def test__read_execs(database_setup):
         current_exec_team = await current_executive_team(db_session, include_private=False)
         assert current_exec_team is not None
         assert len(current_exec_team.keys()) == 1
-        assert next(iter(current_exec_team.keys())) == OfficerPosition.President.value
+        assert next(iter(current_exec_team.keys())) == OfficerPosition.PRESIDENT
         assert next(iter(current_exec_team.values()))[0].favourite_course_0 == "CMPT 999"
         assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.President.to_email()
         assert next(iter(current_exec_team.values()))[0].private_data is None
@@ -49,7 +49,7 @@ async def test__read_execs(database_setup):
         current_exec_team = await current_executive_team(db_session, include_private=True)
         assert current_exec_team is not None
         assert len(current_exec_team) == 1
-        assert next(iter(current_exec_team.keys())) == OfficerPosition.President.value
+        assert next(iter(current_exec_team.keys())) == OfficerPosition.PRESIDENT
         assert next(iter(current_exec_team.values()))[0].favourite_course_0 == "CMPT 999"
         assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.President.to_email()
         assert next(iter(current_exec_team.values()))[0].private_data is not None

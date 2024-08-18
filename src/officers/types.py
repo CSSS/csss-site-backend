@@ -11,13 +11,12 @@ from officers.constants import OfficerPosition
 # TODO: leave the following, but create one for current_officers private info & non-private info
 # make it so that the docs shows the expected return schema
 
-# TODO: are any of these nullable? Not sure yet...
 @dataclass
 class OfficerInfoData:
     computing_id: str
 
     legal_name: None | str = None
-    discord_id: None | str = None # TODO: do we need this to get info about a person
+    discord_id: None | str = None
     discord_name: None | str = None
     discord_nickname: None | str = None
 
@@ -57,7 +56,7 @@ class OfficerTermData:
     def validate(self) -> None | HTTPException:
         if len(self.computing_id) > COMPUTING_ID_MAX:
             return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.position not in OfficerPosition.position_values():
+        elif self.position not in OfficerPosition.position_list():
             raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
         # TODO: more checks
         # TODO: how to check this one? make sure date is date & not datetime?

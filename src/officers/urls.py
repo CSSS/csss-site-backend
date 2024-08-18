@@ -108,7 +108,7 @@ async def new_officer_term(
     """
     if len(computing_id) > COMPUTING_ID_MAX:
         raise HTTPException(status_code=400, detail=f"computing_id={computing_id} is too large")
-    elif position not in OfficerPosition.__members__.values():
+    elif position not in OfficerPosition.position_list():
         raise HTTPException(status_code=400, detail=f"invalid position={position}")
     elif not is_iso_format(start_date):
         raise HTTPException(status_code=400, detail=f"start_date={start_date} must be a valid iso date")

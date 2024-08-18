@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import json
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 
 from constants import COMPUTING_ID_MAX
 from fastapi import HTTPException
-from utils import is_iso_format
 
+import officers.tables
 from officers.constants import OfficerPosition
 
 # TODO: leave the following, but create one for current_officers private info & non-private info
@@ -106,3 +108,39 @@ class OfficerData:
         if new_self["end_date"] is not None:
             new_self["end_date"] = new_self["end_date"].isoformat()
         return new_self
+
+    @staticmethod
+    def from_data(
+        term: officers.tables.OfficerTerm,
+        officer_info: officers.tables.OfficerInfo,
+        include_private: bool,
+        is_active: bool,
+    ) -> OfficerData:
+        return OfficerData(
+            is_active = is_active,
+
+            position = term.position,
+            start_date = term.start_date,
+            end_date = term.end_date,
+
+            legal_name = officer_info.legal_name,
+            nickname = term.nickname,
+            discord_name = officer_info.discord_name,
+            discord_nickname = officer_info.discord_nickname,
+
+            favourite_course_0 = term.favourite_course_0,
+            favourite_course_1 = term.favourite_course_1,
+            favourite_language_0 = term.favourite_pl_0,
+            favourite_language_1 = term.favourite_pl_1,
+
+            csss_email = OfficerPosition.to_email(term.position),
+            biography = term.biography,
+            photo_url = term.photo_url,
+
+            private_data = OfficerPrivateData(
+                computing_id = term.computing_id,
+                phone_number = officer_info.phone_number,
+                github_username = officer_info.github_username,
+                google_drive_email = officer_info.google_drive_email,
+            ) if include_private else None,
+        )

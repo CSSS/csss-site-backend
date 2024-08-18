@@ -62,7 +62,6 @@ async def officer_terms(
     if max_terms is not None:
         query.limit(max_terms)
 
-    # TODO: is this a list by default?
     return (await db_session.scalars(query)).all()
 
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
@@ -81,14 +80,12 @@ async def current_executive_team(db_session: database.DBSession, include_private
     officer_data = {}
 
     for term in officer_terms:
-        # NOTE: improve performance?
         if term.position not in OfficerPosition.position_list():
             _logger.warning(
                 f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request."
             )
             continue
 
-        # TODO: improve performance by doing these all in one database request
         officer_info_query = sqlalchemy.select(OfficerInfo)
         officer_info_query = officer_info_query.where(
             OfficerInfo.computing_id == term.computing_id
@@ -111,37 +108,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
                 f"({num_officers[term.position]} > {OfficerPosition.num_active(term.position)})"
             )
 
-        officer_data[term.position] += [
-            # TODO: turn this into a util function
-            OfficerData(
-                is_active = True,
-
-                position = term.position,
-                start_date = term.start_date,
-                end_date = term.end_date,
-
-                legal_name = officer_info.legal_name,
-                nickname = term.nickname,
-                discord_name = officer_info.discord_name,
-                discord_nickname = officer_info.discord_nickname,
-
-                favourite_course_0 = term.favourite_course_0,
-                favourite_course_1 = term.favourite_course_1,
-                favourite_language_0 = term.favourite_pl_0,
-                favourite_language_1 = term.favourite_pl_1,
-
-                csss_email = OfficerPosition.to_email(term.position),
-                biography = term.biography,
-                photo_url = term.photo_url,
-
-                private_data = OfficerPrivateData(
-                    computing_id = term.computing_id,
-                    phone_number = officer_info.phone_number,
-                    github_username = officer_info.github_username,
-                    google_drive_email = officer_info.google_drive_email,
-                ) if include_private else None,
-            )
-        ]
+        officer_data[term.position] += [OfficerData.from_data(term, officer_info, include_private, is_active=True)]
 
     # validate & warn if there are any data issues
     # TODO: decide whether we should enforce empty instances or force the frontend to deal with it
@@ -187,37 +154,8 @@ async def all_officer_terms(
         )
         officer_info = await db_session.scalar(officer_info_query)
 
-        officer_data_list += [
-            # TODO: also turn this into a util function
-            OfficerData(
-                is_active = (term.end_date is None) or (datetime.today() <= term.end_date),
-
-                position = term.position,
-                start_date = term.start_date,
-                end_date = term.end_date,
-
-                legal_name = officer_info.legal_name,
-                nickname = term.nickname,
-                discord_name = officer_info.discord_name,
-                discord_nickname = officer_info.discord_nickname,
-
-                favourite_course_0 = term.favourite_course_0,
-                favourite_course_1 = term.favourite_course_1,
-                favourite_language_0 = term.favourite_pl_0,
-                favourite_language_1 = term.favourite_pl_1,
-
-                csss_email = OfficerPosition.to_email(term.position),
-                biography = term.biography,
-                photo_url = term.photo_url,
-
-                private_data = OfficerPrivateData(
-                    computing_id = term.computing_id,
-                    phone_number = officer_info.phone_number,
-                    github_username = officer_info.github_username,
-                    google_drive_email = officer_info.google_drive_email,
-                ) if include_private else None,
-            )
-        ]
+        is_active = (term.end_date is None) or (datetime.today() <= term.end_date)
+        officer_data_list += [OfficerData.from_data(term, officer_info, include_private, is_active)]
 
     return officer_data_list
 

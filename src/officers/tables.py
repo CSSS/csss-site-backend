@@ -26,7 +26,7 @@ from officers.types import OfficerInfoData, OfficerTermData
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
-    id = Column(Integer, primary_key=True) # TODO: is this automatically autoincrement?
+    id = Column(Integer, primary_key=True, autoincrement=True)
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         nullable=False,

@@ -81,23 +81,13 @@ async def all_officers(
     "/terms/{computing_id}",
     description="Get term info for an executive. Private info will be provided if you have permissions.",
 )
-async def officer_terms(
+async def get_officer_terms(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
     # the maximum number of terms to return, in chronological order
     max_terms: None | int = 1,
 ):
-    """
-    # determine if user has access to this private data
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        has_private_access = False
-    else:
-        computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
-    """
-
     # TODO: we should check computing_id & stuff & return an exception
     officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
     return JSONResponse([term.serializable_dict() for term in officer_terms])

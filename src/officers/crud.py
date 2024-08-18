@@ -353,7 +353,6 @@ async def update_officer_term(
         .where(OfficerTerm.position == officer_term_data.position)
         .where(OfficerTerm.start_date == officer_term_data.start_date)
     )
-    print(officer_term_data)
     officer_term = await db_session.scalar(query)
     if officer_term is None:
         return False

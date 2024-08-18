@@ -46,7 +46,6 @@ async def current_officers(
 
     return JSONResponse(json_current_executives)
 
-# TODO: test this
 @router.get(
     "/all",
     description="Information from all exec terms. If year is not included, all years will be returned. If semester is not included, all semesters that year will be returned. If semester is given, but year is not, return all years and all semesters.",
@@ -54,16 +53,24 @@ async def current_officers(
 async def all_officers(
     request: Request,
     db_session: database.DBSession,
+    view_only_filled_in: bool = True,
 ):
     # determine if user has access to this private data
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         has_private_access = False
-    else:
-        computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
 
-    all_officer_terms = await officers.crud.all_officer_terms(db_session, has_private_access)
+    computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+
+    is_website_admin = await WebsiteAdmin.has_permission(db_session, computing_id)
+    if (
+        not view_only_filled_in
+        and (session_id is None or not is_website_admin)
+    ):
+        raise HTTPException(status_code=401, detail="must have private access to view not filled in terms")
+
+    all_officer_terms = await officers.crud.all_officer_terms(db_session, has_private_access, view_only_filled_in)
     all_officer_terms = [
         officer_data.serializable_dict() for officer_data in all_officer_terms
     ]
@@ -79,7 +86,7 @@ async def officer_terms(
     db_session: database.DBSession,
     computing_id: str,
     # the maximum number of terms to return, in chronological order
-    max_terms: int = Body(),
+    max_terms: None | int = 1,
 ):
     """
     # determine if user has access to this private data
@@ -93,7 +100,7 @@ async def officer_terms(
 
     # TODO: we should check computing_id & stuff & return an exception
     officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
-    return JSONResponse(officer_terms)
+    return JSONResponse([term.serializable_dict() for term in officer_terms])
 
 @router.post(
     "/new_term",
@@ -127,10 +134,10 @@ async def new_officer_term(
         # TODO: remove the hours & seconds (etc.) from start_date
         start_date = start_date,
     ))
-
     if not success:
         raise HTTPException(status_code=400, detail="Officer term already exists, no changes made")
 
+    await db_session.commit()
     return PlainTextResponse("ok")
 
 @router.post(
@@ -166,10 +173,11 @@ async def update_info(
 
     # TODO: if current user has admin permission, log this change
 
-    success = officers.crud.update_officer_info(db_session, officer_info)
+    success = await officers.crud.update_officer_info(db_session, officer_info)
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 
+    await db_session.commit()
     return PlainTextResponse("ok")
 
 @router.post(
@@ -178,6 +186,7 @@ async def update_info(
 async def update_term(
     request: Request,
     db_session: database.DBSession,
+    # TODO: ensure the dates don't have seconds / hours as they're passed in
     officer_term: OfficerTermData = Body(), # noqa: B008
 ):
     # TODO: can computing_id be null or non-string?
@@ -204,6 +213,7 @@ async def update_term(
     if not success:
         raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create the associated officer term")
 
+    await db_session.commit()
     return PlainTextResponse("ok")
 
 

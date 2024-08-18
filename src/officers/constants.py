@@ -30,6 +30,10 @@ class OfficerPosition(Enum):
     SocialMediaManager = "social media manager"
 
     @staticmethod
+    def position_values() -> list[str]:
+        return _OFFICER_POSITION_VALUES
+
+    @staticmethod
     def from_string(position: str) -> Self | None:
         for item in OfficerPosition:
             if position == item.value:
@@ -140,3 +144,7 @@ class OfficerPosition(Enum):
             OfficerPosition.SystemAdministrator,
             OfficerPosition.Webmaster,
         ]
+
+_OFFICER_POSITION_VALUES = [
+    pos.value for pos in OfficerPosition.__members__.values()
+]

@@ -14,9 +14,9 @@
 
     <script>
         const CAS_LOGIN_URL = "https://cas.sfu.ca/cas/login?service="
-        const API_LOGIN_URL = "http://localhost:8000/auth/login"
-        const API_CHECK_URL = "http://localhost:8000/auth/check"
-        const API_LOGOUT_URL = "http://localhost:8000/auth/logout"
+        const API_LOGIN_URL = "http://localhost:8080/api/auth/login"
+        const API_CHECK_URL = "http://localhost:8080/api/auth/check"
+        const API_LOGOUT_URL = "http://localhost:8080/api/auth/logout"
 
         let str = CAS_LOGIN_URL + API_LOGIN_URL + "?next_url=" + encodeURIComponent(window.location.href)
         console.log(str)

@@ -6,6 +6,9 @@ import database
 import sqlalchemy
 from auth.tables import SiteUser
 
+# we can't use and/or in sql expressions, so we must use these functions
+from sqlalchemy.sql.expression import and_, or_
+
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (
@@ -33,7 +36,6 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
 
     return await db_session.scalar(query)
 
-# TODO: test this function
 async def current_officer_position(db_session: database.DBSession, computing_id: str) -> str | None:
     """
     Returns None if the user is not currently an officer
@@ -43,12 +45,14 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     # TODO: assert this constraint at the SQL level, so that we don't even have to check it?
     query = query.where(
         # TODO: turn this query into a utility function, so it can be reused
-        OfficerTerm.is_filled_in
-        and (
-            # executives without a specified end_date are considered active
-            OfficerTerm.end_date is None
-            # check that today's timestamp is before (smaller than) the term's end date
-            or (datetime.today() <= OfficerTerm.end_date)
+        and_(
+            OfficerTerm.is_filled_in,
+            or_(
+                # executives without a specified end_date are considered active
+                OfficerTerm.end_date.is_(None),
+                # check that today's timestamp is before (smaller than) the term's end date
+                datetime.today() <= OfficerTerm.end_date
+            )
         )
     )
     query = query.limit(1)
@@ -70,15 +74,17 @@ async def officer_terms(
     query = query.where(OfficerTerm.computing_id == computing_id)
     if hide_filled_in:
         query = query.where(
-            # TODO: turn this query into a utility function, so it can be reused
-            OfficerTerm.is_filled_in
-            and (
+        # TODO: turn this query into a utility function, so it can be reused
+        and_(
+            OfficerTerm.is_filled_in,
+            or_(
                 # executives without a specified end_date are considered active
-                OfficerTerm.end_date is None
+                OfficerTerm.end_date.is_(None),
                 # check that today's timestamp is before (smaller than) the term's end date
-                or (datetime.today() <= OfficerTerm.end_date)
+                datetime.today() <= OfficerTerm.end_date
             )
         )
+    )
 
     query = query.order_by(OfficerTerm.start_date.desc())
     if max_terms is not None:
@@ -96,12 +102,15 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(
-        OfficerTerm.is_filled_in
-        and (
-            # executives without a specified end_date are considered active
-            OfficerTerm.end_date is None
-            # check that today's timestamp is before (smaller than) the term's end date
-            or (datetime.today() <= OfficerTerm.end_date)
+        # TODO: turn this query into a utility function, so it can be reused
+        and_(
+            OfficerTerm.is_filled_in,
+            or_(
+                # executives without a specified end_date are considered active
+                OfficerTerm.end_date.is_(None),
+                # check that today's timestamp is before (smaller than) the term's end date
+                datetime.today() <= OfficerTerm.end_date
+            )
         )
     )
     query = query.order_by(OfficerTerm.start_date.desc())
@@ -191,7 +200,11 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     return officer_data
 
-async def all_officer_terms(db_session: database.DBSession, include_private: bool) -> list[OfficerData]:
+async def all_officer_terms(
+    db_session: database.DBSession,
+    include_private: bool,
+    view_only_filled_in: bool,
+) -> list[OfficerData]:
     """
     Orders officers recent first.
 
@@ -200,6 +213,8 @@ async def all_officer_terms(db_session: database.DBSession, include_private: boo
     TODO: optionally paginate data, so it's not so bad.
     """
     query = sqlalchemy.select(OfficerTerm)
+    if view_only_filled_in:
+        query = query.where(OfficerTerm.is_filled_in)
     query = query.order_by(OfficerTerm.start_date.desc())
     officer_terms = (await db_session.scalars(query)).all()
 
@@ -305,13 +320,15 @@ async def create_new_officer_term(
         # if an entry with this (computing_id, position, start_date) already exists, do nothing
         return False
 
+    # TODO: turn this into a function
     is_filled_in = True
     for field in dataclasses.fields(officer_term_data):
-        if field.name == "photo_url":
+        if field.name == "photo_url" or field.name == "end_date":
             # photo doesn't have to be uploaded for the term to be filled.
             continue
         elif getattr(officer_term_data, field.name) is None:
             is_filled_in = False
+            print(f"NOT FILLED IN: {officer_term_data}")
             break
 
     db_session.add(OfficerTerm.from_data(is_filled_in, officer_term_data))
@@ -328,6 +345,7 @@ async def update_officer_term(
     Returns false if the above entry does not exist.
     """
     # TODO: turn these into a compound key so we know it's unique !
+    # TODO: or actually, just use a term_id?
     query = (
         sqlalchemy
         .select(OfficerTerm)
@@ -335,14 +353,16 @@ async def update_officer_term(
         .where(OfficerTerm.position == officer_term_data.position)
         .where(OfficerTerm.start_date == officer_term_data.start_date)
     )
+    print(officer_term_data)
     officer_term = await db_session.scalar(query)
     if officer_term is None:
         return False
 
+    # TODO: turn this into a function
     is_filled_in = True
     for field in dataclasses.fields(officer_term_data):
         # the photo doesn't have to be uploaded for the term to be filled.
-        if field.name == "photo_url":
+        if field.name == "photo_url" or field.name == "end_date":
             continue
 
         if getattr(officer_term_data, field.name) is None:
@@ -357,6 +377,7 @@ async def update_officer_term(
         .where(OfficerTerm.start_date == officer_term_data.start_date)
         .values(OfficerTerm.update_dict(is_filled_in, officer_term_data))
     )
+    print(OfficerTerm.update_dict(is_filled_in, officer_term_data))
     # TODO: do we need to handle the result?
     await db_session.execute(query)
     return True

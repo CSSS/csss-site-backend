@@ -45,7 +45,7 @@ async def login_user(
     # verify the ticket is valid
     url = (
         f"https://cas.sfu.ca/cas/serviceValidate?service={urllib.parse.quote(root_ip_address)}"
-        f"/auth/login%3Fnext_url%3D{urllib.parse.quote(next_url)}&ticket={ticket}"
+        f"/api/auth/login%3Fnext_url%3D{urllib.parse.quote(next_url)}&ticket={ticket}"
     )
     cas_response = xmltodict.parse(requests.get(url).text)
 

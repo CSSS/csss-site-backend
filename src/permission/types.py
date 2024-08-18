@@ -20,21 +20,24 @@ class OfficerPrivateInfo:
         most_recent_exec_term = await officers.crud.most_recent_exec_term(db_session, computing_id)
         if most_recent_exec_term is None:
             return False
+        elif most_recent_exec_term.end_date is None:
+            # considered an active exec if no end_date
+            return True
 
         current_date = datetime.now(UTC)
         semester_start = current_semester_start(current_date)
         NUM_SEMESTERS = 5
         cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)
 
-        return most_recent_exec_term > cutoff_date
+        return most_recent_exec_term.end_date > cutoff_date
 
 class WebsiteAdmin:
     WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [
-        OfficerPosition.President,
-        OfficerPosition.VicePresident,
-        OfficerPosition.DirectorOfArchives,
-        OfficerPosition.SystemAdministrator,
-        OfficerPosition.Webmaster,
+        OfficerPosition.President.value,
+        OfficerPosition.VicePresident.value,
+        OfficerPosition.DirectorOfArchives.value,
+        OfficerPosition.SystemAdministrator.value,
+        OfficerPosition.Webmaster.value,
     ]
 
     @staticmethod
@@ -43,6 +46,7 @@ class WebsiteAdmin:
         A website admin has to be one of the following positions, and
         """
         position = await officers.crud.current_officer_position(db_session, computing_id)
+        print(f"POS: {position}")
         if position is None:
             return False
 

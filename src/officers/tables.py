@@ -91,6 +91,26 @@ class OfficerTerm(Base):
             "photo_url": officer_term_data.photo_url,
         }
 
+    def serializable_dict(self) -> dict:
+        return {
+            "id": self.id, # TODO: remove this
+            "computing_id": self.computing_id,
+
+            "is_filled_in": self.is_filled_in,
+
+            "position": self.position,
+            "start_date": self.start_date.isoformat() if self.start_date is not None else None,
+            "end_date": self.end_date.isoformat() if self.end_date is not None else None,
+
+            "nickname": self.nickname,
+            "favourite_course_0": self.favourite_course_0,
+            "favourite_course_1": self.favourite_course_1,
+            "favourite_pl_0": self.favourite_pl_0,
+            "favourite_pl_1": self.favourite_pl_1,
+            "biography": self.biography,
+            "photo_url": self.photo_url,
+        }
+
 # this table contains information that we only need a most up-to-date version of, and
 # don't need to keep a history of. However, it also can't be easily updated.
 class OfficerInfo(Base):

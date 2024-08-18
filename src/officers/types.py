@@ -57,11 +57,12 @@ class OfficerTermData:
     def validate(self) -> None | HTTPException:
         if len(self.computing_id) > COMPUTING_ID_MAX:
             return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.position not in OfficerPosition.__members__.values():
+        elif self.position not in OfficerPosition.position_values():
             raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
         # TODO: more checks
-        elif not is_iso_format(self.start_date):
-            raise HTTPException(status_code=400, detail=f"start_date={self.start_date} must be a valid iso date")
+        # TODO: how to check this one? make sure date is date & not datetime?
+        #elif not is_iso_format(self.start_date):
+        #    raise HTTPException(status_code=400, detail=f"start_date={self.start_date} must be a valid iso date")
         else:
             return None
 

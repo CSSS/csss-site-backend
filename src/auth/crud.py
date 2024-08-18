@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import sqlalchemy
-from auth.models import SiteUser, UserSession
+from auth.tables import SiteUser, UserSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

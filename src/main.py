@@ -11,7 +11,7 @@ import tests.urls
 logging.basicConfig(level=logging.DEBUG)
 database.setup_database()
 
-app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend")
+app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend", root_path="/api")
 
 app.include_router(auth.urls.router)
 app.include_router(officers.urls.router)

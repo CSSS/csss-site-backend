@@ -4,7 +4,7 @@ from typing import Self
 
 _logger = logging.getLogger(__name__)
 
-
+# TODO: remove enum, b/d python enums suck
 class OfficerPosition(Enum):
     President = "president"
     VicePresident = "vice-president"
@@ -28,6 +28,10 @@ class OfficerPosition(Enum):
     SystemAdministrator = "system administrator"
     Webmaster = "webmaster"
     SocialMediaManager = "social media manager"
+
+    @staticmethod
+    def position_values() -> list[str]:
+        return _OFFICER_POSITION_VALUES
 
     @staticmethod
     def from_string(position: str) -> Self | None:
@@ -140,3 +144,7 @@ class OfficerPosition(Enum):
             OfficerPosition.SystemAdministrator,
             OfficerPosition.Webmaster,
         ]
+
+_OFFICER_POSITION_VALUES = [
+    pos.value for pos in OfficerPosition.__members__.values()
+]

@@ -9,8 +9,6 @@ from fastapi import HTTPException
 import officers.tables
 from officers.constants import OfficerPosition
 
-# TODO: leave the following, but create one for current_officers private info & non-private info
-# make it so that the docs shows the expected return schema
 
 @dataclass
 class OfficerInfoData:
@@ -77,7 +75,7 @@ class OfficerTermData:
         for field in fields(self):
             if field.name == "photo_url" or field.name == "end_date":
                 # photo & end_date don't have to be uploaded for the term to be "filled"
-                # TODO: this definition might have to be updated
+                # NOTE: this definition might have to be updated
                 continue
             elif getattr(self, field.name) is None:
                 return False

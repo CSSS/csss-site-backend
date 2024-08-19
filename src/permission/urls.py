@@ -10,7 +10,6 @@ router = APIRouter(
     tags=["permission"],
 )
 
-# TODO: add an endpoint for viewing permissions that exist & what levels they can have & what levels each person has
 @router.get(
     "/is_admin",
     description="checks if the current user has the admin permission"
@@ -25,7 +24,6 @@ async def is_admin(
 
     computing_id = await auth.crud.get_computing_id(db_session, session_id)
     if computing_id is None:
-        # TODO: is this case ever possible?
         raise HTTPException(status_code=401, detail="must be logged in (no computing_id)")
 
     is_admin_permission = await WebsiteAdmin.has_permission(db_session, computing_id)

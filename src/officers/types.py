@@ -1,23 +1,21 @@
-import json
-from dataclasses import asdict, dataclass
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, fields
 from datetime import date, datetime
 
 from constants import COMPUTING_ID_MAX
 from fastapi import HTTPException
-from utils import is_iso_format
 
+import officers.tables
 from officers.constants import OfficerPosition
 
-# TODO: leave the following, but create one for current_officers private info & non-private info
-# make it so that the docs shows the expected return schema
 
-# TODO: are any of these nullable? Not sure yet...
 @dataclass
 class OfficerInfoData:
     computing_id: str
 
     legal_name: None | str = None
-    discord_id: None | str = None # TODO: do we need this to get info about a person
+    discord_id: None | str = None
     discord_name: None | str = None
     discord_nickname: None | str = None
 
@@ -33,6 +31,13 @@ class OfficerInfoData:
         # TODO: more checks
         else:
             return None
+
+    def is_filled_in(self):
+        for field in fields(self):
+            if getattr(self, field.name) is None:
+                return False
+
+        return True
 
 
 @dataclass
@@ -57,7 +62,7 @@ class OfficerTermData:
     def validate(self) -> None | HTTPException:
         if len(self.computing_id) > COMPUTING_ID_MAX:
             return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.position not in OfficerPosition.position_values():
+        elif self.position not in OfficerPosition.position_list():
             raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
         # TODO: more checks
         # TODO: how to check this one? make sure date is date & not datetime?
@@ -65,6 +70,17 @@ class OfficerTermData:
         #    raise HTTPException(status_code=400, detail=f"start_date={self.start_date} must be a valid iso date")
         else:
             return None
+
+    def is_filled_in(self):
+        for field in fields(self):
+            if field.name == "photo_url" or field.name == "end_date":
+                # photo & end_date don't have to be uploaded for the term to be "filled"
+                # NOTE: this definition might have to be updated
+                continue
+            elif getattr(self, field.name) is None:
+                return False
+
+        return True
 
 # -------------------------------------------- #
 
@@ -107,3 +123,39 @@ class OfficerData:
         if new_self["end_date"] is not None:
             new_self["end_date"] = new_self["end_date"].isoformat()
         return new_self
+
+    @staticmethod
+    def from_data(
+        term: officers.tables.OfficerTerm,
+        officer_info: officers.tables.OfficerInfo,
+        include_private: bool,
+        is_active: bool,
+    ) -> OfficerData:
+        return OfficerData(
+            is_active = is_active,
+
+            position = term.position,
+            start_date = term.start_date,
+            end_date = term.end_date,
+
+            legal_name = officer_info.legal_name,
+            nickname = term.nickname,
+            discord_name = officer_info.discord_name,
+            discord_nickname = officer_info.discord_nickname,
+
+            favourite_course_0 = term.favourite_course_0,
+            favourite_course_1 = term.favourite_course_1,
+            favourite_language_0 = term.favourite_pl_0,
+            favourite_language_1 = term.favourite_pl_1,
+
+            csss_email = OfficerPosition.to_email(term.position),
+            biography = term.biography,
+            photo_url = term.photo_url,
+
+            private_data = OfficerPrivateData(
+                computing_id = term.computing_id,
+                phone_number = officer_info.phone_number,
+                github_username = officer_info.github_username,
+                google_drive_email = officer_info.google_drive_email,
+            ) if include_private else None,
+        )

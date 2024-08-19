@@ -78,14 +78,14 @@ def downgrade() -> None:
     op.drop_table("site_user")
     op.create_table(
         "site_user",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
         sa.Column("computing_id", sa.String(32), nullable=False),
     )
 
     op.drop_table("user_session")
     op.create_table(
         "user_session",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
         sa.Column("issue_time", sa.DateTime, nullable=False),
         sa.Column("session_id", sa.String(512), nullable=False),
         sa.Column("computing_id", sa.String(32), nullable=False),

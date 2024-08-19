@@ -4,10 +4,8 @@ from datetime import datetime
 
 import database
 import sqlalchemy
+import utils
 from auth.tables import SiteUser
-
-# we can't use and/or in sql expressions, so we must use these functions
-from sqlalchemy.sql.expression import and_, or_
 
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
@@ -20,9 +18,6 @@ from officers.types import (
 
 _logger = logging.getLogger(__name__)
 
-
-# TODO:
-# - make sure that no functions assume that the computing_id exists in SiteUser
 
 async def most_recent_exec_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
     """
@@ -42,19 +37,7 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     """
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
-    # TODO: assert this constraint at the SQL level, so that we don't even have to check it?
-    query = query.where(
-        # TODO: turn this query into a utility function, so it can be reused
-        and_(
-            OfficerTerm.is_filled_in,
-            or_(
-                # executives without a specified end_date are considered active
-                OfficerTerm.end_date.is_(None),
-                # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date
-            )
-        )
-    )
+    query = utils.is_active_officer(query)
     query = query.limit(1)
 
     officer_term = await db_session.scalar(query)
@@ -73,24 +56,12 @@ async def officer_terms(
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
     if hide_filled_in:
-        query = query.where(
-        # TODO: turn this query into a utility function, so it can be reused
-        and_(
-            OfficerTerm.is_filled_in,
-            or_(
-                # executives without a specified end_date are considered active
-                OfficerTerm.end_date.is_(None),
-                # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date
-            )
-        )
-    )
+        query = utils.is_active_officer(query)
 
     query = query.order_by(OfficerTerm.start_date.desc())
     if max_terms is not None:
         query.limit(max_terms)
 
-    # TODO: is this a list by default?
     return (await db_session.scalars(query)).all()
 
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
@@ -101,18 +72,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
     """
 
     query = sqlalchemy.select(OfficerTerm)
-    query = query.where(
-        # TODO: turn this query into a utility function, so it can be reused
-        and_(
-            OfficerTerm.is_filled_in,
-            or_(
-                # executives without a specified end_date are considered active
-                OfficerTerm.end_date.is_(None),
-                # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date
-            )
-        )
-    )
+    query = utils.is_active_officer(query)
     query = query.order_by(OfficerTerm.start_date.desc())
 
     officer_terms = (await db_session.scalars(query)).all()
@@ -120,14 +80,12 @@ async def current_executive_team(db_session: database.DBSession, include_private
     officer_data = {}
 
     for term in officer_terms:
-        # NOTE: improve performance?
-        if term.position not in [officer.value for officer in OfficerPosition]:
+        if term.position not in OfficerPosition.position_list():
             _logger.warning(
                 f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request."
             )
             continue
 
-        # TODO: improve performance by doing these all in one database request
         officer_info_query = sqlalchemy.select(OfficerInfo)
         officer_info_query = officer_info_query.where(
             OfficerInfo.computing_id == term.computing_id
@@ -143,44 +101,14 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
         num_officers[term.position] += 1
         # TODO: move this to a ~~daily cronjob~~ SQL model checking
-        if num_officers[term.position] > OfficerPosition.from_string(term.position).num_active():
+        if num_officers[term.position] > OfficerPosition.num_active(term.position):
             # If there are more active positions than expected, log it to a file
             _logger.warning(
                 f"There are more active {term.position} positions in the OfficerTerm than expected "
-                f"({num_officers[term.position]} > {OfficerPosition.from_string(term.position).num_active()})"
+                f"({num_officers[term.position]} > {OfficerPosition.num_active(term.position)})"
             )
 
-        officer_data[term.position] += [
-            # TODO: turn this into a util function
-            OfficerData(
-                is_active = True,
-
-                position = term.position,
-                start_date = term.start_date,
-                end_date = term.end_date,
-
-                legal_name = officer_info.legal_name,
-                nickname = term.nickname,
-                discord_name = officer_info.discord_name,
-                discord_nickname = officer_info.discord_nickname,
-
-                favourite_course_0 = term.favourite_course_0,
-                favourite_course_1 = term.favourite_course_1,
-                favourite_language_0 = term.favourite_pl_0,
-                favourite_language_1 = term.favourite_pl_1,
-
-                csss_email = OfficerPosition.from_string(term.position).to_email(),
-                biography = term.biography,
-                photo_url = term.photo_url,
-
-                private_data = OfficerPrivateData(
-                    computing_id = term.computing_id,
-                    phone_number = officer_info.phone_number,
-                    github_username = officer_info.github_username,
-                    google_drive_email = officer_info.google_drive_email,
-                ) if include_private else None,
-            )
-        ]
+        officer_data[term.position] += [OfficerData.from_data(term, officer_info, include_private, is_active=True)]
 
     # validate & warn if there are any data issues
     # TODO: decide whether we should enforce empty instances or force the frontend to deal with it
@@ -226,37 +154,8 @@ async def all_officer_terms(
         )
         officer_info = await db_session.scalar(officer_info_query)
 
-        officer_data_list += [
-            # TODO: also turn this into a util function
-            OfficerData(
-                is_active = (term.end_date is None) or (datetime.today() <= term.end_date),
-
-                position = term.position,
-                start_date = term.start_date,
-                end_date = term.end_date,
-
-                legal_name = officer_info.legal_name,
-                nickname = term.nickname,
-                discord_name = officer_info.discord_name,
-                discord_nickname = officer_info.discord_nickname,
-
-                favourite_course_0 = term.favourite_course_0,
-                favourite_course_1 = term.favourite_course_1,
-                favourite_language_0 = term.favourite_pl_0,
-                favourite_language_1 = term.favourite_pl_1,
-
-                csss_email = OfficerPosition.from_string(term.position).to_email(),
-                biography = term.biography,
-                photo_url = term.photo_url,
-
-                private_data = OfficerPrivateData(
-                    computing_id = term.computing_id,
-                    phone_number = officer_info.phone_number,
-                    github_username = officer_info.github_username,
-                    google_drive_email = officer_info.google_drive_email,
-                ) if include_private else None,
-            )
-        ]
+        is_active = (term.end_date is None) or (datetime.today() <= term.end_date)
+        officer_data_list += [OfficerData.from_data(term, officer_info, include_private, is_active)]
 
     return officer_data_list
 
@@ -270,12 +169,7 @@ async def create_new_officer_info(db_session: database.DBSession, officer_info_d
     if officer_info is not None:
         return False
 
-    # TODO: make this a class function
-    is_filled_in = True
-    for field in dataclasses.fields(officer_info_data):
-        if getattr(officer_info_data, field.name) is None:
-            is_filled_in = False
-            break
+    is_filled_in = officer_info_data.is_filled_in()
 
     new_user_session = OfficerInfo.from_data(is_filled_in, officer_info_data)
     db_session.add(new_user_session)
@@ -291,19 +185,14 @@ async def update_officer_info(db_session: database.DBSession, officer_info_data:
     if officer_info is None:
         return False
 
-    is_filled_in = True
-    for field in dataclasses.fields(officer_info_data):
-        if getattr(officer_info_data, field.name) is None:
-            is_filled_in = False
-            break
-
+    is_filled_in = officer_info_data.is_filled_in()
     query = (
         sqlalchemy
         .update(OfficerInfo)
         .where(OfficerInfo.computing_id == officer_info.computing_id)
         .values(OfficerInfo.update_dict(is_filled_in, officer_info_data))
     )
-    # TODO: do we need to handle the result?
+
     await db_session.execute(query)
     return True
 
@@ -320,16 +209,7 @@ async def create_new_officer_term(
         # if an entry with this (computing_id, position, start_date) already exists, do nothing
         return False
 
-    # TODO: turn this into a function
-    is_filled_in = True
-    for field in dataclasses.fields(officer_term_data):
-        if field.name == "photo_url" or field.name == "end_date":
-            # photo doesn't have to be uploaded for the term to be filled.
-            continue
-        elif getattr(officer_term_data, field.name) is None:
-            is_filled_in = False
-            print(f"NOT FILLED IN: {officer_term_data}")
-            break
+    is_filled_in = officer_term_data.is_filled_in()
 
     db_session.add(OfficerTerm.from_data(is_filled_in, officer_term_data))
     return True
@@ -344,8 +224,7 @@ async def update_officer_term(
 
     Returns false if the above entry does not exist.
     """
-    # TODO: turn these into a compound key so we know it's unique !
-    # TODO: or actually, just use a term_id?
+    # TODO: we should move towards using the term_id, so that the start_date can be updated if needed?
     query = (
         sqlalchemy
         .select(OfficerTerm)
@@ -357,17 +236,7 @@ async def update_officer_term(
     if officer_term is None:
         return False
 
-    # TODO: turn this into a function
-    is_filled_in = True
-    for field in dataclasses.fields(officer_term_data):
-        # the photo doesn't have to be uploaded for the term to be filled.
-        if field.name == "photo_url" or field.name == "end_date":
-            continue
-
-        if getattr(officer_term_data, field.name) is None:
-            is_filled_in = False
-            break
-
+    is_filled_in = officer_term_data.is_filled_in()
     query = (
         sqlalchemy
         .update(OfficerTerm)
@@ -376,8 +245,7 @@ async def update_officer_term(
         .where(OfficerTerm.start_date == officer_term_data.start_date)
         .values(OfficerTerm.update_dict(is_filled_in, officer_term_data))
     )
-    print(OfficerTerm.update_dict(is_filled_in, officer_term_data))
-    # TODO: do we need to handle the result?
+
     await db_session.execute(query)
     return True
 

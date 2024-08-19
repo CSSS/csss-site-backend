@@ -24,11 +24,12 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
             # log this strange case
             _logger = logging.getLogger(__name__)
             _logger.warning(f"User session {session_id} exists for non-existent user {computing_id}!")
+
             # create a user for this session
             new_user = SiteUser(
                 computing_id=computing_id,
                 first_logged_in=datetime.now(),
-                last_logged_in=datetime.now()
+                last_logged_in=datetime.now(),
             )
             db_session.add(new_user)
         else:
@@ -39,6 +40,8 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
             issue_time=datetime.now(),
             session_id=session_id,
             computing_id=computing_id,
+            # TODO: check cas:authtype to determine this
+            session_type=SessionType.SFU,
         )
         db_session.add(new_user_session)
 
@@ -79,8 +82,14 @@ async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
 
 async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
     query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
-    existing_user_session = (await db_session.scalars(query)).first()
+    existing_user_session = await db_session.scalar(query)
     return existing_user_session.computing_id if existing_user_session else None
+
+
+async def get_session_type(db_session: AsyncSession, session_id: str) -> str | None:
+    query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
+    existing_user_session = await db_session.scalar(query)
+    return existing_user_session.session_type if existing_user_session else None
 
 
 # remove all out of date user sessions

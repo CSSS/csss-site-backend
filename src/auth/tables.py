@@ -20,7 +20,12 @@ class UserSession(Base):
     session_id = Column(
         String(SESSION_ID_LEN), nullable=False, unique=True
     )  # the space needed to store 256 bytes in base64
-
+   
+    # TODO: create a migration for this
+    # whether a user is faculty, csss-member, student, or just "sfu"
+    session_type = Column(
+        String(SESSION_TYPE_LEN), nullable=False,
+    )
 
 class SiteUser(Base):
     # user is a reserved word in postgres
@@ -39,3 +44,4 @@ class SiteUser(Base):
     # note: default date (for pre-existing columns) is June 16th, 2024
     first_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
     last_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
+

@@ -57,9 +57,24 @@ async def login_user(
         _logger.info(f"User failed to login, with response {cas_response}")
         raise HTTPException(status_code=400, detail="authentication error, ticket likely invalid")
 
-    else:
+    elif "cas:authenticationSuccess" in cas_response["cas:serviceResponse"]:
         session_id = generate_session_id_b64(256)
         computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
+
+        # NOTE: it is the frontend's job to pass the correct authentication reuqest to CAS, otherwise we
+        # will only be able to give a user the "sfu" session_type (least privileged)
+        elif "cas:maillist" in cas_response["cas:serviceResponse"]:
+            # maillist
+            # TODO: (ASK SFU IT) can alumni be in the cmpt-students maillist?
+            if cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:maillist"] == "cmpt-students":
+                session_type = SessionType.CSSS_MEMBER
+            else:
+                raise HTTPException(status_code=500, details="malformed authentication response; this is an SFU CAS error")
+        if "cas:authtype" in cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]:
+            # sfu, alumni, faculty, student
+            session_type = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:authtype"]
+        else:
+            raise HTTPException(status_code=500, detail="malformed authentication response; this is an SFU CAS error")
 
         await crud.create_user_session(db_session, session_id, computing_id)
         await db_session.commit()
@@ -73,13 +88,17 @@ async def login_user(
         )  # this overwrites any past, possibly invalid, session_id
         return response
 
+    else:
+        raise HTTPException(status_code=500, detail="malformed authentication response; this is an SFU CAS error")
+
 
 @router.get(
     "/check",
     description="Check if the current user is logged in based on session_id from cookies",
 )
 async def check_authentication(
-    request: Request,  # NOTE: these are the request headers
+    # the request headers
+    request: Request,
     db_session: database.DBSession,
 ):
     session_id = request.cookies.get("session_id", None)
@@ -113,3 +132,4 @@ async def logout_user(
     response = JSONResponse(response_dict)
     response.delete_cookie(key="session_id")
     return response
+

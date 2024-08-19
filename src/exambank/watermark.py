@@ -12,8 +12,8 @@ from reportlab.pdfgen import canvas
 BORDER = 20
 
 def create_watermark(
-        computing_id: str,
-        density: int = 5
+    computing_id: str,
+    density: int = 5
 ) -> BytesIO:
     """
         Returns a PDF with one page containing the watermark as text.
@@ -50,6 +50,7 @@ def create_watermark(
     watermark_pdf = PdfWriter()
     stamp_pdf = PdfReader(stamp_buffer)
     warning_pdf = PdfReader(warning_buffer)
+
     # Destructively merges in place
     stamp_pdf.pages[0].merge_page(warning_pdf.pages[0])
     watermark_pdf.add_page(stamp_pdf.pages[0])
@@ -60,9 +61,9 @@ def create_watermark(
     return watermark_buffer
 
 def apply_watermark(
-        pdf_path: Path | str,
-        # expect a BytesIO instance (at position 0), accept a file/path
-        stamp: BytesIO | Path | str,
+    pdf_path: Path | str,
+    # expect a BytesIO instance (at position 0), accept a file/path
+    stamp: BytesIO | Path | str,
 ) -> BytesIO:
     # process file
     stamp_page = PdfReader(stamp).pages[0]
@@ -77,12 +78,11 @@ def apply_watermark(
     watermarked_pdf = BytesIO()
     writer.write(watermarked_pdf)
     watermarked_pdf.seek(0)
-
     return watermarked_pdf
 
 def raster_pdf(
-        pdf_path: BytesIO,
-        dpi: int = 300
+    pdf_path: BytesIO,
+    dpi: int = 300
 ) -> BytesIO:
     raster_buffer = BytesIO()
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
@@ -97,14 +97,16 @@ def raster_pdf(
                 tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
 
             target.save(raster_buffer)
+
     raster_buffer.seek(0)
     return raster_buffer
 
 def raster_pdf_from_path(
-        pdf_path: Path | str,
-        dpi: int = 300
+    pdf_path: Path | str,
+    dpi: int = 300
 ) -> BytesIO:
     raster_buffer = BytesIO()
+    
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
     with pymupdf.open(filename=pdf_path) as doc:
         page_count = doc.page_count
@@ -117,5 +119,6 @@ def raster_pdf_from_path(
                 tarpage.insert_image(tarpage.rect, stream=pix.pil_tobytes("PNG"))
 
             target.save(raster_buffer)
+
     raster_buffer.seek(0)
     return raster_buffer

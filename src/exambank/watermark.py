@@ -1,6 +1,6 @@
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from datetime import datetime
 
 import pymupdf
 from pypdf import PdfReader, PdfWriter
@@ -107,7 +107,7 @@ def raster_pdf_from_path(
     dpi: int = 300
 ) -> BytesIO:
     raster_buffer = BytesIO()
-    
+
     # adapted from https://github.com/pymupdf/PyMuPDF/discussions/1183
     with pymupdf.open(filename=pdf_path) as doc:
         page_count = doc.page_count

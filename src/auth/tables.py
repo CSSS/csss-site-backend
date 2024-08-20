@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
+from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
 from database import Base
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
@@ -20,7 +20,7 @@ class UserSession(Base):
     session_id = Column(
         String(SESSION_ID_LEN), nullable=False, unique=True
     )  # the space needed to store 256 bytes in base64
-   
+
     # TODO: create a migration for this
     # whether a user is faculty, csss-member, student, or just "sfu"
     session_type = Column(

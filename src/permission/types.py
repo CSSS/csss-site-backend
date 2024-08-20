@@ -2,10 +2,9 @@ from datetime import UTC, datetime, timezone
 from typing import ClassVar
 
 import auth.crud
-from auth.types import SessionType
-
 import database
 import officers.crud
+from auth.types import SessionType
 from data.semesters import current_semester_start, step_semesters
 from fastapi import HTTPException, Request
 from officers.constants import OfficerPosition
@@ -79,10 +78,10 @@ class ExamBankAccess:
             return False
 
         if await auth.crud.get_session_type(db_session, session_id) == SessionType.FACULTY:
-           return True 
+           return True
 
         # the only non-faculty who can view exams are website admins
         computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        return await WebsiteAdmin.has_permission(db_session, computing_id):
+        return await WebsiteAdmin.has_permission(db_session, computing_id)
 
 

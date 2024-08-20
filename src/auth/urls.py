@@ -7,6 +7,7 @@ import database
 import requests  # TODO: make this async
 import xmltodict
 from auth import crud
+from auth.types import SessionType
 from constants import root_ip_address
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -63,20 +64,22 @@ async def login_user(
 
         # NOTE: it is the frontend's job to pass the correct authentication reuqest to CAS, otherwise we
         # will only be able to give a user the "sfu" session_type (least privileged)
-        elif "cas:maillist" in cas_response["cas:serviceResponse"]:
+        if "cas:maillist" in cas_response["cas:serviceResponse"]:
             # maillist
             # TODO: (ASK SFU IT) can alumni be in the cmpt-students maillist?
             if cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:maillist"] == "cmpt-students":
                 session_type = SessionType.CSSS_MEMBER
             else:
                 raise HTTPException(status_code=500, details="malformed authentication response; this is an SFU CAS error")
-        if "cas:authtype" in cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]:
+        elif "cas:authtype" in cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]:
             # sfu, alumni, faculty, student
             session_type = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:authtype"]
+            if session_type not in SessionType.value_list():
+                raise HTTPException(status_code=500, detail=f"unexpected session type from SFU CAS of {session_type}")
         else:
             raise HTTPException(status_code=500, detail="malformed authentication response; this is an SFU CAS error")
 
-        await crud.create_user_session(db_session, session_id, computing_id)
+        await crud.create_user_session(db_session, session_id, computing_id, session_type)
         await db_session.commit()
 
         # clean old sessions after sending the response

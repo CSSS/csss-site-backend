@@ -4,10 +4,16 @@ from typing import Optional
 
 import sqlalchemy
 from auth.tables import SiteUser, UserSession
+from auth.types import SessionType
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str) -> None:
+async def create_user_session(
+    db_session: AsyncSession,
+    session_id: str,
+    computing_id: str,
+    session_type: str,
+) -> None:
     """
     Updates the past user session if one exists, so no duplicate sessions can ever occur.
 
@@ -40,8 +46,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
             issue_time=datetime.now(),
             session_id=session_id,
             computing_id=computing_id,
-            # TODO: check cas:authtype to determine this
-            session_type=SessionType.SFU,
+            session_type=session_type,
         )
         db_session.add(new_user_session)
 

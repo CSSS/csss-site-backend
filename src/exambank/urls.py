@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request
+import os
+from typing import Optional
 
+import auth.crud
 import database
-
+from exambank.watermark import apply_watermark, create_watermark, raster_pdf
+from fastapi import APIRouter, HTTPException, JSONResponse, Request, Response
 from permission.types import ExamBankAccess
-from exambank.watermark import raster_pdf_from_path
 
 EXAM_BANK_DIR = "/opt/csss-site/media/exam-bank"
 
@@ -18,8 +20,8 @@ router = APIRouter(
 async def all_exams(
     request: Request,
     db_session: database.DBSession,
-    course_name_starts_with: Optional[str],
-    exam_title_starts_with: Optional[str],
+    course_name_starts_with: str | None,
+    exam_title_starts_with: str | None,
 ):
     courses = [f.name for f in os.scandir(f"{EXAM_BANK_DIR}") if f.is_dir()]
     if course_name_starts_with is not None:
@@ -27,15 +29,15 @@ async def all_exams(
 
     exams = []
     for course in courses:
-        for f in os.scandir(f"{EXAM_BANK_DIR}/{course}"):
-            if (
-                f.is_file() and f.name.endswith(".pdf") 
-                and (exam_title_starts_with is None 
-                     or name.startswith(exam_title_starts_with))
-            ):
-                exams += [f.name]
-    
-    return JSONResponse(json.dumps(exams))
+        exams += [
+            f.name for f in os.scandir(f"{EXAM_BANK_DIR}/{course}")
+            if f.is_file() and f.name.endswith(".pdf") and (
+                exam_title_starts_with is None
+                or f.name.startswith(exam_title_starts_with)
+            )
+        ]
+
+    return JSONResponse(exams)
 
 @router.get(
     "/list/courses"
@@ -43,28 +45,31 @@ async def all_exams(
 async def all_courses(
     _request: Request,
     _db_session: database.DBSession,
-    course_name_starts_with: Optional[str],
+    course_name_starts_with: str | None,
 ):
     courses = [f.name for f in os.scandir(f"{EXAM_BANK_DIR}") if f.is_dir()]
     if course_name_starts_with is not None:
-        courses = [course for course in courses if course.startswith(course_name_starts_with)]
-    
-    return JSONResponse(json.dumps(courses))
+        courses = [
+            course for course in courses
+            if course.startswith(course_name_starts_with)
+        ]
+
+    return JSONResponse(courses)
 
 @router.get(
     "/"
 )
 async def get_exam(
     request: Request,
-    db_session: database.DBSession, 
+    db_session: database.DBSession,
     course_name: str,
     exam_title: str,
 ):
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         raise HTTPException(status_code=401)
-      
-    computing_id = await auth.crud.get_computing_id(db_session, session_id) 
+
+    computing_id = await auth.crud.get_computing_id(db_session, session_id)
     if computing_id is None:
         raise HTTPException(status_code=401)
 
@@ -78,7 +83,7 @@ async def get_exam(
     course_folders = [f.name for f in os.scandir(EXAM_BANK_DIR) if f.is_dir()]
     if course_name in course_folders:
         exams = [
-            f.name[:-4] 
+            f.name[:-4]
             for f in os.scandir(f"{EXAM_BANK_DIR}/{course_name}")
             if f.is_file() and f.name.endswith(".pdf")
         ]
@@ -89,7 +94,7 @@ async def get_exam(
             watermarked_pdf = apply_watermark(exam_path, watermark)
             image_bytes = raster_pdf(watermarked_pdf)
 
-            headers = { "Content-Disposition": f"inline; filename=\"{exam_title}_{computing_id}.pdf\"" }
+            headers = { "Content-Disposition": f'inline; filename="{exam_title}_{computing_id}.pdf"' }
             return Response(content=image_bytes, headers=headers, media_type="application/pdf")
 
     raise HTTPException(status_code=400, detail="could not find the requested exam")

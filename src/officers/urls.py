@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import date, datetime
 
 import auth.crud
 import database
@@ -92,6 +93,12 @@ async def get_officer_terms(
     officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
     return JSONResponse([term.serializable_dict() for term in officer_terms])
 
+@dataclass
+class InitialOfficerInfo:
+    computing_id: str
+    position: str
+    start_date: date
+
 @router.post(
     "/new_term",
     description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Updates the system with a new officer, and enables the user to login to the system to input their information.",
@@ -99,33 +106,34 @@ async def get_officer_terms(
 async def new_officer_term(
     request: Request,
     db_session: database.DBSession,
-    computing_id: str = Body(), # request body
-    position: str = Body(),
-    start_date: str = Body(), # basic iso date format
+    # TODO: minimize number of transactions, so we can fail more easily
+    officer_info_list: list[InitialOfficerInfo] = Body(),  # noqa: B008
 ):
     """
     If the current computing_id is not already an officer, officer_info will be created for them.
     """
-    if len(computing_id) > COMPUTING_ID_MAX:
-        raise HTTPException(status_code=400, detail=f"computing_id={computing_id} is too large")
-    elif position not in OfficerPosition.__members__.values():
-        raise HTTPException(status_code=400, detail=f"invalid position={position}")
-    elif not is_iso_format(start_date):
-        raise HTTPException(status_code=400, detail=f"start_date={start_date} must be a valid iso date")
+    for officer_info in officer_info_list:
+        if len(officer_info.computing_id) > COMPUTING_ID_MAX:
+            raise HTTPException(status_code=400, detail=f"computing_id={officer_info.computing_id} is too large")
+        elif officer_info.position not in OfficerPosition.__members__.values():
+            raise HTTPException(status_code=400, detail=f"invalid position={officer_info.position}")
+        elif not is_iso_format(officer_info.start_date):
+            raise HTTPException(status_code=400, detail=f"start_date={officer_info.start_date} must be a valid iso date")
 
     WebsiteAdmin.validate_request(db_session, request)
 
-    officers.crud.create_new_officer_info(db_session, OfficerInfoData(
-        computing_id = computing_id,
-    ))
-    success = officers.crud.create_new_officer_term(db_session, OfficerTermData(
-        computing_id = computing_id,
-        position = position,
-        # TODO: remove the hours & seconds (etc.) from start_date
-        start_date = start_date,
-    ))
-    if not success:
-        raise HTTPException(status_code=400, detail="Officer term already exists, no changes made")
+    for officer_info in officer_info_list:
+        officers.crud.create_new_officer_info(db_session, OfficerInfoData(
+            computing_id = officer_info.computing_id,
+        ))
+        success = officers.crud.create_new_officer_term(db_session, OfficerTermData(
+            computing_id = officer_info.computing_id,
+            position = officer_info.position,
+            # TODO: remove the hours & seconds (etc.) from start_date
+            start_date = officer_info.start_date,
+        ))
+        if not success:
+            raise HTTPException(status_code=400, detail="Officer term already exists, no changes made")
 
     await db_session.commit()
     return PlainTextResponse("ok")

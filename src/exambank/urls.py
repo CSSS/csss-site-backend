@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 @router.get(
-    "/list"
+    "/list/exams"
 )
 async def all_exams(
     request: Request,
@@ -21,8 +21,35 @@ async def all_exams(
     course_name_starts_with: Optional[str],
     exam_title_starts_with: Optional[str],
 ):
-    # TODO: implement this
-    pass
+    courses = [f.name for f in os.scandir(f"{EXAM_BANK_DIR}") if f.is_dir()]
+    if course_name_starts_with is not None:
+        courses = [course for course in courses if course.startswith(course_name_starts_with)]
+
+    exams = []
+    for course in courses:
+        for f in os.scandir(f"{EXAM_BANK_DIR}/{course}"):
+            if (
+                f.is_file() and f.name.endswith(".pdf") 
+                and (exam_title_starts_with is None 
+                     or name.startswith(exam_title_starts_with))
+            ):
+                exams += [f.name]
+    
+    return JSONResponse(json.dumps(exams))
+
+@router.get(
+    "/list/courses"
+)
+async def all_courses(
+    _request: Request,
+    _db_session: database.DBSession,
+    course_name_starts_with: Optional[str],
+):
+    courses = [f.name for f in os.scandir(f"{EXAM_BANK_DIR}") if f.is_dir()]
+    if course_name_starts_with is not None:
+        courses = [course for course in courses if course.startswith(course_name_starts_with)]
+    
+    return JSONResponse(json.dumps(courses))
 
 @router.get(
     "/"
@@ -45,6 +72,7 @@ async def get_exam(
     if not await ExamBankAccess.has_permission(request):
         raise HTTPException(status_code=401, detail="user must have exam bank access permission")
 
+    # number exams with an exam_id pkey
     # TODO: store resource locations in a db table & simply look them up
 
     course_folders = [f.name for f in os.scandir(EXAM_BANK_DIR) if f.is_dir()]

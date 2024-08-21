@@ -28,3 +28,13 @@ def is_active_officer(query: Select) -> Select:
             )
         )
     )
+
+
+def path_in_dir(path: str, parent_dir: str):
+    """
+    Determine if path is in parent_dir. A useful check for input
+    validation, to avoid leaking secrets
+    """
+    parent = Path(parent_dir).resolve()
+    child = Path(path).resolve()
+    return root in child.parents

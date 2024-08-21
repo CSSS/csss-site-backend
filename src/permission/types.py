@@ -4,6 +4,7 @@ from typing import ClassVar
 import auth.crud
 import database
 import officers.crud
+from auth.types import SessionType
 from data.semesters import current_semester_start, step_semesters
 from fastapi import HTTPException, Request
 from officers.constants import OfficerPosition
@@ -57,6 +58,7 @@ class WebsiteAdmin:
         Checks if the provided request satisfies these permissions, and raises the neccessary
         exceptions if not
         """
+        # TODO: does this function return bool???
         session_id = request.cookies.get("session_id", None)
         if session_id is None:
             raise HTTPException(status_code=401, detail="must be logged in")
@@ -64,3 +66,22 @@ class WebsiteAdmin:
             computing_id = await auth.crud.get_computing_id(db_session, session_id)
             if not await WebsiteAdmin.has_permission(db_session, computing_id):
                 raise HTTPException(status_code=401, detail="must have website admin permissions")
+
+class ExamBankAccess:
+    @staticmethod
+    async def has_permission(
+        db_session: database.DBSession,
+        request: Request,
+    ) -> bool:
+        session_id = request.cookies.get("session_id", None)
+        if session_id is None:
+            return False
+
+        if await auth.crud.get_session_type(db_session, session_id) == SessionType.FACULTY:
+           return True
+
+        # the only non-faculty who can view exams are website admins
+        computing_id = await auth.crud.get_computing_id(db_session, session_id)
+        return await WebsiteAdmin.has_permission(db_session, computing_id)
+
+

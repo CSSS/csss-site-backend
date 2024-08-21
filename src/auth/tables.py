@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
+from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
 from database import Base
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
@@ -21,6 +21,11 @@ class UserSession(Base):
         String(SESSION_ID_LEN), nullable=False, unique=True
     )  # the space needed to store 256 bytes in base64
 
+    # TODO: create a migration for this
+    # whether a user is faculty, csss-member, student, or just "sfu"
+    session_type = Column(
+        String(SESSION_TYPE_LEN), nullable=False,
+    )
 
 class SiteUser(Base):
     # user is a reserved word in postgres
@@ -39,3 +44,4 @@ class SiteUser(Base):
     # note: default date (for pre-existing columns) is June 16th, 2024
     first_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
     last_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
+

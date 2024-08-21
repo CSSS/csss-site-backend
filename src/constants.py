@@ -9,6 +9,9 @@ SESSION_ID_LEN = 512
 COMPUTING_ID_LEN = 32
 COMPUTING_ID_MAX = 8
 
+# depends how large SFU maillists can be
+SESSION_TYPE_LEN = 32
+
 # see https://support.discord.com/hc/en-us/articles/4407571667351-How-to-Find-User-IDs-for-Law-Enforcement#:~:text=Each%20Discord%20user%20is%20assigned,user%20and%20cannot%20be%20changed.
 DISCORD_ID_LEN = 18
 

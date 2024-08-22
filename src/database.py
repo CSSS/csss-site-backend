@@ -66,8 +66,7 @@ class DatabaseSessionManager:
         if self._sessionmaker is None:
             raise Exception("DatabaseSessionManager is not initialized")
 
-        # autoflush off means that flush will not be triggered....
-        session = self._sessionmaker(autoflush=False)
+        session = self._sessionmaker()
         try:
             yield session
         except Exception:

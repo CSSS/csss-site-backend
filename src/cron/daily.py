@@ -6,14 +6,16 @@ import logging
 from database import _db_session
 from officers.crud import officer_terms
 
+import github
+import google
+
 _logger = logging.getLogger(__name__)
 
 async def update_permissions():
     db_session = _db_session()
 
-    # TODO: get current github permissions
-
-    # TODO: get current google drive permissions
+    google_permissions = google.current_permissions()
+    github_permissions = github.current_permissions()
 
     one_year_ago = datetime.today() - timedelta(days=365)
 

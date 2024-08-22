@@ -16,7 +16,7 @@ from officers.constants import OfficerPosition
 class OfficerInfoData:
     computing_id: str
 
-    legal_name: None | str = None
+    legal_name: str
     discord_id: None | str = None # TODO: do we need this to get info about a person
     discord_name: None | str = None
     discord_nickname: None | str = None

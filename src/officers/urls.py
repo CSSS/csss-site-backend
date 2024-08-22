@@ -115,18 +115,19 @@ async def new_officer_term(
     for officer_info in officer_info_list:
         if len(officer_info.computing_id) > COMPUTING_ID_MAX:
             raise HTTPException(status_code=400, detail=f"computing_id={officer_info.computing_id} is too large")
-        elif officer_info.position not in OfficerPosition.__members__.values():
+        elif officer_info.position not in OfficerPosition.position_values():
             raise HTTPException(status_code=400, detail=f"invalid position={officer_info.position}")
-        elif not is_iso_format(officer_info.start_date):
-            raise HTTPException(status_code=400, detail=f"start_date={officer_info.start_date} must be a valid iso date")
 
     WebsiteAdmin.validate_request(db_session, request)
 
     for officer_info in officer_info_list:
-        officers.crud.create_new_officer_info(db_session, OfficerInfoData(
+        # TODO: fix a bug with this stuff & test inserting & viewing mutliple executives
+        await officers.crud.create_new_officer_info(db_session, OfficerInfoData(
+            # TODO: use sfu api to get legal name
+            legal_name = "default name",
             computing_id = officer_info.computing_id,
         ))
-        success = officers.crud.create_new_officer_term(db_session, OfficerTermData(
+        success = await officers.crud.create_new_officer_term(db_session, OfficerTermData(
             computing_id = officer_info.computing_id,
             position = officer_info.position,
             # TODO: remove the hours & seconds (etc.) from start_date

@@ -35,6 +35,7 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     """
     Returns None if the user is not currently an officer
     """
+
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
     query = utils.is_active_officer(query)
@@ -153,7 +154,8 @@ async def all_officer_terms(
             OfficerInfo.computing_id == term.computing_id
         )
         officer_info = await db_session.scalar(officer_info_query)
-
+        
+        # TODO: remove is_active from the database
         is_active = (term.end_date is None) or (datetime.today() <= term.end_date)
         officer_data_list += [OfficerData.from_data(term, officer_info, include_private, is_active)]
 

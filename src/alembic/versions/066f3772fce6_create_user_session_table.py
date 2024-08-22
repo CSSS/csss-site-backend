@@ -22,7 +22,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "user_session",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
         sa.Column("issue_time", sa.DateTime, nullable=False),
         sa.Column("session_id", sa.String(512), nullable=False),
         sa.Column("computing_id", sa.String(32), nullable=False),

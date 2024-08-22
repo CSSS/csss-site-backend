@@ -56,27 +56,29 @@ async def all_officers(
     db_session: database.DBSession,
     view_only_filled_in: bool = True,
 ):
-    # determine if user has access to this private data
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        has_private_access = False
+    async def has_access(db_session: database.DBSession, request: Request) -> bool:
+        # determine if user has access to this private data
+        session_id = request.cookies.get("session_id", None)
+        if session_id is None:
+            return False
 
-    computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+        computing_id = await auth.crud.get_computing_id(db_session, session_id)
+        if computing_id is None:
+            return False
+        else:
+            has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+            is_website_admin = await WebsiteAdmin.has_permission(db_session, computing_id)
 
-    is_website_admin = await WebsiteAdmin.has_permission(db_session, computing_id)
-    if (
-        not view_only_filled_in
-        and (session_id is None or not is_website_admin)
-    ):
-        raise HTTPException(status_code=401, detail="must have private access to view not filled in terms")
+            if not view_only_filled_in and (session_id is None or not is_website_admin):
+                raise HTTPException(status_code=401, detail="must have private access to view not filled in terms")
 
-    all_officer_terms = await officers.crud.all_officer_terms(db_session, has_private_access, view_only_filled_in)
-    all_officer_terms = [
-        officer_data.serializable_dict() for officer_data in all_officer_terms
-    ]
+            return has_private_access
 
-    return JSONResponse(all_officer_terms)
+    has_private_access = await has_access(db_session, request)
+
+    all_officer_data = await officers.crud.all_officer_terms(db_session, has_private_access, view_only_filled_in)
+    all_officer_data = [officer_data.serializable_dict() for officer_data in all_officer_data]
+    return JSONResponse(all_officer_data)
 
 @router.get(
     "/terms/{computing_id}",
@@ -88,8 +90,10 @@ async def get_officer_terms(
     computing_id: str,
     # the maximum number of terms to return, in chronological order
     max_terms: None | int = 1,
+    # TODO: implement the following
+    # view_only_filled_in: bool = True,
 ):
-    # TODO: we should check computing_id & stuff & return an exception
+    # all term info is public, so anyone can get any of it
     officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
     return JSONResponse([term.serializable_dict() for term in officer_terms])
 
@@ -106,7 +110,6 @@ class InitialOfficerInfo:
 async def new_officer_term(
     request: Request,
     db_session: database.DBSession,
-    # TODO: minimize number of transactions, so we can fail more easily
     officer_info_list: list[InitialOfficerInfo] = Body(),  # noqa: B008
 ):
     """
@@ -152,12 +155,10 @@ async def update_info(
     db_session: database.DBSession,
     officer_info: OfficerInfoData = Body(), # noqa: B008
 ):
-    # TODO: can computing_id be null or non-string?
     http_exception = officer_info.validate()
     if http_exception is not None:
         raise http_exception
 
-    # TODO: make this a utility? (need a naming convention for functions which can raise exceptions)
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         raise HTTPException(status_code=401, detail="must be logged in")
@@ -170,7 +171,7 @@ async def update_info(
         # the current user can only input the info for another user if they have permissions
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
-    # TODO: if current user has admin permission, log this change
+    # TODO: log all important changes just to a .log file
 
     success = await officers.crud.update_officer_info(db_session, officer_info)
     if not success:
@@ -185,15 +186,12 @@ async def update_info(
 async def update_term(
     request: Request,
     db_session: database.DBSession,
-    # TODO: ensure the dates don't have seconds / hours as they're passed in
     officer_term: OfficerTermData = Body(), # noqa: B008
 ):
-    # TODO: can computing_id be null or non-string?
     http_exception = officer_term.validate()
     if http_exception is not None:
         raise http_exception
 
-    # TODO: make this a utility? (need a naming convention for functions which can raise exceptions)
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         raise HTTPException(status_code=401, detail="must be logged in")
@@ -206,7 +204,7 @@ async def update_term(
         # the current user can only input the info for another user if they have permissions
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
-    # TODO: if current user has admin permission, log this change
+    # TODO: log all important changes just to a .log file
 
     success = await officers.crud.update_officer_term(db_session, officer_term)
     if not success:

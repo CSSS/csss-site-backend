@@ -21,12 +21,12 @@ from sqlalchemy import (
 from officers.types import OfficerInfoData, OfficerTermData
 
 
-# a row represents an assignment of a person to a position
-# an officer with multiple positions, such as Frosh Chair & DoE, is broken up into multiple assignments
+# A row represents an assignment of a person to a position.
+# An officer with multiple positions, such as Frosh Chair & DoE, is broken up into multiple assignments.
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
-    id = Column(Integer, primary_key=True) # TODO: is this automatically autoincrement?
+    id = Column(Integer, primary_key=True, autoincrement=True)
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         nullable=False,
@@ -39,10 +39,6 @@ class OfficerTerm(Base):
     start_date = Column(DateTime, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
     end_date = Column(DateTime)
-
-    # Each row is information that *might* get updated each term.
-    # TODO: Officers can also edit their entries each semester, but not past semesters. History
-    # is not saved, so changes are lost.
 
     nickname = Column(String(128))
     favourite_course_0 = Column(String(32))
@@ -74,8 +70,10 @@ class OfficerTerm(Base):
 
     @staticmethod
     def update_dict(is_filled_in: bool, officer_term_data: OfficerTermData) -> dict:
-        # should only NOT contain the pkey (computing_id)
-        # TODO: make into a compound pkey
+        # cannot update:
+        # - computing_id
+        # - start_date
+        # - position
         return {
             "is_filled_in": is_filled_in,
 
@@ -93,7 +91,7 @@ class OfficerTerm(Base):
 
     def serializable_dict(self) -> dict:
         return {
-            "id": self.id, # TODO: remove this
+            "id": self.id,
             "computing_id": self.computing_id,
 
             "is_filled_in": self.is_filled_in,

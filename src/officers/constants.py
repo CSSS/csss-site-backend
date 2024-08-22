@@ -4,122 +4,72 @@ from typing import Self
 
 _logger = logging.getLogger(__name__)
 
-# TODO: remove enum, b/d python enums suck
-class OfficerPosition(Enum):
-    President = "president"
-    VicePresident = "vice-president"
-    Treasurer = "treasurer"
+class OfficerPosition:
+    PRESIDENT = "president"
+    VICE_PRESIDENT = "vice-president"
+    TREASURER = "treasurer"
 
-    DirectorOfResources = "director of resources"
-    DirectorOfEvents = "director of events"
-    DirectorOfEducationalEvents = "director of educational events"
-    AssistantDirectorOfEvents = "assistant director of events"
-    DirectorOfCommunications = "director of communications"
-    #DirectorOfOutreach = "director of outreach"
-    DirectorOfMultimedia = "director of multimedia"
-    DirectorOfArchives = "director of archives"
-    ExecutiveAtLarge = "executive at large"
-    FirstYearRepresentative = "first year representative"
+    DIRECTOR_OF_RESOURCES = "director of resources"
+    DIRECTOR_OF_EVENTS = "director of events"
+    DIRECTOR_OF_EDUCATIONAL_EVENTS = "director of educational events"
+    ASSISTANT_DIRECTOR_OF_EVENTS = "assistant director of events"
+    DIRECTOR_OF_COMMUNICATIONS = "director of communications"
+    #DIRECTOR_OF_OUTREACH = "director of outreach"
+    DIRECTOR_OF_MULTIMEDIA = "director of multimedia"
+    DIRECTOR_OF_ARCHIVES = "director of archives"
+    EXECUTIVE_AT_LARGE = "executive at large"
+    FIRST_YEAR_REPRESENTATIVE = "first year representative"
 
-    ElectionsOfficer = "elections officer"
-    SFSSCouncilRepresentative = "sfss council representative"
-    FroshWeekChair = "frosh week chair"
+    ELECTIONS_OFFICER = "elections officer"
+    SFSS_COUNCIL_REPRESENTATIVE = "sfss council representative"
+    FROSH_WEEK_CHAIR = "frosh week chair"
 
-    SystemAdministrator = "system administrator"
-    Webmaster = "webmaster"
-    SocialMediaManager = "social media manager"
-
-    @staticmethod
-    def position_values() -> list[str]:
-        return _OFFICER_POSITION_VALUES
+    SYSTEM_ADMINISTRATOR = "system administrator"
+    WEBMASTER = "webmaster"
+    SOCIAL_MEDIA_MANAGER = "social media manager"
 
     @staticmethod
-    def from_string(position: str) -> Self | None:
-        for item in OfficerPosition:
-            if position == item.value:
-                return item
+    def position_list() -> list[str]:
+        return _OFFICER_POSITION_LIST
 
-        _logger.warning(f"Unknown OfficerPosition position = {position}. reporting N/A.")
-        return None
+    @staticmethod
+    def to_email(position: str) -> str | None:
+        return _EMAIL_MAP.get(position, None)
 
-    def to_string(self) -> str:
-        return self.value
-
-    def to_email(self) -> str:
-        match self:
-            case OfficerPosition.President:
-                return "csss-president-current@sfu.ca"
-            case OfficerPosition.VicePresident:
-                return "csss-vp-current@sfu.ca"
-            case OfficerPosition.Treasurer:
-                return "csss-treasurer-current@sfu.ca"
-
-            case OfficerPosition.DirectorOfResources:
-                return "csss-dor-current@sfu.ca"
-            case OfficerPosition.DirectorOfEvents:
-                return "csss-doe-current@sfu.ca"
-            case OfficerPosition.DirectorOfEducationalEvents:
-                return "csss-doee-current@sfu.ca"
-            case OfficerPosition.AssistantDirectorOfEvents:
-                return "csss-adoe-current@sfu.ca"
-            case OfficerPosition.DirectorOfCommunications:
-                return "csss-doc-current@sfu.ca"
-            case OfficerPosition.DirectorOfMultimedia:
-                return "csss-domm-current@sfu.ca"
-            case OfficerPosition.DirectorOfArchives:
-                return "csss-doa-current@sfu.ca"
-            case OfficerPosition.ExecutiveAtLarge:
-                return "csss-eal-current@sfu.ca"
-            case OfficerPosition.FirstYearRepresentative:
-                return "csss-fyr-current@sfu.ca"
-
-            case OfficerPosition.ElectionsOfficer:
-                return "csss-elections@sfu.ca"
-            case OfficerPosition.SFSSCouncilRepresentative:
-                return "csss-councilrep@sfu.ca"
-            case OfficerPosition.FroshWeekChair:
-                return "csss-froshchair@sfu.ca"
-
-            case OfficerPosition.SystemAdministrator:
-                return "csss-sysadmin@sfu.ca"
-            case OfficerPosition.Webmaster:
-                return "csss-webmaster@sfu.ca"
-            case OfficerPosition.SocialMediaManager:
-                return "N/A"
-
-    def num_active(self) -> int | None:
+    @staticmethod
+    def num_active(position: str) -> int | None:
         """
         The number of executive positions active at a given time
         """
         # None means there can be any number active
         if (
-            self == OfficerPosition.ExecutiveAtLarge
-            or self == OfficerPosition.FirstYearRepresentative
+            position == OfficerPosition.ExecutiveAtLarge
+            or position == OfficerPosition.FirstYearRepresentative
         ):
             return 2
         elif (
-            self == OfficerPosition.FroshWeekChair
-            or self == OfficerPosition.SocialMediaManager
+            position == OfficerPosition.FroshWeekChair
+            or position == OfficerPosition.SocialMediaManager
         ):
-            # TODO: configure this value in a database table somewhere?
             return None
         else:
             return 1
 
-    def is_signer(self) -> bool:
+    @staticmethod
+    def is_signer(position: str) -> bool:
         """
         If the officer is a signing authority of the CSSS
         """
         return (
-            self == OfficerPosition.President
-            or self == OfficerPosition.VicePresident
-            or self == OfficerPosition.Treasurer
-            or self == OfficerPosition.DirectorOfResources
-            or self == OfficerPosition.DirectorOfEvents
+            position == OfficerPosition.President
+            or position == OfficerPosition.VicePresident
+            or position == OfficerPosition.Treasurer
+            or position == OfficerPosition.DirectorOfResources
+            or position == OfficerPosition.DirectorOfEvents
         )
 
     @staticmethod
-    def expected_positions() -> list[Self]:
+    def expected_positions() -> list[str]:
         return [
             OfficerPosition.President,
             OfficerPosition.VicePresident,
@@ -145,6 +95,52 @@ class OfficerPosition(Enum):
             OfficerPosition.Webmaster,
         ]
 
-_OFFICER_POSITION_VALUES = [
-    pos.value for pos in OfficerPosition.__members__.values()
+_EMAIL_MAP = {
+    OfficerPosition.PRESIDENT: "csss-president-current@sfu.ca",
+    OfficerPosition.VICE_PRESIDENT: "csss-vp-current@sfu.ca",
+    OfficerPosition.TREASURER: "csss-treasurer-current@sfu.ca",
+
+    OfficerPosition.DIRECTOR_OF_RESOURCES: "csss-dor-current@sfu.ca",
+    OfficerPosition.DIRECTOR_OF_EVENTS: "csss-doe-current@sfu.ca",
+    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS: "csss-doee-current@sfu.ca",
+    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS: "csss-adoe-current@sfu.ca",
+    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS: "csss-doc-current@sfu.ca",
+    #OfficerPosition.DIRECTOR_OF_OUTREACH,
+    OfficerPosition.DIRECTOR_OF_MULTIMEDIA: "csss-domm-current@sfu.ca",
+    OfficerPosition.DIRECTOR_OF_ARCHIVES: "csss-doa-current@sfu.ca",
+    OfficerPosition.EXECUTIVE_AT_LARGE: "csss-eal-current@sfu.ca",
+    OfficerPosition.FIRST_YEAR_REPRESENTATIVE: "csss-fyr-current@sfu.ca",
+
+    OfficerPosition.ELECTIONS_OFFICER: "csss-elections@sfu.ca",
+    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE: "csss-councilrep@sfu.ca",
+    OfficerPosition.FROSH_WEEK_CHAIR: "csss-froshchair@sfu.ca",
+
+    OfficerPosition.SYSTEM_ADMINISTRATOR: "csss-sysadmin@sfu.ca",
+    OfficerPosition.WEBMASTER: "csss-webmaster@sfu.ca",
+    OfficerPosition.SOCIAL_MEDIA_MANAGER: "N/A",
+}
+
+_OFFICER_POSITION_LIST = [
+    OfficerPosition.PRESIDENT,
+    OfficerPosition.VICE_PRESIDENT,
+    OfficerPosition.TREASURER,
+
+    OfficerPosition.DIRECTOR_OF_RESOURCES,
+    OfficerPosition.DIRECTOR_OF_EVENTS,
+    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
+    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
+    #OfficerPosition.DIRECTOR_OF_OUTREACH,
+    OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+    OfficerPosition.DIRECTOR_OF_ARCHIVES,
+    OfficerPosition.EXECUTIVE_AT_LARGE,
+    OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+
+    OfficerPosition.ELECTIONS_OFFICER,
+    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
+    OfficerPosition.FROSH_WEEK_CHAIR,
+
+    OfficerPosition.SYSTEM_ADMINISTRATOR,
+    OfficerPosition.WEBMASTER,
+    OfficerPosition.SOCIAL_MEDIA_MANAGER,
 ]

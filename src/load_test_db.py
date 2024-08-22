@@ -108,7 +108,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc11",
 
-        position=OfficerPosition.VicePresident.value,
+        position=OfficerPosition.VICE_PRESIDENT,
         start_date=date.today() - timedelta(days=365),
         end_date=date.today() - timedelta(days=1),
 
@@ -125,7 +125,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc11",
 
-        position=OfficerPosition.ExecutiveAtLarge.value,
+        position=OfficerPosition.EXECUTIVE_AT_LARGE,
         start_date=date.today(),
         end_date=None,
 
@@ -142,7 +142,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc33",
 
-        position=OfficerPosition.President.value,
+        position=OfficerPosition.PRESIDENT,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -160,7 +160,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc22",
 
-        position=OfficerPosition.DirectorOfArchives.value,
+        position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -191,7 +191,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await update_officer_term(db_session, OfficerTermData(
         computing_id="abc33",
 
-        position=OfficerPosition.President.value,
+        position=OfficerPosition.PRESIDENT,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -226,7 +226,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTermData(
         computing_id=SYSADMIN_COMPUTING_ID,
 
-        position=OfficerPosition.SystemAdministrator.value,
+        position=OfficerPosition.SYSTEM_ADMINISTRATOR,
         start_date=date.today() - timedelta(days=365),
         end_date=None,
 

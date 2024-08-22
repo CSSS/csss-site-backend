@@ -48,7 +48,6 @@ def current_semester(the_date: date) -> Semester:
     elif the_date.month >= 1:
         return Semester.Spring
     else:
-        # TODO: apparently static typecheckers exist in python!?
         assert_never()
 
 

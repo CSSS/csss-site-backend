@@ -33,11 +33,11 @@ class OfficerPrivateInfo:
 
 class WebsiteAdmin:
     WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [
-        OfficerPosition.President.value,
-        OfficerPosition.VicePresident.value,
-        OfficerPosition.DirectorOfArchives.value,
-        OfficerPosition.SystemAdministrator.value,
-        OfficerPosition.Webmaster.value,
+        OfficerPosition.PRESIDENT,
+        OfficerPosition.VICE_PRESIDENT,
+        OfficerPosition.DIRECTOR_OF_ARCHIVES,
+        OfficerPosition.SYSTEM_ADMINISTRATOR,
+        OfficerPosition.WEBMASTER,
     ]
 
     @staticmethod
@@ -46,7 +46,6 @@ class WebsiteAdmin:
         A website admin has to be one of the following positions, and
         """
         position = await officers.crud.current_officer_position(db_session, computing_id)
-        print(f"POS: {position}")
         if position is None:
             return False
 

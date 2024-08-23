@@ -111,7 +111,7 @@ async def get_info(
 
     user_info = await crud.user_info(db_session, session_id)
     if user_info is None:
-        raise HTTPException(status_code=500, detail="Could not find user with session_id")
+        raise HTTPException(status_code=401, detail="Could not find user with session_id, please log in")
 
     return JSONResponse(user_info)
 

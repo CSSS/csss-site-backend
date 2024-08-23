@@ -74,6 +74,7 @@ async def login_user(
         return response
 
 
+# TODO: deprecate this when possible
 @router.get(
     "/check",
     description="Check if the current user is logged in based on session_id from cookies",
@@ -91,6 +92,28 @@ async def check_authentication(
         response_dict = {"is_valid": False}
 
     return JSONResponse(response_dict)
+
+
+@router.get(
+    "/info",
+    description="Get info about the current user. Only accessible by that user",
+)
+async def get_info(
+    request: Request,
+    db_session: database.DBSession,
+):
+    """
+    Currently this endpoint only returns the info stored in tables in the auth module.
+    """
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="User must be authenticated to get their info")
+
+    user_info = await crud.user_info(db_session, session_id)
+    if user_info is None:
+        raise HTTPException(status_code=500, detail="Could not find user with session_id")
+
+    return JSONResponse(user_info)
 
 
 @router.post(

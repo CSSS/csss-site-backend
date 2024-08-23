@@ -1,5 +1,4 @@
 import os
-from dataclasses import dataclass
 from json import dumps
 from typing import Any
 
@@ -7,20 +6,7 @@ import requests
 from constants import github_org_name
 from requests import Response
 
-
-@dataclass
-class GithubUser:
-    username: str
-    id: int
-    name: str
-
-@dataclass
-class GithubTeam:
-    id: int
-    url: str
-    name: str
-    # slugs are the space-free special names that github likes to use
-    slug: str
+from github.types import GithubUser, GithubTeam
 
 async def _github_request_get(
     url: str,

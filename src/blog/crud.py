@@ -20,7 +20,7 @@ async def create_new_entry(db_session: database.DBSession,
 
     return None
 
-async def fetch_by_title(db_session: database.DBSession, title:str) -> (str, str, datetime, list[str] | None) | None:
+async def fetch_by_title(db_session: database.DBSession, title:str) -> tuple[str, str, datetime, list[str] | None] | None:
 
     # returns title, html, date, and list of tags
 

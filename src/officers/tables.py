@@ -116,9 +116,17 @@ class OfficerTerm(Base):
 class OfficerInfo(Base):
     __tablename__ = "officer_info"
 
+    computing_id = Column(
+        String(COMPUTING_ID_LEN),
+        ForeignKey("user_session.computing_id"),
+        primary_key=True,
+    )
+
     is_filled_in = Column(Boolean, nullable=False)
+
     # TODO: we'll need to use SFU's API to get the legal name for users
     legal_name = Column(String(128), nullable=False)  # some people have long names, you never know
+    phone_number = Column(String(24))
 
     # a null discord id would mean you don't have discord
     discord_id = Column(String(DISCORD_ID_LEN))
@@ -126,18 +134,11 @@ class OfficerInfo(Base):
     # this is their nickname in the csss server
     discord_nickname = Column(String(DISCORD_NICKNAME_LEN))
 
-    # private info will be added last
-    computing_id = Column(
-        String(COMPUTING_ID_LEN),
-        ForeignKey("user_session.computing_id"),
-        primary_key=True,
-    )
-    phone_number = Column(String(24))
-    github_username = Column(String(GITHUB_USERNAME_LEN))
-
     # Technically 320 is the most common max-size for emails, but we'll use 256 instead,
     # since it's reasonably large (input validate this too)
     google_drive_email = Column(String(256))
+
+    github_username = Column(String(GITHUB_USERNAME_LEN))
 
     # NOTE: not sure if we'll need this, depending on implementation
     # TODO: get this data on the fly when requested, but rate limit users

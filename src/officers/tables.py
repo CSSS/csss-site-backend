@@ -178,3 +178,17 @@ class OfficerInfo(Base):
             "github_username": officer_info_data.github_username,
             "google_drive_email": officer_info_data.google_drive_email,
         }
+
+    def serializable_dict(self) -> dict:
+        return {
+            "legal_name": self.legal_name,
+            "discord_id": self.discord_id,
+            "discord_name": self.discord_name,
+            "discord_nickname": self.discord_nickname,
+
+            "computing_id": self.computing_id,
+            "phone_number": self.phone_number,
+            "github_username": self.github_username,
+
+            "google_drive_email": self.google_drive_email,
+        }

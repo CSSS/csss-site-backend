@@ -117,7 +117,7 @@ async def get_officer_info(
     if officer_info is None:
         raise HTTPException(status_code=404, detail="user has no officer info")
 
-    return JSONResponse(officer_info)
+    return JSONResponse(officer_info.serializable_dict())
 
 @dataclass
 class InitialOfficerInfo:

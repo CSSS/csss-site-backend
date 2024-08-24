@@ -13,6 +13,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -29,6 +30,7 @@ class OfficerTerm(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     computing_id = Column(
         String(COMPUTING_ID_LEN),
+        ForeignKey("user_session.computing_id"),
         nullable=False,
     )
 
@@ -127,22 +129,20 @@ class OfficerInfo(Base):
     # private info will be added last
     computing_id = Column(
         String(COMPUTING_ID_LEN),
+        ForeignKey("user_session.computing_id"),
         primary_key=True,
     )
     phone_number = Column(String(24))
     github_username = Column(String(GITHUB_USERNAME_LEN))
 
-    # A comma separated list of emails
-    # technically 320 is the most common max-size for emails
-    # specifications for valid email addresses vary widely, but we will not
-    # accept any that contain a comma
-    google_drive_email = Column(Text)
+    # Technically 320 is the most common max-size for emails, but we'll use 256 instead,
+    # since it's reasonably large (input validate this too)
+    google_drive_email = Column(String(256))
 
     # NOTE: not sure if we'll need this, depending on implementation
+    # TODO: get this data on the fly when requested, but rate limit users
+    # to something like 1/s 100/hour
     # has_signed_into_bitwarden = Column(Boolean)
-
-    # TODO: can we represent more complicated data structures?
-    # has_autheticated_github = Column(Boolean)
 
     @staticmethod
     def from_data(is_filled_in: bool, officer_info_data: OfficerInfoData) -> OfficerTerm:

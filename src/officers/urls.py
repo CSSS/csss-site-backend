@@ -97,6 +97,28 @@ async def get_officer_terms(
     officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
     return JSONResponse([term.serializable_dict() for term in officer_terms])
 
+@router.get(
+    "/my_info",
+    description="Get officer info for the current user, if they've ever been an exec.",
+)
+async def get_officer_info(
+    request: Request,
+    db_session: database.DBSession,
+):
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        raise HTTPException(status_code=401)
+
+    computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if computing_id is None:
+        raise HTTPException(status_code=401)
+
+    officer_info = await officers.crud.officer_info(db_session, computing_id)
+    if officer_info is None:
+        raise HTTPException(status_code=404, detail="user has no officer info")
+
+    return JSONResponse(officer_info)
+
 @dataclass
 class InitialOfficerInfo:
     computing_id: str

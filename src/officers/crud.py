@@ -46,6 +46,15 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     else:
         return officer_term.position
 
+async def officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfoData | None:
+    query = (
+        sqlalchemy
+        .select(OfficerInfo)
+        .where(OfficerInfo.computing_id == computing_id)
+    )
+    officer_term = await db_session.scalar(query)
+    return officer_term
+
 async def officer_terms(
     db_session: database.DBSession,
     computing_id: str,

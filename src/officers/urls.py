@@ -4,11 +4,13 @@ from datetime import date, datetime
 
 import auth.crud
 import database
+import sqlalchemy
+import utils
 from constants import COMPUTING_ID_MAX
+from discord import discord
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
-from utils import is_iso_format
 
 import officers.crud
 from officers.constants import OfficerPosition
@@ -150,11 +152,11 @@ async def new_officer_term(
         # TODO: fix a bug with this stuff & test inserting & viewing mutliple executives
         await officers.crud.create_new_officer_info(
             db_session,
+            # TODO: do I need this object atm?
             OfficerInfoUpload(
                 # TODO: use sfu api to get legal name
                 legal_name = "default name",
-                computing_id = officer_info.computing_id,
-            ).to_officer_info(None, None),
+            ).to_officer_info(officer_info.computing_id, None, None),
         )
         # TODO: update create_new_officer_term to be the same as create_new_officer_info
         success = await officers.crud.create_new_officer_term(db_session, OfficerTermData(
@@ -170,20 +172,21 @@ async def new_officer_term(
     return PlainTextResponse("ok")
 
 @router.post(
-    "/update_info",
+    "/{computing_id}/update_info",
     description=(
         "After elections, officer computing ids are input into our system. "
         "If you have been elected as a new officer, you may authenticate with SFU CAS, "
         "then input your information & the valid token for us. Admins may update this info."
     ),
 )
-# TODO: computing_id in path
+# TODO: computing_id in all paths
 async def update_info(
     request: Request,
     db_session: database.DBSession,
-    officer_info: OfficerInfoUpload = Body(), # noqa: B008
+    computing_id: str,
+    new_officer_info: OfficerInfoUpload = Body(), # noqa: B008
 ):
-    http_exception = officer_info.validate()
+    http_exception = new_officer_info.validate()
     if http_exception is not None:
         raise http_exception
 
@@ -193,7 +196,7 @@ async def update_info(
 
     session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
     if (
-        officer_info.computing_id != session_computing_id
+        computing_id != session_computing_id
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         # the current user can only input the info for another user if they have permissions
@@ -201,13 +204,35 @@ async def update_info(
 
     # TODO: log all important changes just to a .log file
 
-    # TODO: do validation checking, return the updated info data
+    # TODO: turn this into a function first
+    # get officer info
+    query = sqlalchemy.select(OfficerInfo)
+    query = query.where(OfficerInfo.computing_id == new_officer_info.computing_id)
+    officer_info = await db_session.scalar(query)
+    if officer_info is None:
+        raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 
-    success = await officers.crud.update_officer_info(db_session, officer_info)
+    # TODO: 1. validate phone-number
+    if not utils.is_valid_phone_number(new_officer_info.phone_number):
+        new_officer_info.phone_number = officer_info.phone_number
+
+    # TODO: use this API
+    discord_user = discord.search_user()
+    # TODO: 2.0 validate (find) discord-name in csss discord
+    # TODO: 2.1 use discord-name to find discord-id
+    # TODO: 2.3 use discord-name to find discord-nickname
+
+    # TODO: 3. validate google-email using google module
+
+    success = await officers.crud.update_officer_info(db_session, new_officer_info.to_officer_info(
+        computing_id=computing_id,
+        discord_id=None,
+        discord_nickname=None,
+    ))
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 
-    updated_officer_info = await officers.crud.officer_info(db_session, officer_info.computing_id)
+    updated_officer_info = await officers.crud.officer_info(db_session, computing_id)
     if updated_officer_info is None:
         raise HTTPException(status_code=500, detail="failed to get officer info?! something is very wrong...")
 
@@ -257,13 +282,6 @@ async def update_term(
 @router.get("/please_error", description="Raises an error & should send an email to the sysadmin")
 async def raise_error():
     raise ValueError("This is an error, you're welcome")
-
-@router.get(
-    "/my_info",
-    description="Get info about whether you are still an executive or not / what your position is.",
-)
-async def my_info():
-    return {}
 
 @router.post(
     "/remove",

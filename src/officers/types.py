@@ -11,32 +11,7 @@ from officers.tables import OfficerInfo, OfficerTerm
 
 
 @dataclass
-class OfficerInfoDownload:
-    computing_id: str
-
-    legal_name: str
-    discord_id: None | str = None # TODO: do we need this to get info about a person
-
-    discord_name: None | str = None
-    discord_nickname: None | str = None
-
-    phone_number: None | str = None
-    github_username: None | str = None
-    google_drive_email: None | str = None
-
-    def validate(self) -> None | HTTPException:
-        if len(self.computing_id) > COMPUTING_ID_MAX:
-            return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.legal_name is not None and self.legal_name == "":
-            return HTTPException(status_code=400, detail="legal name must not be empty")
-        # TODO: more checks
-        else:
-            return None
-
-@dataclass
 class OfficerInfoUpload:
-    computing_id: str
-
     # TODO: compute this using SFU's API; if unable, use a default value
     legal_name: str
     phone_number: None | str = None
@@ -45,17 +20,15 @@ class OfficerInfoUpload:
     google_drive_email: None | str = None
 
     def validate(self) -> None | HTTPException:
-        if len(self.computing_id) > COMPUTING_ID_MAX:
-            return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.legal_name is not None and self.legal_name == "":
+        if self.legal_name is not None and self.legal_name == "":
             return HTTPException(status_code=400, detail="legal name must not be empty")
         # TODO: more checks
         else:
             return None
 
-    def to_officer_info(self, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
+    def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
         return OfficerInfo(
-            computing_id = self.computing_id,
+            computing_id = computing_id,
             legal_name = self.legal_name,
 
             discord_id = discord_id,

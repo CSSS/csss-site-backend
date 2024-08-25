@@ -13,6 +13,8 @@ DISCORD_CATEGORY_ID = 4
 ADMINISTRATOR = 0b1000
 VIEW_CHANNEL = 0b0010_0000_0000
 
+TOKEN = os.environ.get("DISCORD_TOKEN")
+
 @dataclass
 class User:
     id: str
@@ -138,9 +140,8 @@ async def get_channel(
     cid: str,
     gid: str = guild_id
 ) -> Channel | None:
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     channel = next((channel for channel in result_json if channel["id"] == cid), None)
@@ -152,16 +153,14 @@ async def get_channel(
 async def get_all_channels(
     gid: str = guild_id
 ) -> list[str]:
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     channels = [channel for channel in result_json if channel["type"] != DISCORD_CATEGORY_ID]
     channel_names = [channel["name"] for channel in channels]
 
     return channel_names
-
 
 async def get_role_name_by_id(
     rid: str,
@@ -174,9 +173,8 @@ async def get_role_by_id(
     rid: str,
     gid: str = guild_id
 ) -> dict | None:
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/roles"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     return next((role for role in result_json if role["id"] == rid), None)
@@ -185,13 +183,11 @@ async def get_user_roles(
     uid: str,
     gid: str = guild_id
 ) -> list[str]:
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/members/{uid}"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     return result_json["roles"]
-
 
 async def get_all_roles(
     gid: str = guild_id
@@ -199,9 +195,8 @@ async def get_all_roles(
     """
     Grabs all roles in a given guild.
     """
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/roles"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     roles = [([role["id"], [role["name"], role["permissions"]]]) for role in result_json]
@@ -211,10 +206,9 @@ async def get_guild_members_with_role(
     rid: str,
     gid: str = guild_id
 ) -> list[GuildMember]:
-    token = os.environ.get("TOKEN")
     # base case
     url = f"https://discord.com/api/v10/guilds/{gid}/members?limit=1000"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
 
@@ -233,7 +227,7 @@ async def get_guild_members_with_role(
 
     while True:
         url = f"https://discord.com/api/v10/guilds/{gid}/members?limit=1000&after={last_uid}"
-        result = await _discord_request(url, token)
+        result = await _discord_request(url, TOKEN)
 
         result_json = result.json()
 
@@ -249,10 +243,9 @@ async def get_guild_members_with_role(
 async def get_guild_members(
     gid: str = guild_id
 ) -> list[GuildMember]:
-    token = os.environ.get("TOKEN")
     # base case
     url = f"https://discord.com/api/v10/guilds/{gid}/members?limit=1000"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     users = [GuildMember(User(user["user"]["id"], user["user"]["username"], user["user"]["discriminator"], user["user"]["global_name"], user["user"]["avatar"]), user["roles"]) for user in result_json]
@@ -260,7 +253,7 @@ async def get_guild_members(
 
     while True:
         url = f"https://discord.com/api/v10/guilds/{gid}/members?limit=1000&after={last_uid}"
-        result = await _discord_request(url, token)
+        result = await _discord_request(url, TOKEN)
 
         result_json = result.json()
 
@@ -275,9 +268,8 @@ async def get_guild_members(
 async def get_categories(
     gid: str = guild_id
 ) -> list[str]:
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     return [category["name"] for category in result_json if category["type"] == DISCORD_CATEGORY_ID]
@@ -286,9 +278,8 @@ async def get_channels_by_category_name(
     category_name: str,
     gid: str = guild_id
 ) -> list[Channel]:
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     # TODO: edge case if there exist duplicate category names, see get_channels_by_category_id()
@@ -315,9 +306,8 @@ async def get_channels_by_category_id(
     cid: str,
     gid: str = guild_id
 ) -> list[Channel]:
-    token = os.environ.get("TOKEN")
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
 
     result_json = result.json()
     channels = [
@@ -336,10 +326,9 @@ async def get_channels_by_category_id(
 async def search_user(
     user: str,
     gid: str = guild_id
-) -> User:
-    token = os.environ.get("TOKEN")
+) -> User | None:
     url = f"https://discord.com/api/v10/guilds/{gid}/members/search?query={user}"
-    result = await _discord_request(url, token)
+    result = await _discord_request(url, TOKEN)
     json = result.json()
 
     if len(json) == 0:

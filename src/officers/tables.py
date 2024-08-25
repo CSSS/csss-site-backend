@@ -34,7 +34,6 @@ class OfficerTerm(Base):
         nullable=False,
     )
 
-
     position = Column(String(128), nullable=False)
     start_date = Column(DateTime, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
@@ -132,6 +131,8 @@ class OfficerInfo(Base):
 
     def serializable_dict(self) -> dict:
         return {
+            "is_filled_in": self.is_filled_in(),
+
             "legal_name": self.legal_name,
             "discord_id": self.discord_id,
             "discord_name": self.discord_name,

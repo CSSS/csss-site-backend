@@ -27,4 +27,8 @@ def is_active_officer(query: Select) -> Select:
     )
     return OfficerTerm.sql_is_filled_in(query)
 
-
+def is_valid_phone_number(phone_number: str) -> bool:
+    return (
+        len(phone_number) == 10
+        and phone_number.isnumeric()
+    )

@@ -11,8 +11,7 @@ from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (
     OfficerData,
-    OfficerInfoUpload,
-    OfficerPrivateData,
+    #OfficerPrivateData,
     OfficerTermData,
 )
 

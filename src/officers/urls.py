@@ -12,7 +12,8 @@ from utils import is_iso_format
 
 import officers.crud
 from officers.constants import OfficerPosition
-from officers.types import OfficerInfoData, OfficerTermData
+from officers.tables import OfficerInfo
+from officers.types import OfficerInfoUpload, OfficerTermData
 
 _logger = logging.getLogger(__name__)
 
@@ -147,11 +148,15 @@ async def new_officer_term(
 
     for officer_info in officer_info_list:
         # TODO: fix a bug with this stuff & test inserting & viewing mutliple executives
-        await officers.crud.create_new_officer_info(db_session, OfficerInfoData(
-            # TODO: use sfu api to get legal name
-            legal_name = "default name",
-            computing_id = officer_info.computing_id,
-        ))
+        await officers.crud.create_new_officer_info(
+            db_session,
+            OfficerInfoUpload(
+                # TODO: use sfu api to get legal name
+                legal_name = "default name",
+                computing_id = officer_info.computing_id,
+            ).to_officer_info(None, None),
+        )
+        # TODO: update create_new_officer_term to be the same as create_new_officer_info
         success = await officers.crud.create_new_officer_term(db_session, OfficerTermData(
             computing_id = officer_info.computing_id,
             position = officer_info.position,
@@ -172,10 +177,11 @@ async def new_officer_term(
         "then input your information & the valid token for us. Admins may update this info."
     ),
 )
+# TODO: computing_id in path
 async def update_info(
     request: Request,
     db_session: database.DBSession,
-    officer_info: OfficerInfoData = Body(), # noqa: B008
+    officer_info: OfficerInfoUpload = Body(), # noqa: B008
 ):
     http_exception = officer_info.validate()
     if http_exception is not None:
@@ -195,13 +201,23 @@ async def update_info(
 
     # TODO: log all important changes just to a .log file
 
+    # TODO: do validation checking, return the updated info data
+
     success = await officers.crud.update_officer_info(db_session, officer_info)
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 
-    await db_session.commit()
-    return PlainTextResponse("ok")
+    updated_officer_info = await officers.crud.officer_info(db_session, officer_info.computing_id)
+    if updated_officer_info is None:
+        raise HTTPException(status_code=500, detail="failed to get officer info?! something is very wrong...")
 
+    await db_session.commit()
+
+    return JSONResponse(updated_officer_info.serializable_dict())
+
+# TODO: access term by term_id
+# TODO: only allow access if the user is admin or if the id is their term
+# TODO: don't allow a user to change who owns the term if they're not an admin.
 @router.post(
     "/update_term",
 )

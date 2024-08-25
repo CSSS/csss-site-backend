@@ -10,7 +10,8 @@ from auth.crud import create_user_session
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from officers.constants import OfficerPosition
 from officers.crud import create_new_officer_info, create_new_officer_term, update_officer_info, update_officer_term
-from officers.types import OfficerInfoData, OfficerTermData
+from officers.tables import OfficerInfo
+from officers.types import OfficerInfoUpload, OfficerTermData
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -68,7 +69,7 @@ async def load_test_officers_data(db_session: AsyncSession):
 
     print("add officer info")
     # this person has uploaded all of their info
-    await create_new_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Person A",
         discord_id=str(88_1234_7182_4877_1111),
         discord_name="person_a_yeah",
@@ -80,19 +81,21 @@ async def load_test_officers_data(db_session: AsyncSession):
         google_drive_email="person_a@gmail.com",
     ))
     # this person has not joined the CSSS discord, so their discord name & nickname could not be found
-    await create_new_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfo(
+        computing_id="abc22",
+
         legal_name="Person B",
+        phone_number="1112223333",
+
         discord_id=str(88_1234_7182_4877_2222),
         discord_name=None,
         discord_nickname=None,
 
-        computing_id="abc22",
-        phone_number="1112223333",
-        github_username="person_b",
         google_drive_email="person_b@gmail.com",
+        github_username="person_b",
     ))
     # this person has uploaded the minimal amount of information
-    await create_new_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Person C",
         discord_id=None,
         discord_name=None,
@@ -176,7 +179,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
-    await update_officer_info(db_session, OfficerInfoData(
+    await update_officer_info(db_session, OfficerInfo(
         legal_name="Person C ----",
         discord_id=None,
         discord_name=None,
@@ -212,7 +215,7 @@ async def load_sysadmin(db_session: AsyncSession):
     # put your computing id here for testing purposes
     SYSADMIN_COMPUTING_ID = "gsa92"
 
-    await create_new_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Gabe Schulz",
         discord_id=None,
         discord_name=None,

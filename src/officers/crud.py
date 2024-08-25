@@ -11,7 +11,7 @@ from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (
     OfficerData,
-    OfficerInfoData,
+    OfficerInfoUpload,
     OfficerPrivateData,
     OfficerTermData,
 )
@@ -46,7 +46,7 @@ async def current_officer_position(db_session: database.DBSession, computing_id:
     else:
         return officer_term.position
 
-async def officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfoData | None:
+async def officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfo | None:
     query = (
         sqlalchemy
         .select(OfficerInfo)
@@ -151,7 +151,7 @@ async def all_officer_terms(
     """
     query = sqlalchemy.select(OfficerTerm)
     if view_only_filled_in:
-        query = query.where(OfficerTerm.is_filled_in)
+        query = OfficerTerm.sql_is_filled_in(query)
     query = query.order_by(OfficerTerm.start_date.desc())
     officer_terms = (await db_session.scalars(query)).all()
 
@@ -168,41 +168,38 @@ async def all_officer_terms(
 
     return officer_data_list
 
-async def create_new_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData) -> bool:
+async def create_new_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
     """
     Return False if the officer already exists
     """
     query = sqlalchemy.select(OfficerInfo)
-    query = query.where(OfficerInfo.computing_id == officer_info_data.computing_id)
-    officer_info = await db_session.scalar(query)
-    if officer_info is not None:
+    query = query.where(OfficerInfo.computing_id == officer_info.computing_id)
+    stored_officer_info = await db_session.scalar(query)
+    if stored_officer_info is not None:
         return False
 
-    is_filled_in = officer_info_data.is_filled_in()
-
-    new_user_session = OfficerInfo.from_data(is_filled_in, officer_info_data)
-    db_session.add(new_user_session)
+    db_session.add(new_officer_info)
     return True
 
-async def update_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData) -> bool:
+async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
     """
     Return False if the officer doesn't exist yet
     """
     query = sqlalchemy.select(OfficerInfo)
-    query = query.where(OfficerInfo.computing_id == officer_info_data.computing_id)
+    query = query.where(OfficerInfo.computing_id == new_officer_info.computing_id)
     officer_info = await db_session.scalar(query)
     if officer_info is None:
         return False
 
-    is_filled_in = officer_info_data.is_filled_in()
+    # TODO: how to detect an entry insert error?
     query = (
         sqlalchemy
         .update(OfficerInfo)
         .where(OfficerInfo.computing_id == officer_info.computing_id)
-        .values(OfficerInfo.update_dict(is_filled_in, officer_info_data))
+        .values(new_officer_info.to_update_dict())
     )
-
     await db_session.execute(query)
+
     return True
 
 async def create_new_officer_term(
@@ -218,9 +215,7 @@ async def create_new_officer_term(
         # if an entry with this (computing_id, position, start_date) already exists, do nothing
         return False
 
-    is_filled_in = officer_term_data.is_filled_in()
-
-    db_session.add(OfficerTerm.from_data(is_filled_in, officer_term_data))
+    db_session.add(officer_term_data.to_officer_term())
     return True
 
 async def update_officer_term(
@@ -245,14 +240,13 @@ async def update_officer_term(
     if officer_term is None:
         return False
 
-    is_filled_in = officer_term_data.is_filled_in()
     query = (
         sqlalchemy
         .update(OfficerTerm)
         .where(OfficerTerm.computing_id == officer_term_data.computing_id)
         .where(OfficerTerm.position == officer_term_data.position)
         .where(OfficerTerm.start_date == officer_term_data.start_date)
-        .values(OfficerTerm.update_dict(is_filled_in, officer_term_data))
+        .values(officer_term_data.to_update_dict())
     )
 
     await db_session.execute(query)

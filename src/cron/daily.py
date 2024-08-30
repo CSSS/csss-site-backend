@@ -5,7 +5,6 @@ import logging
 
 from database import _db_session
 from officers.crud import officer_terms
-from officers.constants import OfficerPosition
 
 import github
 import google
@@ -30,46 +29,28 @@ async def update_google_permissions(db_session):
     _logger.info("updated google permissions")
 
 async def update_github_permissions(db_session):
-    github_permissions = github.current_permissions()
-    #one_year_ago = datetime.today() - timedelta(days=365)
+    github_permissions, team_id_map = github.all_permissions()
 
-    # TODO: for performance, only include officers with recent end-date (1 yr)
-    # but measure performance first
     all_officer_terms = await all_officer_terms(db_session)
     for term in all_officer_terms:
-        if term.username not in github_permissions:
-            # will wait another day until giving a person their required permissions
-            # TODO: setup a hook or something?
-            github.invite_user(term.username)
-            continue
-
-        if utils.is_active(term):
+        new_teams = (
             # move all active officers to their respective teams
-            if term.position == OfficerPosition.DIRECTOR_OF_ARCHIVES:
-                github.set_user_teams(
-                    term.username,
-                    github_permissions[term.username].teams,
-                    ["doa", "officers"]
-                )
-            elif term.position == OfficerPosition.ELECTION_OFFICER:
-                github.set_user_teams(
-                    term.username,
-                    github_permissions[term.username].teams,
-                    ["election_officer", "officers"]
-                )
-            else:
-                github.set_user_teams(
-                    term.username,
-                    github_permissions[term.username].teams,
-                    ["officers"]
-                )
-
-        else:
+            github.officer_teams(term.position)
+            if utils.is_active(term)
             # move all inactive officers to the past_officers github organization
+            else ["past_officers"]
+        )
+        if term.username not in github_permissions:
+            user = get_user_by_username(term.username)
+            github.invite_user(
+                user.id,
+                [team_id_map[team] for team in new_teams], 
+            )
+        else:
             github.set_user_teams(
                 term.username,
                 github_permissions[term.username].teams,
-                ["past_officers"]
+                new_teams
             )
 
     _logger.info("updated github permissions")

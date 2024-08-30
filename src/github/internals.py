@@ -126,38 +126,29 @@ async def get_user_by_id(
     else:
         return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
-async def add_user_to_org(
+# TODO: if needed, add support for getting user by email
+
+async def invite_user(
+    uid: str,
+    team_id_list: Optional[list[str]] = None,
     org: str = GITHUB_ORG_NAME,
-    uid: str | None = None,
-    email: str | None = None
 ) -> None:
-    """
-        Takes one of either uid or email. Fails if provided both.
-    """
-    result = None
-    if uid is None and email is None:
-        raise ValueError("uid and username cannot both be empty")
-    elif uid is not None and email is not None:
-        raise ValueError("cannot populate both uid and email")
-    # Arbitrarily prefer uid
-    elif uid is not None:
-        result = await _github_request_post(
-            f"https://api.github.com/orgs/{org}/invitations",
-            GITHUB_TOKEN,
-            dumps({"invitee_id":uid, "role":"direct_member"})
-        )
-    elif email is not None:
-        result = await _github_request_post(
-            f"https://api.github.com/orgs/{org}/invitations",
-            GITHUB_TOKEN,
-            dumps({"email":email, "role":"direct_member"})
-        )
+    """Invites the user & gives them access to the supplied teams"""
+    # TODO: how long until the invite goes out of date?
+    if team_id_list is None:
+        team_id_list = []
+
+    result = await _github_request_post(
+        f"https://api.github.com/orgs/{org}/invitations",
+        GITHUB_TOKEN,
+        dumps({"invitee_id":uid, "role":"direct_member", "team_ids":team_id_list})
+    )
 
     # Logging here potentially?
     if result.status_code != 201:
         result_json = result.json()
         raise Exception(
-            f"Status code {result.status_code} returned when attempting to add user to org: "
+            f"Status code {result.status_code} returned when attempting to invite user: "
             f"{result_json['message']}: {[error['message'] for error in result_json['errors']]}"
         )
 
@@ -166,7 +157,7 @@ async def delete_user_from_org(
     org: str = GITHUB_ORG_NAME
 ) -> None:
     if username is None:
-        raise Exception("Username cannot be empty")
+        raise ValueError("Username cannot be empty")
     result = await _github_request_delete(
         f"https://api.github.com/orgs/{org}/memberships/{username}", GITHUB_TOKEN
     )

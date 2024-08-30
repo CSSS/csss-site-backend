@@ -3,6 +3,8 @@
 from github.internals import list_members, list_teams 
 from admin.email import send_email
 
+from officers.constants import OfficerPosition
+
 # Rules:
 # - all past officers will be members of the github org
 # - all past officers will be put in past_officers team
@@ -28,9 +30,17 @@ AUTO_GITHUB_TEAMS = [
     if kind == "auto"
 ]
 
+def officer_teams(position: str) -> list[str]:
+    if position == OfficerPosition.DIRECTOR_OF_ARCHIVES:
+        return ["doa", "officers"]
+    elif position == OfficerPosition.ELECTIONS_OFFICER:
+        return ["election_officer", "officers"]
+    else:
+        return ["officers"]
+
 # TODO: move these functions to github.public.py
 
-def current_permissions() -> dict[str, GithubUserPermissions]:
+def all_permissions() -> dict[str, GithubUserPermissions]:
     """
     return a list of members in the organization (org) & their permissions
     """
@@ -67,7 +77,12 @@ def current_permissions() -> dict[str, GithubUserPermissions]:
                 continue
             user_permissions[member.username].teams += [team.slug]
 
-    return user_permissions
+    # create a mapping between team name & team id, for use in creating invitations
+    team_id_map = {}
+    for team in team_list:
+        team_id_map[team.slug] = team.id
+
+    return user_permissions, team_id_map
 
 def set_user_teams(username: str, old_teams: list[str], new_teams: list[str]):
     for team_slug in old_teams:
@@ -79,7 +94,7 @@ def set_user_teams(username: str, old_teams: list[str], new_teams: list[str]):
             # TODO: what happens when adding a user to a team who is not part of the github org yet?
             add_user_to_team(term.username, team_slug)
 
-def invite_user(github_username: str):
+def invite_user(github_username: str, teams: str):
     # invite this user to the github organization
     # TODO: is an invited user considered a member of the organization?
     pass

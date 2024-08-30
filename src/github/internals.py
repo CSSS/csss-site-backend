@@ -3,10 +3,12 @@ from json import dumps
 from typing import Any
 
 import requests
-from constants import github_org_name
+from constants import github_org_name as GITHUB_ORG_NAME
 from requests import Response
 
 from github.types import GithubUser, GithubTeam
+
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 async def _github_request_get(
     url: str,
@@ -97,7 +99,7 @@ async def get_user_by_username(
     """
     result = await _github_request_get(
         f"https://api.github.com/users/{username}",
-        os.environ.get("GITHUB_TOKEN"),
+        GITHUB_TOKEN,
     )
     result_json = result.json()
     if result_json["status"] == "404":
@@ -115,8 +117,9 @@ async def get_user_by_id(
     """
     result = await _github_request_get(
         f"https://api.github.com/user/{uid}",
-        os.environ.get("GITHUB_TOKEN"),
+        GITHUB_TOKEN,
     )
+    # TODO: should we check the actual status of the response?
     result_json = result.json()
     if result_json["status"] == "404":
         return None
@@ -124,7 +127,7 @@ async def get_user_by_id(
         return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def add_user_to_org(
-    org: str = github_org_name,
+    org: str = GITHUB_ORG_NAME,
     uid: str | None = None,
     email: str | None = None
 ) -> None:
@@ -140,13 +143,13 @@ async def add_user_to_org(
     elif uid is not None:
         result = await _github_request_post(
             f"https://api.github.com/orgs/{org}/invitations",
-            os.environ.get("GITHUB_TOKEN"),
+            GITHUB_TOKEN,
             dumps({"invitee_id":uid, "role":"direct_member"})
         )
     elif email is not None:
         result = await _github_request_post(
             f"https://api.github.com/orgs/{org}/invitations",
-            os.environ.get("GITHUB_TOKEN"),
+            GITHUB_TOKEN,
             dumps({"email":email, "role":"direct_member"})
         )
 
@@ -160,34 +163,48 @@ async def add_user_to_org(
 
 async def delete_user_from_org(
     username: str,
-    org: str = github_org_name
+    org: str = GITHUB_ORG_NAME
 ) -> None:
     if username is None:
         raise Exception("Username cannot be empty")
     result = await _github_request_delete(
-        f"https://api.github.com/orgs/{org}/memberships/{username}",
-        os.environ.get("GITHUB_TOKEN")
+        f"https://api.github.com/orgs/{org}/memberships/{username}", GITHUB_TOKEN
     )
 
     # Logging here potentially?
     if result.status_code != 204:
         raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from organization {org}")
 
-async def get_teams(
-    org: str = github_org_name
+async def list_teams(
+    org: str = GITHUB_ORG_NAME
 ) -> list[str]:
-    result = await _github_request_get(f"https://api.github.com/orgs/{org}/teams", os.environ.get("GITHUB_TOKEN"))
-    json_result = result.json()
-    return [GithubTeam(team["id"], team["url"], team["name"], team["slug"]) for team in json_result]
+    result = await _github_request_get(f"https://api.github.com/orgs/{org}/teams", GITHUB_TOKEN)
+    return [
+        GithubTeam(team["id"], team["url"], team["name"], team["slug"])
+        for team in result.json()
+    ]
+
+async def list_team_members(
+    team_slug: str,
+    org: str = GITHUB_ORG_NAME
+):
+    result = await _github_request_get(
+        f"https://api.github.com/orgs/{org}/teams/{team_slug}/members",
+        GITHUB_TOKEN
+    )
+    return [
+        GithubUser(user["login"], user["id"], user["name"])
+        for user in result.json()
+    ]
 
 async def add_user_to_team(
     username: str,
-    slug: str,
-    org: str = github_org_name
+    team_slug: str,
+    org: str = GITHUB_ORG_NAME
 ) -> None:
     result = await _github_request_put(
-        f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
-        os.environ.get("GITHUB_TOKEN"),
+        f"https://api.github.com/orgs/{org}/teams/{team_slug}/memberships/{username}",
+        GITHUB_TOKEN,
         dumps({"role":"member"}),
     )
 
@@ -198,13 +215,28 @@ async def add_user_to_team(
 
 async def remove_user_from_team(
     username: str,
-    slug: str,
-    org: str = github_org_name
+    team_slug: str,
+    org: str = GITHUB_ORG_NAME
 ) -> None:
     result = await _github_request_delete(
-        f"https://api.github.com/orgs/{org}/teams/{slug}/memberships/{username}",
-        os.environ.get("GITHUB_TOKEN"),
+        f"https://api.github.com/orgs/{org}/teams/{team_slug}/memberships/{username}",
+        GITHUB_TOKEN,
     )
     if result.status_code != 204:
-        raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from team {slug}")
+        raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from team {team_slug}")
+
+async def list_members(
+    org: str = GITHUB_ORG_NAME
+) -> list[GithubUser]:
+    result = await _github_request_get(
+        f"https://api.github.com/orgs/{org}/members",
+        GITHUB_TOKEN
+    )
+
+    # TODO: check for errors
+
+    return [
+        GithubUser(user["login"], user["id"], user["name"])
+        for user in result.json()
+    ] 
 

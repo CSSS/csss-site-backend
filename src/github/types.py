@@ -18,7 +18,7 @@ class GithubTeam:
 class GithubUserPermissions:
     # this class should store all the possible permissions a user might have
 
-    # used to connect the user to their officer info
+    # unique name used to connect the user to their officer info
     username: str
 
     # which github teams they're in

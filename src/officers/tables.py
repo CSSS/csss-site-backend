@@ -130,6 +130,7 @@ class OfficerInfo(Base):
         primary_key=True,
     )
     phone_number = Column(String(24))
+    # TODO: add unique constraint to this (stops users from stealing the username of someone else)
     github_username = Column(String(GITHUB_USERNAME_LEN))
 
     # A comma separated list of emails

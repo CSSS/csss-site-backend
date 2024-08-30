@@ -28,10 +28,9 @@ AUTO_GITHUB_TEAMS = [
     if kind == "auto"
 ]
 
-
 # TODO: move these functions to github.public.py
 
-def current_permissions() -> list[GithubUserPermissions]:
+def current_permissions() -> dict[str, GithubUserPermissions]:
     """
     return a list of members in the organization (org) & their permissions
     """
@@ -64,16 +63,24 @@ def current_permissions() -> list[GithubUserPermissions]:
         team_members = list_team_members(team.slug)
         for member in team_members:
             if member.name not in member_name_list:
-                _logger.warning(f"Found unexpected team_member={member.name} not in the organization")
+                _logger.warning(f"Found unexpected team_member={member.name} in team_slug={team.slug} not in the organization")
                 continue
-            user_permissions[member.username].teams += [team.name]
+            user_permissions[member.username].teams += [team.slug]
 
-    return user_permissions.values()
+    return user_permissions
+
+def set_user_teams(username: str, old_teams: list[str], new_teams: list[str]):
+    for team_slug in old_teams:
+        if team_slug not in new_teams:
+            remove_user_from_team(term.username, team_slug)
+
+    for team_slug in new_teams:
+        if team_slug not in old_teams:
+            # TODO: what happens when adding a user to a team who is not part of the github org yet?
+            add_user_to_team(term.username, team_slug)
 
 def invite_user(github_username: str):
     # invite this user to the github organization
-    pass
-
-def add_to_team(github_username: str):
+    # TODO: is an invited user considered a member of the organization?
     pass
 

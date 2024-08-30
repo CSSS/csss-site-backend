@@ -184,9 +184,9 @@ async def update_info(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
-    new_officer_info: OfficerInfoUpload = Body(), # noqa: B008
+    officer_info_upload: OfficerInfoUpload = Body(), # noqa: B008
 ):
-    http_exception = new_officer_info.validate()
+    http_exception = officer_info_upload.validate()
     if http_exception is not None:
         raise http_exception
 
@@ -207,28 +207,39 @@ async def update_info(
     # TODO: turn this into a function first
     # get officer info
     query = sqlalchemy.select(OfficerInfo)
-    query = query.where(OfficerInfo.computing_id == new_officer_info.computing_id)
+    query = query.where(OfficerInfo.computing_id == officer_info_upload.computing_id)
     officer_info = await db_session.scalar(query)
     if officer_info is None:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 
-    # TODO: 1. validate phone-number
-    if not utils.is_valid_phone_number(new_officer_info.phone_number):
-        new_officer_info.phone_number = officer_info.phone_number
-
-    # TODO: use this API
-    discord_user = discord.search_user()
-    # TODO: 2.0 validate (find) discord-name in csss discord
-    # TODO: 2.1 use discord-name to find discord-id
-    # TODO: 2.3 use discord-name to find discord-nickname
-
-    # TODO: 3. validate google-email using google module
-
-    success = await officers.crud.update_officer_info(db_session, new_officer_info.to_officer_info(
+    new_officer_info = officer_info_upload.to_officer_info(
         computing_id=computing_id,
         discord_id=None,
         discord_nickname=None,
-    ))
+    )
+
+    if not utils.is_valid_phone_number(officer_info_upload.phone_number):
+        new_officer_info.phone_number = officer_info.phone_number
+
+    # TODO: turn this into a function
+    validation_failures = []
+
+    discord_user = discord.search_username(officer_info_upload.discord_name)
+    if discord_user == []:
+        validation_failures += [f"unable to find discord user with the name {officer_info_upload.discord_name}"]
+        new_officer_info.discord_name = officer_info.discord_name
+    elif len(discord_user) >= 1:
+        validation_failures += [f"too many discord users start with {officer_info_upload.discord_name}"]
+        new_officer_info.discord_name = officer_info.discord_name
+    else:
+        new_officer_info.discord_id = discord_user.id
+        new_officer_info.discord_name = discord_user.username
+        # TODO: what value does the nickname have before it's set?
+        new_officer_info.discord_nickname = discord_user.global_name
+
+    # TODO: 3. validate google-email using google module
+
+    success = await officers.crud.update_officer_info(db_session, )
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 

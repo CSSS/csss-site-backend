@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from time import sleep
 
 import requests
-from constants import guild_id
+from constants import ACTIVE_GUILD_ID
 from requests import Response
 
 # ----------------------- #
@@ -13,15 +13,19 @@ DISCORD_CATEGORY_ID = 4
 ADMINISTRATOR = 0b1000
 VIEW_CHANNEL = 0b0010_0000_0000
 
+# this is the "Application ID"
 TOKEN = os.environ.get("DISCORD_TOKEN")
 
 @dataclass
 class User:
     id: str
+    # this is the normal username
     username: str
     # Discriminators are what used to be the #xxxx after a discord username. Accounts which haven't
     # migrated over yet have them still.
+    # For accounts that don't have one, it's '0'
     discriminator: str
+    # this is the server-nickname
     global_name: str | None = None
     avatar: str | None = None
 
@@ -65,7 +69,7 @@ async def _discord_request(
 async def get_channel_members(
     cid: str,
     # TODO: hardcode guild_id (remove it as argument) if we ever refactor this module
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[GuildMember]:
     """
     Returns empty list if invalid channel id is provided.
@@ -95,8 +99,8 @@ async def get_channel_members(
     assert role_everyone is not None
     base_permission = role_everyone["permissions"]
 
-    users = await get_guild_members(guild_id)
-    roles = await get_all_roles(guild_id)
+    users = await get_guild_members(gid)
+    roles = await get_all_roles(gid)
 
     users_with_access = []
     # note string conversion to int
@@ -138,7 +142,7 @@ async def get_channel_members(
 
 async def get_channel(
     cid: str,
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> Channel | None:
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
     result = await _discord_request(url, TOKEN)
@@ -151,7 +155,7 @@ async def get_channel(
         return Channel(channel["id"], channel["type"], channel["guild_id"], channel["name"], channel["permission_overwrites"])
 
 async def get_all_channels(
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[str]:
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
     result = await _discord_request(url, TOKEN)
@@ -164,14 +168,14 @@ async def get_all_channels(
 
 async def get_role_name_by_id(
     rid: str,
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> str:
     roles = await get_all_roles(gid)
     return roles[rid][0]
 
 async def get_role_by_id(
     rid: str,
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> dict | None:
     url = f"https://discord.com/api/v10/guilds/{gid}/roles"
     result = await _discord_request(url, TOKEN)
@@ -181,7 +185,7 @@ async def get_role_by_id(
 
 async def get_user_roles(
     uid: str,
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[str]:
     url = f"https://discord.com/api/v10/guilds/{gid}/members/{uid}"
     result = await _discord_request(url, TOKEN)
@@ -190,7 +194,7 @@ async def get_user_roles(
     return result_json["roles"]
 
 async def get_all_roles(
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) ->  dict[str, list[str]]:
     """
     Grabs all roles in a given guild.
@@ -204,7 +208,7 @@ async def get_all_roles(
 
 async def get_guild_members_with_role(
     rid: str,
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[GuildMember]:
     # base case
     url = f"https://discord.com/api/v10/guilds/{gid}/members?limit=1000"
@@ -241,7 +245,7 @@ async def get_guild_members_with_role(
         last_uid = res[-1].user.id
 
 async def get_guild_members(
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[GuildMember]:
     # base case
     url = f"https://discord.com/api/v10/guilds/{gid}/members?limit=1000"
@@ -266,7 +270,7 @@ async def get_guild_members(
         last_uid = res[-1].user.id
 
 async def get_categories(
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[str]:
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
     result = await _discord_request(url, TOKEN)
@@ -276,7 +280,7 @@ async def get_categories(
 
 async def get_channels_by_category_name(
     category_name: str,
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[Channel]:
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
     result = await _discord_request(url, TOKEN)
@@ -304,7 +308,7 @@ async def get_channels_by_category_name(
 
 async def get_channels_by_category_id(
     cid: str,
-    gid: str = guild_id
+    gid: str = ACTIVE_GUILD_ID
 ) -> list[Channel]:
     url = f"https://discord.com/api/v10/guilds/{gid}/channels"
     result = await _discord_request(url, TOKEN)
@@ -324,14 +328,36 @@ async def get_channels_by_category_id(
     return channels
 
 async def search_user(
-    user: str,
-    gid: str = guild_id
-) -> User | None:
-    url = f"https://discord.com/api/v10/guilds/{gid}/members/search?query={user}"
+    starts_with: str,
+    gid: str = ACTIVE_GUILD_ID
+) -> list[User]:
+    """
+    Returns a list of User objects "whose username or nickname starts with a provided string"
+    """
+    url = f"https://discord.com/api/v10/guilds/{gid}/members/search?query={starts_with}"
     result = await _discord_request(url, TOKEN)
-    json = result.json()
+    return [
+        User(
+            entry["user"]["id"],
+            entry["user"]["username"],
+            entry["user"]["discriminator"],
+            entry["user"]["global_name"],
+            entry["user"]["avatar"]
+        ) for entry in result.json()
+    ]
 
-    if len(json) == 0:
-        return None
-    json = json[0]["user"]
-    return User(json["id"], json["username"], json["discriminator"], json["global_name"], json["avatar"])
+async def search_username(
+    username_starts_with: str,
+    gid: str = ACTIVE_GUILD_ID
+) -> list[User]:
+    """
+    Returns a list of User objects whose username starts with a provided string.
+
+    Will not return a user with a non-zero descriminator -> these users must update their discord version!
+    """
+    user_list = search_user(username_starts_with, gid)
+    return [
+        user for user in user_list
+        if user.username.startswith(username_starts_with)
+        and user.discriminator != "0"
+    ]

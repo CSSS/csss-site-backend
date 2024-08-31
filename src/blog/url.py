@@ -10,6 +10,6 @@ from permission.types import OfficerPrivateInfo
 _logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/blog_entries",
-    tags=["blog_entries"],
+    prefix="/blog",
+    tags=["blog"],
 )

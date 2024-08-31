@@ -2,7 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 import auth.models
-import blog.models
+import blog.tables
 import database
 import officers.models
 from alembic import context
@@ -43,7 +43,6 @@ def run_migrations_offline() -> None:
     # url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=database.SQLALCHEMY_DATABASE_URL,
-        # url=database.SQLALCHEMY_TEST_DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},

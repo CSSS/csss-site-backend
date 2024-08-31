@@ -1,7 +1,7 @@
 from constants import COMPUTING_ID_LEN
 from database import Base
 from officers import models
-from sqlalchemy import Column, DateTime, ForeignKeyConstraint, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 
 
 # blog table
@@ -16,6 +16,7 @@ class BlogPosts(Base):
     # computing id
     # TODO: add foreign key
     computing_id = Column(String(COMPUTING_ID_LEN),
+        ForeignKey("officer_info.computing_id"),
         nullable=False)
 
     # dates of creation and last edit

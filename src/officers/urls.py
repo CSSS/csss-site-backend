@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 import auth.crud
 import database
+import github
 import sqlalchemy
 import utils
 from constants import COMPUTING_ID_MAX
@@ -256,7 +257,11 @@ async def update_info(
         validation_failures += [f"invalid email format {officer_info_upload.google_drive_email}"]
         new_officer_info.google_drive_email = officer_info.google_drive_email
 
-    # TODO: validate github user
+    # validate github user is real
+    if await github.internals.get_user_by_username(officer_info_upload.github_username) is None:
+        validation_failures += [f"invalid github username {officer_info_upload.github_username}"]
+        new_officer_info.github_username = officer_info.github_username
+
     # TODO: invite github user
     # TODO: detect if changing github username & uninvite old user
 

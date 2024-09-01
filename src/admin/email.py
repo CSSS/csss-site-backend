@@ -2,7 +2,7 @@ import os
 import smtplib
 
 # TODO: set this up
-GMAIL_PASSWORD = os.environ['GMAIL_PASSWORD']
+GMAIL_PASSWORD = os.environ.get("GMAIL_PASSWORD")
 GMAIL_ADDRESS = "csss-site@gmail.com"
 
 # TODO: look into sending emails from an sfu maillist (this might be painful)
@@ -11,7 +11,7 @@ def send_email(
     subject: str,
     contents: str,
 ):
-    mail = smtplib.SMTP('smtp.gmail.com', 587)
+    mail = smtplib.SMTP("smtp.gmail.com", 587)
     mail.ehlo()
     mail.starttls()
     mail.login(GMAIL_ADDRESS, GMAIL_PASSWORD)

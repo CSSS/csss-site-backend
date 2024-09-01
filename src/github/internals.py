@@ -6,9 +6,12 @@ import requests
 from constants import github_org_name as GITHUB_ORG_NAME
 from requests import Response
 
-from github.types import GithubUser, GithubTeam
+from github.types import GithubTeam, GithubUser
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+
+# TODO: go through this module & make sure that all functions check for response.status_code
+# being invalid as specified by the API endpoints
 
 async def _github_request_get(
     url: str,
@@ -101,11 +104,11 @@ async def get_user_by_username(
         f"https://api.github.com/users/{username}",
         GITHUB_TOKEN,
     )
-    result_json = result.json()
-    if result_json["status"] == "404":
+    if result.status_code == 404:
         return None
-    else:
-        return GithubUser(result_json["login"], result_json["id"], result_json["name"])
+
+    result_json = result.json()
+    return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 async def get_user_by_id(
     uid: str
@@ -119,18 +122,17 @@ async def get_user_by_id(
         f"https://api.github.com/user/{uid}",
         GITHUB_TOKEN,
     )
-    # TODO: should we check the actual status of the response?
-    result_json = result.json()
-    if result_json["status"] == "404":
+    if result.status == 404:
         return None
-    else:
-        return GithubUser(result_json["login"], result_json["id"], result_json["name"])
+
+    result_json = result.json()
+    return GithubUser(result_json["login"], result_json["id"], result_json["name"])
 
 # TODO: if needed, add support for getting user by email
 
 async def invite_user(
     uid: str,
-    team_id_list: Optional[list[str]] = None,
+    team_id_list: list[str] | None = None,
     org: str = GITHUB_ORG_NAME,
 ) -> None:
     """Invites the user & gives them access to the supplied teams"""
@@ -153,11 +155,12 @@ async def invite_user(
         )
 
 async def delete_user_from_org(
-    username: str,
+    username: str | None,
     org: str = GITHUB_ORG_NAME
 ) -> None:
     if username is None:
         raise ValueError("Username cannot be empty")
+
     result = await _github_request_delete(
         f"https://api.github.com/orgs/{org}/memberships/{username}", GITHUB_TOKEN
     )
@@ -217,17 +220,20 @@ async def remove_user_from_team(
         raise Exception(f"Status code {result.status_code} returned when attempting to delete user {username} from team {team_slug}")
 
 async def list_members(
-    org: str = GITHUB_ORG_NAME
+    org: str = GITHUB_ORG_NAME,
+    page_number: int = 1,
+    page_size: int = 99,
 ) -> list[GithubUser]:
     result = await _github_request_get(
-        f"https://api.github.com/orgs/{org}/members",
+        f"https://api.github.com/orgs/{org}/members?per_page=99",
         GITHUB_TOKEN
     )
 
-    # TODO: check for errors
+    if result.status_code != 200:
+        raise Exception(f"Got result with status_code={result.status_code}, and contents={result.text}")
 
     return [
-        GithubUser(user["login"], user["id"], user["name"])
+        (user["login"], user["id"])
         for user in result.json()
-    ] 
+    ]
 

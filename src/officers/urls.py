@@ -257,10 +257,8 @@ async def update_info(
         new_officer_info.google_drive_email = officer_info.google_drive_email
 
     # TODO: validate github user
-
     # TODO: invite github user
-
-    # TODO: detect if changing github user & remove old one
+    # TODO: detect if changing github username & uninvite old user
 
     success = await officers.crud.update_officer_info(db_session, new_officer_info)
     if not success:
@@ -312,7 +310,6 @@ async def update_term(
 
     await db_session.commit()
     return PlainTextResponse("ok")
-
 
 """
 # TODO: test this error later

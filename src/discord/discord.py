@@ -383,7 +383,8 @@ async def search_username(
 
     Will not return a user with a non-zero descriminator -> these users must update their discord version!
     """
-    user_list = await search_user(username_starts_with, 2, gid)
+    # if there are more than 100 users with the same nickname as the "username_starts_with" string, this may fail
+    user_list = await search_user(username_starts_with, 99, gid)
     return [
         user for user in user_list
         if user.username.startswith(username_starts_with)

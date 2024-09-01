@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 from officers.tables import OfficerInfo, OfficerTerm
@@ -32,3 +33,6 @@ def is_valid_phone_number(phone_number: str) -> bool:
         len(phone_number) == 10
         and phone_number.isnumeric()
     )
+
+def is_valid_email(email: str):
+    return not re.match(r"^[^@]+@[^@]+\.[a-zA-Z]*$", email)

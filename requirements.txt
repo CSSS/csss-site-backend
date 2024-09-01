@@ -5,6 +5,7 @@ uvicorn[standard]==0.27.1
 sqlalchemy==2.0.27
 asyncpg==0.29.0
 alembic==1.13.1
+google-api-python-client==2.143.0
 
 # minor
 pyOpenSSL==24.0.0 # for generating cryptographically secure random numbers

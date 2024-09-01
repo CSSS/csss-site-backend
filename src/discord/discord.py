@@ -251,8 +251,21 @@ async def get_guild_members(
     url = f"https://discord.com/api/v10/guilds/{gid}/members?limit=1000"
     result = await _discord_request(url, TOKEN)
 
-    result_json = result.json()
-    users = [GuildMember(User(user["user"]["id"], user["user"]["username"], user["user"]["discriminator"], user["user"]["global_name"], user["user"]["avatar"]), user["roles"]) for user in result_json]
+    if result.status_code != 200:
+        raise Exception(f"Got unexpected error result: {result.json()}")
+
+    users = [
+        GuildMember(
+            User(
+                user["user"]["id"],
+                user["user"]["username"],
+                user["user"]["discriminator"],
+                user["user"]["global_name"],
+                user["user"]["avatar"],
+            ),
+            user["roles"]
+        ) for user in result.json()
+    ]
     last_uid = users[-1].user.id
 
     while True:
@@ -260,11 +273,21 @@ async def get_guild_members(
         result = await _discord_request(url, TOKEN)
 
         result_json = result.json()
-
         if len(result_json) == 0:
             return users
 
-        res = [GuildMember(User(user["user"]["id"], user["user"]["username"], user["user"]["discriminator"], user["user"]["global_name"], user["user"]["avatar"]), user["roles"]) for user in result_json]
+        res = [
+            GuildMember(
+                User(
+                    user["user"]["id"],
+                    user["user"]["username"],
+                    user["user"]["discriminator"],
+                    user["user"]["global_name"],
+                    user["user"]["avatar"],
+                ),
+                user["roles"]
+            ) for user in result_json
+        ]
         users += res
 
         last_uid = res[-1].user.id
@@ -329,12 +352,17 @@ async def get_channels_by_category_id(
 
 async def search_user(
     starts_with: str,
+    limit: int = 1,
     gid: str = ACTIVE_GUILD_ID
 ) -> list[User]:
     """
     Returns a list of User objects "whose username or nickname starts with a provided string"
     """
-    url = f"https://discord.com/api/v10/guilds/{gid}/members/search?query={starts_with}"
+    if starts_with == "":
+        raise ValueError("starts_with must be non-empty string; use get_guild_members instead if desired.")
+
+    url = f"https://discord.com/api/v10/guilds/{gid}/members/search?query={starts_with}&limit={limit}"
+
     result = await _discord_request(url, TOKEN)
     return [
         User(
@@ -355,9 +383,9 @@ async def search_username(
 
     Will not return a user with a non-zero descriminator -> these users must update their discord version!
     """
-    user_list = search_user(username_starts_with, gid)
+    user_list = await search_user(username_starts_with, 2, gid)
     return [
         user for user in user_list
         if user.username.startswith(username_starts_with)
-        and user.discriminator != "0"
+        and user.discriminator == "0"
     ]

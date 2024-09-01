@@ -15,7 +15,6 @@ def is_iso_format(date_str: str) -> bool:
     except ValueError:
         return False
 
-
 def is_active_officer(query: Select) -> Select:
     # TODO: assert this constraint at the SQL level, so that we don't even have to check it?
     query = query.where(
@@ -35,4 +34,4 @@ def is_valid_phone_number(phone_number: str) -> bool:
     )
 
 def is_valid_email(email: str):
-    return not re.match(r"^[^@]+@[^@]+\.[a-zA-Z]*$", email)
+    return re.match(r"^[^@]+@[^@]+\.[a-zA-Z]*$", email)

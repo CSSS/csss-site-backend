@@ -207,7 +207,7 @@ async def update_info(
     # TODO: turn this into a function first
     # get officer info
     query = sqlalchemy.select(OfficerInfo)
-    query = query.where(OfficerInfo.computing_id == officer_info_upload.computing_id)
+    query = query.where(OfficerInfo.computing_id == computing_id)
     officer_info = await db_session.scalar(query)
     if officer_info is None:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
@@ -218,38 +218,64 @@ async def update_info(
         discord_nickname=None,
     )
 
-    if not utils.is_valid_phone_number(officer_info_upload.phone_number):
-        new_officer_info.phone_number = officer_info.phone_number
-
     # TODO: turn this into a function
     validation_failures = []
 
-    discord_user = discord.search_username(officer_info_upload.discord_name)
-    if discord_user == []:
-        validation_failures += [f"unable to find discord user with the name {officer_info_upload.discord_name}"]
-        new_officer_info.discord_name = officer_info.discord_name
-    elif len(discord_user) >= 1:
-        validation_failures += [f"too many discord users start with {officer_info_upload.discord_name}"]
-        new_officer_info.discord_name = officer_info.discord_name
+    if not utils.is_valid_phone_number(officer_info_upload.phone_number):
+        validation_failures += [f"invalid phone number {officer_info_upload.phone_number}"]
+        new_officer_info.phone_number = officer_info.phone_number
+
+    if officer_info_upload.discord_name is None or officer_info_upload.discord_name == "":
+        new_officer_info.discord_name = None
+        new_officer_info.discord_id = None
+        new_officer_info.discord_nickname = None
     else:
-        new_officer_info.discord_id = discord_user.id
-        new_officer_info.discord_name = discord_user.username
-        # TODO: what value does the nickname have before it's set?
-        new_officer_info.discord_nickname = discord_user.global_name
+        discord_user_list = await discord.search_username(officer_info_upload.discord_name)
+        if discord_user_list == []:
+            validation_failures += [f"unable to find discord user with the name {officer_info_upload.discord_name}"]
+            new_officer_info.discord_name = officer_info.discord_name
+            new_officer_info.discord_id = officer_info.discord_id
+            new_officer_info.discord_nickname = officer_info.discord_nickname
+        elif len(discord_user_list) > 1:
+            validation_failures += [f"too many discord users start with {officer_info_upload.discord_name}"]
+            new_officer_info.discord_name = officer_info.discord_name
+            new_officer_info.discord_id = officer_info.discord_id
+            new_officer_info.discord_nickname = officer_info.discord_nickname
+        else:
+            discord_user = discord_user_list[0]
+            new_officer_info.discord_name = discord_user.username
+            new_officer_info.discord_id = discord_user.id
+            new_officer_info.discord_nickname = (
+                discord_user.global_name
+                if discord_user.global_name is not None
+                else discord_user.username
+            )
 
-    # TODO: 3. validate google-email using google module
+    # TODO: validate google-email using google module, by trying to assign the user to a permission or something
+    if not utils.is_valid_email(officer_info_upload.google_drive_email):
+        validation_failures += [f"invalid email format {officer_info_upload.google_drive_email}"]
+        new_officer_info.google_drive_email = officer_info.google_drive_email
 
-    success = await officers.crud.update_officer_info(db_session, )
+    # TODO: validate github user
+
+    # TODO: invite github user
+
+    # TODO: detect if changing github user & remove old one
+
+    success = await officers.crud.update_officer_info(db_session, new_officer_info)
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
+
+    await db_session.commit()
 
     updated_officer_info = await officers.crud.officer_info(db_session, computing_id)
     if updated_officer_info is None:
         raise HTTPException(status_code=500, detail="failed to get officer info?! something is very wrong...")
 
-    await db_session.commit()
-
-    return JSONResponse(updated_officer_info.serializable_dict())
+    return JSONResponse({
+        "updated_officer_info": updated_officer_info.serializable_dict(),
+        "validation_failures": validation_failures,
+    })
 
 # TODO: access term by term_id
 # TODO: only allow access if the user is admin or if the id is their term

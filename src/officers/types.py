@@ -40,21 +40,6 @@ class OfficerInfoUpload:
             google_drive_email = self.google_drive_email,
         )
 
-    def to_update_dict(self) -> dict:
-        return {
-            # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
-            # for now, we should insert a default value
-            "legal_name": "default name" if self.legal_name is None else self.legal_name,
-
-            "discord_id": self.discord_id,
-            "discord_name": self.discord_name,
-            "discord_nickname": self.discord_nickname,
-
-            "phone_number": self.phone_number,
-            "github_username": self.github_username,
-            "google_drive_email": self.google_drive_email,
-        }
-
 @dataclass
 class OfficerTermData:
     computing_id: str

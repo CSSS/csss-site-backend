@@ -1,6 +1,7 @@
 from google_api import internals
 
 
+# NOTE: must perform setup as described in the csss-site-backend wiki
 def test__list_drives():
     """should not fail"""
     drive_list = internals._list_shared_drives()

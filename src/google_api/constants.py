@@ -24,6 +24,7 @@ GOOGLE_API_SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+# TODO: make this into an enum, or something
 GOOGLE_DRIVE_PERMISSION_ROLES = [
     "organizer",
     "fileOrganizer",

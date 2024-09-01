@@ -166,8 +166,8 @@ class OfficerData:
 
     @staticmethod
     def from_data(
-        term: officers.tables.OfficerTerm,
-        officer_info: officers.tables.OfficerInfo,
+        term: OfficerTerm,
+        officer_info: OfficerInfo,
         include_private: bool,
         is_active: bool,
     ) -> OfficerData:

@@ -1,5 +1,9 @@
+# main
 src/run/
 logs/
+
+# google drive api
+google_key.json
 
 # Python - Byte-compiled / optimized / DLL files
 __pycache__/

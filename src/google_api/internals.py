@@ -66,7 +66,3 @@ def delete_drive_permission(drive_id: str, permission_id: str):
         )
         .execute()
     )
-
-def remove_drive_access():
-    # TODO: remove drive permissions
-    pass

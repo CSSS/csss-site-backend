@@ -109,10 +109,11 @@ class OfficerInfo(Base):
     )
 
     # TODO: we'll need to use SFU's API to get the legal name for users
-    legal_name = Column(String(128), nullable=False)  # some people have long names, you never know
+    legal_name = Column(String(128), nullable=False) # some people have long names, you never know
     phone_number = Column(String(24), nullable=True)
 
     # a null discord id would mean you don't have discord
+    # TODO: add unique constraints to these (stops users from stealing the username of someone else)
     discord_id = Column(String(DISCORD_ID_LEN), nullable=True)
     discord_name = Column(String(DISCORD_NAME_LEN), nullable=True)
     # this is their nickname in the csss server
@@ -120,8 +121,10 @@ class OfficerInfo(Base):
 
     # Technically 320 is the most common max-size for emails, but we'll use 256 instead,
     # since it's reasonably large (input validate this too)
+    # TODO: add unique constraint to this (stops users from stealing the username of someone else)
     google_drive_email = Column(String(256), nullable=True)
 
+    # TODO: add unique constraint to this (stops users from stealing the username of someone else)
     github_username = Column(String(GITHUB_USERNAME_LEN), nullable=True)
 
     # NOTE: not sure if we'll need this, depending on implementation

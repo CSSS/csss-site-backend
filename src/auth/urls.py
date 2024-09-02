@@ -37,15 +37,19 @@ router = APIRouter(
     description="Login to the sfucsss.org. Must redirect to this endpoint from SFU's cas authentication service for correct parameters",
 )
 async def login_user(
-    next_url: str,  # TODO: ensure next_url is a valid url? or local to our site or something...
+    next_url: str,
     ticket: str,
     db_session: database.DBSession,
     background_tasks: BackgroundTasks,
 ):
+    # TODO: test this
+    if not next_url.startswith(root_ip_address):
+        raise HTTPException(status_code=400, detail=f"invalid next_url={next_url}, must be a page of our site")
+
     # verify the ticket is valid
     url = (
         f"https://cas.sfu.ca/cas/serviceValidate?service={urllib.parse.quote(root_ip_address)}"
-        f"/auth/login%3Fnext_url%3D{urllib.parse.quote(next_url)}&ticket={ticket}"
+        f"/api/auth/login%3Fnext_url%3D{urllib.parse.quote(next_url)}&ticket={ticket}"
     )
     cas_response = xmltodict.parse(requests.get(url).text)
 

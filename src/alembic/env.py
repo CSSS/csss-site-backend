@@ -1,10 +1,10 @@
 import asyncio
 from logging.config import fileConfig
 
-import auth.models
+import auth.tables
 import blog.tables
 import database
-import officers.models
+import officers.tables
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection

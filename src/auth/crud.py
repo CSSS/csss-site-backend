@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import sqlalchemy
-from auth.models import SiteUser, UserSession
+from auth.tables import SiteUser, UserSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -57,7 +57,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 async def remove_user_session(db_session: AsyncSession, session_id: str) -> dict:
     query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
     user_session = await db_session.scalars(query)
-    await db_session.delete(user_session.first())  # TODO: what to do with this result that we're awaiting?
+    await db_session.delete(user_session.first())
 
 
 async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
@@ -65,8 +65,6 @@ async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
     existing_user_session = (await db_session.scalars(query)).first()
 
     if existing_user_session:
-        # TODO: replace this select with an sqlalchemy relationship access
-        # see: https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html
         query = sqlalchemy.select(SiteUser).where(SiteUser.computing_id == existing_user_session.computing_id)
         existing_user = (await db_session.scalars(query)).first()
         return {

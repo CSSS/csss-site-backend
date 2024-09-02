@@ -3,14 +3,14 @@
 # python load_test_db.py
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import sqlalchemy
 from auth.crud import create_user_session
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.crud import update_officer_info, update_officer_term
-from officers.schemas import OfficerInfoData, OfficerTermData
+from officers.crud import create_new_officer_info, create_new_officer_term, update_officer_info, update_officer_term
+from officers.types import OfficerInfoData, OfficerTermData
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -68,7 +68,7 @@ async def load_test_officers_data(db_session: AsyncSession):
 
     print("add officer info")
     # this person has uploaded all of their info
-    update_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfoData(
         legal_name="Person A",
         discord_id=str(88_1234_7182_4877_1111),
         discord_name="person_a_yeah",
@@ -80,7 +80,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         google_drive_email="person_a@gmail.com",
     ))
     # this person has not joined the CSSS discord, so their discord name & nickname could not be found
-    update_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfoData(
         legal_name="Person B",
         discord_id=str(88_1234_7182_4877_2222),
         discord_name=None,
@@ -92,7 +92,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         google_drive_email="person_b@gmail.com",
     ))
     # this person has uploaded the minimal amount of information
-    update_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfoData(
         legal_name="Person C",
         discord_id=None,
         discord_name=None,
@@ -105,13 +105,12 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
-
-    update_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc11",
 
-        position=OfficerPosition.VicePresident.value,
-        start_date=datetime.today() - timedelta(days=365),
-        end_date=datetime.today() - timedelta(days=1),
+        position=OfficerPosition.VICE_PRESIDENT,
+        start_date=date.today() - timedelta(days=365),
+        end_date=date.today() - timedelta(days=1),
 
         nickname="the A",
         favourite_course_0="CMPT 125",
@@ -123,11 +122,11 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="Hi! I'm person A and I do lots of cool things! :)",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
-    update_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc11",
 
-        position=OfficerPosition.ExecutiveAtLarge.value,
-        start_date=datetime.today(),
+        position=OfficerPosition.EXECUTIVE_AT_LARGE,
+        start_date=date.today(),
         end_date=None,
 
         nickname="the holy A",
@@ -140,12 +139,12 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="Hi! I'm person A and I want school to be over ; _ ;",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
-    update_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTermData(
         computing_id="abc33",
 
-        position=OfficerPosition.President.value,
-        start_date=datetime.today(),
-        end_date=datetime.today() + timedelta(days=365),
+        position=OfficerPosition.PRESIDENT,
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=365),
 
         nickname="CC",
         favourite_course_0="CMPT 999",
@@ -157,6 +156,90 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="I'm person C...",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
+    # this officer term is not fully filled in
+    await create_new_officer_term(db_session, OfficerTermData(
+        computing_id="abc22",
+
+        position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=365),
+
+        nickname="Bee",
+        favourite_course_0="CMPT 604",
+        favourite_course_1=None,
+
+        favourite_pl_0="B",
+        favourite_pl_1="N/A",
+
+        biography=None,
+        photo_url=None, # TODO: this should be replaced with a default image
+    ))
+    await db_session.commit()
+
+    await update_officer_info(db_session, OfficerInfoData(
+        legal_name="Person C ----",
+        discord_id=None,
+        discord_name=None,
+        discord_nickname=None,
+
+        computing_id="abc33",
+        # adds a phone number
+        phone_number="123-456-7890",
+        github_username=None,
+        google_drive_email=None,
+    ))
+    await update_officer_term(db_session, OfficerTermData(
+        computing_id="abc33",
+
+        position=OfficerPosition.PRESIDENT,
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=365),
+
+        nickname="SEE SEE",
+        favourite_course_0="CMPT 999",
+        favourite_course_1="CMPT 354",
+
+        favourite_pl_0="C++",
+        favourite_pl_1="C",
+
+        biography="You see, I'm person C...",
+        photo_url=None,
+    ))
+    await db_session.commit()
+
+async def load_sysadmin(db_session: AsyncSession):
+    print("loading new sysadmin")
+    # put your computing id here for testing purposes
+    SYSADMIN_COMPUTING_ID = "gsa92"
+
+    await create_new_officer_info(db_session, OfficerInfoData(
+        legal_name="Gabe Schulz",
+        discord_id=None,
+        discord_name=None,
+        discord_nickname=None,
+
+        computing_id=SYSADMIN_COMPUTING_ID,
+        phone_number=None,
+        github_username=None,
+        google_drive_email=None,
+    ))
+    await create_new_officer_term(db_session, OfficerTermData(
+        computing_id=SYSADMIN_COMPUTING_ID,
+
+        position=OfficerPosition.SYSTEM_ADMINISTRATOR,
+        start_date=date.today() - timedelta(days=365),
+        end_date=None,
+
+        nickname="Gabe",
+        favourite_course_0="CMPT 379",
+        favourite_course_1="CMPT 295",
+
+        favourite_pl_0="Rust",
+        favourite_pl_1="C",
+
+        biography="The systems are good o7",
+        photo_url=None,
+    ))
     await db_session.commit()
 
 async def async_main(sessionmanager):
@@ -164,6 +247,7 @@ async def async_main(sessionmanager):
     async with sessionmanager.session() as db_session:
         # load_test_auth_data
         await load_test_officers_data(db_session)
+        await load_sysadmin(db_session)
 
 if __name__ == "__main__":
     response = input(f"This will reset the {SQLALCHEMY_TEST_DATABASE_URL} database, are you okay with this? (y/N): ")

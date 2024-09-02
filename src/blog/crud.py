@@ -5,8 +5,6 @@ from typing import Optional
 
 import database
 import sqlalchemy
-
-# from auth.models import SiteUser
 from blog.models import BlogPosts
 from sqlalchemy import func
 
@@ -19,7 +17,7 @@ async def create_new_entry(
 ):
     """ To create a new blog entry """
 
-    return None
+    #TODO
 
 async def fetch_by_title(
     db_session: database.DBSession,

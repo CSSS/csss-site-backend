@@ -102,22 +102,30 @@ async def get_officer_terms(
     officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
     return JSONResponse([term.serializable_dict() for term in officer_terms])
 
-# TODO: make this into getting info for any computing_id?
 @router.get(
-    "/my_info",
+    "/info/{computing_id}",
     description="Get officer info for the current user, if they've ever been an exec.",
 )
 async def get_officer_info(
     request: Request,
     db_session: database.DBSession,
+    computing_id: str,
 ):
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         raise HTTPException(status_code=401)
 
-    computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if computing_id is None:
+    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if session_computing_id is None:
         raise HTTPException(status_code=401)
+
+    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if (
+        computing_id != session_computing_id
+        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
+    ):
+        # the current user can only input the info for another user if they have permissions
+        raise HTTPException(status_code=401, detail="must have website admin permissions to get officer info about another user")
 
     officer_info = await officers.crud.officer_info(db_session, computing_id)
     if officer_info is None:
@@ -291,6 +299,9 @@ async def update_term(
         raise HTTPException(status_code=401, detail="must be logged in")
 
     session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if session_computing_id is None:
+        raise HTTPException(status_code=401)
+
     if (
         officer_term_upload.computing_id != session_computing_id
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)

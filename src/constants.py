@@ -1,8 +1,11 @@
 import os
 
 root_ip_address = "http://localhost:8080" if os.environ.get("LOCAL") == "true" else "https://api.sfucsss.org"
-guild_id = "1260652618875797504" if os.environ.get("LOCAL") == "true" else "228761314644852736"
-github_org_name = "CSSS-Test-Organization" if os.environ.get("LOCAL") == "true" else "CSSS"
+GITHUB_ORG_NAME = "CSSS-Test-Organization" if os.environ.get("LOCAL") == "true" else "CSSS"
+
+W3_GUILD_ID = "1260652618875797504"
+CSSS_GUILD_ID = "228761314644852736"
+ACTIVE_GUILD_ID = W3_GUILD_ID if os.environ.get("LOCAL") == "true" else CSSS_GUILD_ID
 
 SESSION_ID_LEN = 512
 # technically a max of 8 digits https://www.sfu.ca/computing/about/support/tips/sfu-userid.html

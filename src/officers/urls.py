@@ -1,17 +1,22 @@
 import logging
+from dataclasses import dataclass
 from datetime import date, datetime
 
 import auth.crud
 import database
+import github
+import sqlalchemy
+import utils
 from constants import COMPUTING_ID_MAX
+from discord import discord
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
-from utils import is_iso_format
 
 import officers.crud
 from officers.constants import OfficerPosition
-from officers.types import OfficerInfoData, OfficerTermData
+from officers.tables import OfficerInfo, OfficerTerm
+from officers.types import OfficerInfoUpload, OfficerTermUpload
 
 _logger = logging.getLogger(__name__)
 
@@ -20,6 +25,7 @@ router = APIRouter(
     tags=["officers"],
 )
 
+# TODO: combine the following two endpoints
 @router.get(
     "/current",
     description="Get information about all the officers. More information is given if you're authenticated & have access to private executive data.",
@@ -88,7 +94,7 @@ async def get_officer_terms(
     db_session: database.DBSession,
     computing_id: str,
     # the maximum number of terms to return, in chronological order
-    max_terms: None | int = 1,
+    max_terms: int | None = None,
     # TODO: implement the following
     # view_only_filled_in: bool = True,
 ):
@@ -96,46 +102,88 @@ async def get_officer_terms(
     officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
     return JSONResponse([term.serializable_dict() for term in officer_terms])
 
+@router.get(
+    "/info/{computing_id}",
+    description="Get officer info for the current user, if they've ever been an exec.",
+)
+async def get_officer_info(
+    request: Request,
+    db_session: database.DBSession,
+    computing_id: str,
+):
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        raise HTTPException(status_code=401)
+
+    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if session_computing_id is None:
+        raise HTTPException(status_code=401)
+
+    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if (
+        computing_id != session_computing_id
+        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
+    ):
+        # the current user can only input the info for another user if they have permissions
+        raise HTTPException(status_code=401, detail="must have website admin permissions to get officer info about another user")
+
+    officer_info = await officers.crud.officer_info(db_session, computing_id)
+    if officer_info is None:
+        raise HTTPException(status_code=404, detail="user has no officer info")
+
+    return JSONResponse(officer_info.serializable_dict())
+
+@dataclass
+class InitialOfficerInfo:
+    computing_id: str
+    position: str
+    start_date: date
+
 @router.post(
-    "/new_term",
+    "/term",
     description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Updates the system with a new officer, and enables the user to login to the system to input their information.",
 )
 async def new_officer_term(
     request: Request,
     db_session: database.DBSession,
-    computing_id: str = Body(), # request body
-    position: str = Body(),
-    # dates must have no seconds/hours
-    start_date: date = Body(), # noqa: B008
+    officer_info_list: list[InitialOfficerInfo] = Body(),  # noqa: B008
 ):
     """
     If the current computing_id is not already an officer, officer_info will be created for them.
     """
-    if len(computing_id) > COMPUTING_ID_MAX:
-        raise HTTPException(status_code=400, detail=f"computing_id={computing_id} is too large")
-    elif position not in OfficerPosition.position_list():
-        raise HTTPException(status_code=400, detail=f"invalid position={position}")
-    elif not is_iso_format(start_date):
-        raise HTTPException(status_code=400, detail=f"start_date={start_date} must be a valid iso date")
+    for officer_info in officer_info_list:
+        if len(officer_info.computing_id) > COMPUTING_ID_MAX:
+            raise HTTPException(status_code=400, detail=f"computing_id={officer_info.computing_id} is too large")
+        elif officer_info.position not in OfficerPosition.position_values():
+            raise HTTPException(status_code=400, detail=f"invalid position={officer_info.position}")
 
     WebsiteAdmin.validate_request(db_session, request)
 
-    officers.crud.create_new_officer_info(db_session, OfficerInfoData(
-        computing_id = computing_id,
-    ))
-    success = officers.crud.create_new_officer_term(db_session, OfficerTermData(
-        computing_id = computing_id,
-        position = position,
-        start_date = start_date,
-    ))
-    if not success:
-        raise HTTPException(status_code=400, detail="Officer term already exists, no changes made")
+    for officer_info in officer_info_list:
+        # TODO: fix a bug with this stuff & test inserting & viewing mutliple executives
+        await officers.crud.create_new_officer_info(
+            db_session,
+            # TODO: do I need this object atm?
+            OfficerInfoUpload(
+                # TODO: use sfu api to get legal name
+                legal_name = "default name",
+            ).to_officer_info(officer_info.computing_id, None, None),
+        )
+        # TODO: update create_new_officer_term to be the same as create_new_officer_info
+        success = await officers.crud.create_new_officer_term(db_session, OfficerTermUpload(
+            computing_id = officer_info.computing_id,
+            position = officer_info.position,
+            # TODO: remove the hours & seconds (etc.) from start_date
+            start_date = officer_info.start_date,
+        ).to_officer_term())
+        if not success:
+            raise HTTPException(status_code=400, detail="Officer term already exists, no changes made")
 
     await db_session.commit()
     return PlainTextResponse("ok")
 
-@router.post(
-    "/update_info",
+@router.patch(
+    "/info/{computing_id}",
     description=(
         "After elections, officer computing ids are input into our system. "
         "If you have been elected as a new officer, you may authenticate with SFU CAS, "
@@ -145,9 +193,10 @@ async def new_officer_term(
 async def update_info(
     request: Request,
     db_session: database.DBSession,
-    officer_info: OfficerInfoData = Body(), # noqa: B008
+    computing_id: str,
+    officer_info_upload: OfficerInfoUpload = Body(), # noqa: B008
 ):
-    http_exception = officer_info.validate()
+    http_exception = officer_info_upload.validate()
     if http_exception is not None:
         raise http_exception
 
@@ -157,7 +206,7 @@ async def update_info(
 
     session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
     if (
-        officer_info.computing_id != session_computing_id
+        computing_id != session_computing_id
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         # the current user can only input the info for another user if they have permissions
@@ -165,59 +214,132 @@ async def update_info(
 
     # TODO: log all important changes just to a .log file
 
-    success = await officers.crud.update_officer_info(db_session, officer_info)
+    old_officer_info = await officers.crud.officer_info(db_session, computing_id)
+    new_officer_info = officer_info_upload.to_officer_info(
+        computing_id=computing_id,
+        discord_id=None,
+        discord_nickname=None,
+    )
+
+    # TODO: turn this into a function
+    validation_failures = []
+
+    if not utils.is_valid_phone_number(officer_info_upload.phone_number):
+        validation_failures += [f"invalid phone number {officer_info_upload.phone_number}"]
+        new_officer_info.phone_number = old_officer_info.phone_number
+
+    if officer_info_upload.discord_name is None or officer_info_upload.discord_name == "":
+        new_officer_info.discord_name = None
+        new_officer_info.discord_id = None
+        new_officer_info.discord_nickname = None
+    else:
+        discord_user_list = await discord.search_username(officer_info_upload.discord_name)
+        if discord_user_list == []:
+            validation_failures += [f"unable to find discord user with the name {officer_info_upload.discord_name}"]
+            new_officer_info.discord_name = old_officer_info.discord_name
+            new_officer_info.discord_id = old_officer_info.discord_id
+            new_officer_info.discord_nickname = old_officer_info.discord_nickname
+        elif len(discord_user_list) > 1:
+            validation_failures += [f"too many discord users start with {officer_info_upload.discord_name}"]
+            new_officer_info.discord_name = old_officer_info.discord_name
+            new_officer_info.discord_id = old_officer_info.discord_id
+            new_officer_info.discord_nickname = old_officer_info.discord_nickname
+        else:
+            discord_user = discord_user_list[0]
+            new_officer_info.discord_name = discord_user.username
+            new_officer_info.discord_id = discord_user.id
+            new_officer_info.discord_nickname = (
+                discord_user.global_name
+                if discord_user.global_name is not None
+                else discord_user.username
+            )
+
+    # TODO: validate google-email using google module, by trying to assign the user to a permission or something
+    if not utils.is_valid_email(officer_info_upload.google_drive_email):
+        validation_failures += [f"invalid email format {officer_info_upload.google_drive_email}"]
+        new_officer_info.google_drive_email = old_officer_info.google_drive_email
+
+    # validate github user is real
+    if await github.internals.get_user_by_username(officer_info_upload.github_username) is None:
+        validation_failures += [f"invalid github username {officer_info_upload.github_username}"]
+        new_officer_info.github_username = old_officer_info.github_username
+
+    # TODO: invite github user
+    # TODO: detect if changing github username & uninvite old user
+
+    success = await officers.crud.update_officer_info(db_session, new_officer_info)
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 
     await db_session.commit()
-    return PlainTextResponse("ok")
 
-@router.post(
-    "/update_term",
+    updated_officer_info = await officers.crud.officer_info(db_session, computing_id)
+    return JSONResponse({
+        "updated_officer_info": updated_officer_info.serializable_dict(),
+        "validation_failures": validation_failures,
+    })
+
+@router.patch(
+    "/term/{term_id}",
 )
 async def update_term(
     request: Request,
     db_session: database.DBSession,
-    officer_term: OfficerTermData = Body(), # noqa: B008
+    term_id: int,
+    officer_term_upload: OfficerTermUpload = Body(), # noqa: B008
 ):
-    http_exception = officer_term.validate()
-    if http_exception is not None:
-        raise http_exception
+    officer_term_upload.validate()
 
+    # Refactor all of these gets & raises into small functions
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         raise HTTPException(status_code=401, detail="must be logged in")
 
     session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if session_computing_id is None:
+        raise HTTPException(status_code=401)
+
+    old_officer_term = await officers.crud.officer_term(db_session, term_id)
+
     if (
-        officer_term.computing_id != session_computing_id
+        old_officer_term.computing_id != session_computing_id
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         # the current user can only input the info for another user if they have permissions
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
-    # TODO: log all important changes just to a .log file
+    # NOTE: Only admins can write new versions of position, start_date, and end_date.
+    if (
+        (
+            officer_term_upload.position != old_officer_term.position
+            or officer_term_upload.start_date != old_officer_term.start_date
+            or officer_term_upload.end_date != old_officer_term.end_date
+        )
+        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
+    ):
+        raise HTTPException(status_code=401, detail="Non-admins cannot modify position, start_date, or end_date.")
 
-    success = await officers.crud.update_officer_term(db_session, officer_term)
+    # TODO: log all important changes just to a .log file
+    success = await officers.crud.update_officer_term(
+        db_session,
+        officer_term_upload.to_officer_term(term_id, old_officer_term.computing_id)
+    )
     if not success:
-        raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create the associated officer term")
+        raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create it first")
 
     await db_session.commit()
-    return PlainTextResponse("ok")
 
+    new_officer_term = await officers.crud.officer_term(db_session, term_id)
+    return JSONResponse({
+        "updated_officer_term": new_officer_term.serializable_dict(),
+        "validation_failures": [], # none for now, but may be important later
+    })
 
 """
 # TODO: test this error later
 @router.get("/please_error", description="Raises an error & should send an email to the sysadmin")
 async def raise_error():
     raise ValueError("This is an error, you're welcome")
-
-@router.get(
-    "/my_info",
-    description="Get info about whether you are still an executive or not / what your position is.",
-)
-async def my_info():
-    return {}
 
 @router.post(
     "/remove",

@@ -84,6 +84,7 @@ class DatabaseSessionManager:
 
 
 if os.environ.get("DB_PORT") is not None:
+    # using a remote (or docker) database
     db_port = os.environ.get("DB_PORT")
     SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
     SQLALCHEMY_TEST_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/test"
@@ -91,16 +92,17 @@ else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
     SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"
 
+
 # also TODO: make this nicer, using a class to hold state...
 # and use this in load_test_db for the test db as well?
 def setup_database():
     global sessionmanager
 
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
-    if os.environ.get("LOCAL"):
-        sessionmanager = DatabaseSessionManager(SQLALCHEMY_TEST_DATABASE_URL, {"echo": True})
-    else:
-        sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
+    sessionmanager = DatabaseSessionManager(
+        SQLALCHEMY_TEST_DATABASE_URL if os.environ.get("LOCAL") else SQLALCHEMY_DATABASE_URL,
+        { "echo": True },
+    )
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):

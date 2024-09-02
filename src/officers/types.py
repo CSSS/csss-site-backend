@@ -1,53 +1,53 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
 
 from constants import COMPUTING_ID_MAX
 from fastapi import HTTPException
 
-import officers.tables
 from officers.constants import OfficerPosition
+from officers.tables import OfficerInfo, OfficerTerm
 
 
 @dataclass
-class OfficerInfoData:
-    computing_id: str
-
-    legal_name: None | str = None
-    discord_id: None | str = None
-    discord_name: None | str = None
-    discord_nickname: None | str = None
-
+class OfficerInfoUpload:
+    # TODO: compute this using SFU's API; if unable, use a default value
+    legal_name: str
     phone_number: None | str = None
+    discord_name: None | str = None
     github_username: None | str = None
     google_drive_email: None | str = None
 
     def validate(self) -> None | HTTPException:
-        if len(self.computing_id) > COMPUTING_ID_MAX:
-            return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.legal_name is not None and self.legal_name == "":
+        if self.legal_name is not None and self.legal_name == "":
             return HTTPException(status_code=400, detail="legal name must not be empty")
         # TODO: more checks
         else:
             return None
 
-    def is_filled_in(self):
-        for field in fields(self):
-            if getattr(self, field.name) is None:
-                return False
+    def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
+        return OfficerInfo(
+            computing_id = computing_id,
+            legal_name = self.legal_name,
 
-        return True
+            discord_id = discord_id,
+            discord_name = self.discord_name,
+            discord_nickname = discord_nickname,
 
+            phone_number = self.phone_number,
+            github_username = self.github_username,
+            google_drive_email = self.google_drive_email,
+        )
 
 @dataclass
-class OfficerTermData:
-    computing_id: str
-
+class OfficerTermUpload:
+    # only admins can change:
     position: str
     start_date: date
     end_date: None | date = None
 
+    # officer should change
     nickname: None | str = None
     favourite_course_0: None | str = None
     favourite_course_1: None | str = None
@@ -59,28 +59,34 @@ class OfficerTermData:
     # NOTE: changing the name of this variable without changing all instances is breaking
     photo_url: None | str = None
 
-    def validate(self) -> None | HTTPException:
-        if len(self.computing_id) > COMPUTING_ID_MAX:
-            return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.position not in OfficerPosition.position_list():
-            raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
-        # TODO: more checks
-        # TODO: how to check this one? make sure date is date & not datetime?
-        #elif not is_iso_format(self.start_date):
-        #    raise HTTPException(status_code=400, detail=f"start_date={self.start_date} must be a valid iso date")
-        else:
-            return None
+    def validate(self):
+        """input validation"""
+        # NOTE: An officer can change their own data for terms that are ongoing.
+        if self.position not in OfficerPosition.position_list():
+            raise HTTPException(status_code=400, detail=f"invalid new position={self.position}")
+        elif self.end_date is not None and self.start_date > self.end_date:
+            raise HTTPException(status_code=400, detail="end_date must be after start_date")
 
-    def is_filled_in(self):
-        for field in fields(self):
-            if field.name == "photo_url" or field.name == "end_date":
-                # photo & end_date don't have to be uploaded for the term to be "filled"
-                # NOTE: this definition might have to be updated
-                continue
-            elif getattr(self, field.name) is None:
-                return False
 
-        return True
+    def to_officer_term(self, term_id: str, computing_id:str) -> OfficerTerm:
+        # TODO: many positions have a length; if the length is defined, fill it in right here
+        # (end date is 1st of month, 12 months after start date's month).
+        return OfficerTerm(
+            id = term_id,
+            computing_id = computing_id,
+
+            position = self.position,
+            start_date = self.start_date,
+            end_date = self.end_date,
+
+            nickname = self.nickname,
+            favourite_course_0 = self.favourite_course_0,
+            favourite_course_1 = self.favourite_course_1,
+            favourite_pl_0 = self.favourite_pl_0,
+            favourite_pl_1 = self.favourite_pl_1,
+            biography = self.biography,
+            photo_url = self.photo_url,
+        )
 
 # -------------------------------------------- #
 
@@ -126,8 +132,8 @@ class OfficerData:
 
     @staticmethod
     def from_data(
-        term: officers.tables.OfficerTerm,
-        officer_info: officers.tables.OfficerInfo,
+        term: OfficerTerm,
+        officer_info: OfficerInfo,
         include_private: bool,
         is_active: bool,
     ) -> OfficerData:

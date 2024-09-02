@@ -39,7 +39,6 @@ def upgrade() -> None:
         "officer_term",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("computing_id", sa.String(length=32), sa.ForeignKey("site_user.computing_id"), nullable=False),
-        sa.Column("is_filled_in", sa.Boolean(), nullable=False),
         sa.Column("position", sa.String(length=128), nullable=False),
         sa.Column("start_date", sa.DateTime(), nullable=False),
         sa.Column("end_date", sa.DateTime(), nullable=True),
@@ -53,7 +52,6 @@ def upgrade() -> None:
     )
     op.create_table(
         "officer_info",
-        sa.Column("is_filled_in", sa.Boolean(), nullable=False),
         sa.Column("legal_name", sa.String(length=128), nullable=False),
         sa.Column("discord_id", sa.String(length=18), nullable=True),
         sa.Column("discord_name", sa.String(length=32), nullable=True),

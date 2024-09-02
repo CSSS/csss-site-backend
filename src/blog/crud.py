@@ -69,4 +69,3 @@ async def update_entry(
     """ To update html contents of an existing entry """
 
     #TODO
-    pass

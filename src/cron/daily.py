@@ -13,8 +13,8 @@ _logger = logging.getLogger(__name__)
 
 async def update_google_permissions(db_session):
     # TODO: implement this function
-    google_permissions = google_api.all_permissions()
-    #one_year_ago = datetime.today() - timedelta(days=365)
+    # google_permissions = google_api.all_permissions()
+    # one_year_ago = datetime.today() - timedelta(days=365)
 
     # TODO: for performance, only include officers with recent end-date (1 yr)
     # but measure performance first

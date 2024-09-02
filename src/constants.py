@@ -1,7 +1,7 @@
 import os
 
 root_ip_address = "http://localhost:8080" if os.environ.get("LOCAL") == "true" else "https://api.sfucsss.org"
-github_org_name = "CSSS-Test-Organization" if os.environ.get("LOCAL") == "true" else "CSSS"
+GITHUB_ORG_NAME = "CSSS-Test-Organization" if os.environ.get("LOCAL") == "true" else "CSSS"
 
 W3_GUILD_ID = "1260652618875797504"
 CSSS_GUILD_ID = "228761314644852736"

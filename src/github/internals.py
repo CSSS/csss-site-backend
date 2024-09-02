@@ -3,7 +3,7 @@ from json import dumps
 from typing import Any
 
 import requests
-from constants import github_org_name as GITHUB_ORG_NAME
+from constants import GITHUB_ORG_NAME
 from requests import Response
 
 from github.types import GithubTeam, GithubUser

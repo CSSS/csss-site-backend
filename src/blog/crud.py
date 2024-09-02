@@ -12,19 +12,22 @@ from sqlalchemy import func
 
 _logger = logging.getLogger(__name__)
 
-async def create_new_entry(db_session: database.DBSession,
-                            title:str, computing_id:str, post_tags: str, html_content:str,
-                            date_created:date, last_edited: date):
-
+async def create_new_entry(
+    db_session: database.DBSession,
+    title:str, computing_id:str, post_tags: str, html_content:str,
+    date_created:date, last_edited: date
+):
     """ To create a new blog entry """
 
     return None
 
-async def fetch_by_title(db_session: database.DBSession, title:str) -> tuple[str, str, datetime, list[str] | None] | None:
-
+async def fetch_by_title(
+    db_session: database.DBSession,
+    title: str
+) -> tuple[str, str, datetime, list[str] | None] | None:
+    """ Returns the blog entry with the matching title """
     # returns title, html, date, and list of tags
 
-    """ Returns the blog entry with the matching title """
     query = sqlalchemy.select(BlogPosts)
     # query will only return an entry if the title is an exact
     # match ( as title is the unique key)
@@ -38,11 +41,14 @@ async def fetch_by_title(db_session: database.DBSession, title:str) -> tuple[str
     return post.html_content, post.last_edited, post.post_tags
 
 
-async def fetch_by_date_and_tag(db_session: database.DBSession,
-    last_edited:date, tags:str) -> (str, str | None) | None:
+async def fetch_by_date_and_tag(
+    db_session: database.DBSession,
+    last_edited: date,
+    tags:str
+) -> (str, str | None) | None:
+    """" Returns blog entries sorted by date of last edit and containing matching tags """
     # returns title and html
 
-    """" Returns blog entries sorted by date of last edit and containing matching tags """
     query = sqlalchemy.select(BlogPosts)
     # checks for matching tags first
     # then sort by date of last edit
@@ -54,12 +60,13 @@ async def fetch_by_date_and_tag(db_session: database.DBSession,
     return post
 
 
-
-
-async def update_entry(db_session: database.DBSession, title:str, html_content:str, last_edited: func.now()):
-
+async def update_entry(
+    db_session: database.DBSession,
+    title:str,
+    html_content:str,
+    last_edited: func.now(),
+):
     """ To update html contents of an existing entry """
 
     #TODO
-
-    return None
+    pass

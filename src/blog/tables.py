@@ -14,10 +14,11 @@ class BlogPosts(Base):
     title = Column(String(128), primary_key=True, nullable=False)
 
     # computing id
-    # TODO: add foreign key
-    computing_id = Column(String(COMPUTING_ID_LEN),
+    computing_id = Column(
+        String(COMPUTING_ID_LEN),
         ForeignKey("officer_info.computing_id"),
-        nullable=False)
+        nullable=False,
+    )
 
     # dates of creation and last edit
     date_created = Column(DateTime, nullable=False)

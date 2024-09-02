@@ -2,6 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 import auth.tables
+import blog.tables
 import database
 import officers.tables
 from alembic import context

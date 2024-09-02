@@ -41,13 +41,13 @@ class OfficerInfoUpload:
         )
 
 @dataclass
-class OfficerTermData:
-    computing_id: str
-
+class OfficerTermUpload:
+    # only admins can change:
     position: str
     start_date: date
     end_date: None | date = None
 
+    # officer should change
     nickname: None | str = None
     favourite_course_0: None | str = None
     favourite_course_1: None | str = None
@@ -71,9 +71,11 @@ class OfficerTermData:
         else:
             return None
 
-    def to_officer_term(self) -> OfficerTerm:
+    def to_officer_term(self, computing_id:str) -> OfficerTerm:
+        # TODO: many positions have a length; if the length is defined, fill it in right here
+        # (end date is 1st of month, 12 months after start date's month).
         return OfficerTerm(
-            computing_id = self.computing_id,
+            computing_id = computing_id,
 
             position = self.position,
             start_date = self.start_date,

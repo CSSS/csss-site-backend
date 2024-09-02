@@ -130,6 +130,7 @@ async def get_user_by_id(
 
 # TODO: if needed, add support for getting user by email
 
+# TODO: can we revoke access before an invite is accepeted?
 async def invite_user(
     uid: str,
     team_id_list: list[str] | None = None,
@@ -225,7 +226,7 @@ async def list_members(
     page_size: int = 99,
 ) -> list[GithubUser]:
     result = await _github_request_get(
-        f"https://api.github.com/orgs/{org}/members?per_page=99",
+        f"https://api.github.com/orgs/{org}/members?per_page={page_size}&page={page_number}",
         GITHUB_TOKEN
     )
 
@@ -236,4 +237,3 @@ async def list_members(
         (user["login"], user["id"])
         for user in result.json()
     ]
-

@@ -67,6 +67,7 @@ async def officer_term(db_session: database.DBSession, term_id: int) -> OfficerT
         raise HTTPException(status_code=400, detail=f"Could not find officer_term with id={term_id}")
     return officer_term
 
+# TODO: change to "get_officer_terms" naming convention (& all functions in this module)
 async def officer_terms(
     db_session: database.DBSession,
     computing_id: str,
@@ -193,6 +194,12 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     db_session.add(new_officer_info)
     return True
 
+async def create_new_officer_term(
+    db_session: database.DBSession,
+    new_officer_term: OfficerTerm
+):
+    db_session.add(new_officer_term)
+
 async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
     """
     Return False if the officer doesn't exist yet
@@ -213,26 +220,6 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
     )
     await db_session.execute(query)
 
-    return True
-
-async def create_new_officer_term(
-    db_session: database.DBSession,
-    new_officer_term: OfficerTerm
-) -> bool:
-    """
-    query = (
-        sqlalchemy
-        .select(OfficerTerm)
-        .where(OfficerTerm.computing_id == officer_term_data.computing_id)
-        .where(OfficerTerm.start_date == officer_term_data.start_date)
-        .where(OfficerTerm.position == officer_term_data.position)
-    )
-    officer_data = await db_session.scalar(query)
-    if officer_data is not None:
-        # if an entry with this (computing_id, position, start_date) already exists, do nothing
-        return False
-    """
-    db_session.add(new_officer_term)
     return True
 
 async def update_officer_term(

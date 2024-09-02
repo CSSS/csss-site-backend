@@ -59,22 +59,20 @@ class OfficerTermUpload:
     # NOTE: changing the name of this variable without changing all instances is breaking
     photo_url: None | str = None
 
-    def validate(self) -> None | HTTPException:
-        if len(self.computing_id) > COMPUTING_ID_MAX:
-            return HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.position not in OfficerPosition.position_list():
-            raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
-        # TODO: more checks
-        # TODO: how to check this one? make sure date is date & not datetime?
-        #elif not is_iso_format(self.start_date):
-        #    raise HTTPException(status_code=400, detail=f"start_date={self.start_date} must be a valid iso date")
-        else:
-            return None
+    def validate(self):
+        """input validation"""
+        # NOTE: An officer can change their own data for terms that are ongoing.
+        if self.position not in OfficerPosition.position_list():
+            raise HTTPException(status_code=400, detail=f"invalid new position={self.position}")
+        elif self.end_date is not None and self.start_date > self.end_date:
+            raise HTTPException(status_code=400, detail="end_date must be after start_date")
 
-    def to_officer_term(self, computing_id:str) -> OfficerTerm:
+
+    def to_officer_term(self, term_id: str, computing_id:str) -> OfficerTerm:
         # TODO: many positions have a length; if the length is defined, fill it in right here
         # (end date is 1st of month, 12 months after start date's month).
         return OfficerTerm(
+            id = term_id,
             computing_id = computing_id,
 
             position = self.position,
@@ -89,25 +87,6 @@ class OfficerTermUpload:
             biography = self.biography,
             photo_url = self.photo_url,
         )
-
-    def update_dict(self) -> dict:
-        # TODO: control this by term_id & allow the others to be updated
-        # cannot update:
-        # - computing_id
-        # - start_date
-        # - position
-        return {
-            "end_date": self.end_date,
-            "nickname": self.nickname,
-
-            "favourite_course_0": self.favourite_course_0,
-            "favourite_course_1": self.favourite_course_1,
-            "favourite_pl_0": self.favourite_pl_0,
-            "favourite_pl_1": self.favourite_pl_1,
-
-            "biography": self.biography,
-            "photo_url": self.photo_url,
-        }
 
 # -------------------------------------------- #
 

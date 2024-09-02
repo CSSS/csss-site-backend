@@ -94,7 +94,7 @@ async def get_officer_terms(
     db_session: database.DBSession,
     computing_id: str,
     # the maximum number of terms to return, in chronological order
-    max_terms: None | int = 1,
+    max_terms: int | None = None,
     # TODO: implement the following
     # view_only_filled_in: bool = True,
 ):
@@ -190,7 +190,6 @@ async def new_officer_term(
         "then input your information & the valid token for us. Admins may update this info."
     ),
 )
-# TODO: computing_id in all paths
 async def update_info(
     request: Request,
     db_session: database.DBSession,
@@ -289,9 +288,7 @@ async def update_term(
     term_id: int,
     officer_term_upload: OfficerTermUpload = Body(), # noqa: B008
 ):
-    http_exception = officer_term_upload.validate()
-    if http_exception is not None:
-        raise http_exception
+    officer_term_upload.validate()
 
     # Refactor all of these gets & raises into small functions
     session_id = request.cookies.get("session_id", None)
@@ -302,34 +299,31 @@ async def update_term(
     if session_computing_id is None:
         raise HTTPException(status_code=401)
 
+    old_officer_term = await officers.crud.officer_term(db_session, term_id)
+
     if (
-        officer_term_upload.computing_id != session_computing_id
+        old_officer_term.computing_id != session_computing_id
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         # the current user can only input the info for another user if they have permissions
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
-    old_officer_info = await officers.crud.officer_term(db_session, term_id)
-
     # NOTE: Only admins can write new versions of position, start_date, and end_date.
     if (
         (
-            officer_term_upload.position != old_officer_info.position
-            or officer_term_upload.start_date != old_officer_info.start_date
-            or officer_term_upload.end_date != old_officer_info.end_date
+            officer_term_upload.position != old_officer_term.position
+            or officer_term_upload.start_date != old_officer_term.start_date
+            or officer_term_upload.end_date != old_officer_term.end_date
         )
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         raise HTTPException(status_code=401, detail="Non-admins cannot modify position, start_date, or end_date.")
 
-    # NOTE: An officer can change their own data for terms that are ongoing.
-    if officer_term_upload.position not in OfficerPosition.position_list():
-        raise HTTPException(status_code=400, detail=f"invalid new position={officer_term_upload.position}")
-    elif officer_term_upload.end_date is not None and officer_term_upload.start_date > officer_term_upload.end_date:
-        raise HTTPException(status_code=400, detail="end_date must be after start_date")
-
     # TODO: log all important changes just to a .log file
-    success = await officers.crud.update_officer_term(db_session, old_officer_info)
+    success = await officers.crud.update_officer_term(
+        db_session,
+        officer_term_upload.to_officer_term(term_id, old_officer_term.computing_id)
+    )
     if not success:
         raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create it first")
 

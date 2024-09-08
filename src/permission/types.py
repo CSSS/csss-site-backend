@@ -43,13 +43,13 @@ class WebsiteAdmin:
     @staticmethod
     async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
         """
-        A website admin has to be one of the following positions, and
+        A website admin has to be an active officer who has one of the above positions
         """
-        position = await officers.crud.current_officer_position(db_session, computing_id)
-        if position is None:
-            return False
-
-        return position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS
+        position_list = await officers.crud.current_officer_positions(db_session, computing_id)
+        for position in position_list:
+            if position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS:
+                return True
+        return False
 
     @staticmethod
     async def validate_request(db_session: database.DBSession, request: Request) -> bool:

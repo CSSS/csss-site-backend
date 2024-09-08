@@ -16,7 +16,6 @@ def is_iso_format(date_str: str) -> bool:
         return False
 
 def is_active_officer(query: Select) -> Select:
-    # TODO: assert this constraint at the SQL level, so that we don't even have to check it?
     query = query.where(
         or_(
             # executives without a specified end_date are considered active

@@ -107,7 +107,6 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
-    # TODO: will id autoincrement?
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc11",
 
@@ -211,10 +210,12 @@ async def load_test_officers_data(db_session: AsyncSession):
     await db_session.commit()
 
 async def load_sysadmin(db_session: AsyncSession):
-    print("loading new sysadmin")
     # put your computing id here for testing purposes
     SYSADMIN_COMPUTING_ID = "gsa92"
 
+    print("loading new sysadmin")
+
+    await create_user_session(db_session, f"temp_id_{SYSADMIN_COMPUTING_ID}", SYSADMIN_COMPUTING_ID)
     await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Gabe Schulz",
         discord_id=None,
@@ -241,6 +242,23 @@ async def load_sysadmin(db_session: AsyncSession):
         favourite_pl_1="C",
 
         biography="The systems are good o7",
+        photo_url=None,
+    ))
+    await create_new_officer_term(db_session, OfficerTerm(
+        computing_id=SYSADMIN_COMPUTING_ID,
+
+        position=OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+        start_date=date.today() - timedelta(days=(365*3)),
+        end_date=date.today() - timedelta(days=(365*2)),
+
+        nickname="Gabe",
+        favourite_course_0="MACM 101",
+        favourite_course_1="CMPT 125",
+
+        favourite_pl_0="C#",
+        favourite_pl_1="C++",
+
+        biography="o hey fellow kids \n\n\n I can newline",
         photo_url=None,
     ))
     await db_session.commit()

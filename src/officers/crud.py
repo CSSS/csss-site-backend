@@ -176,8 +176,12 @@ async def all_officer_terms(
         )
         officer_info = await db_session.scalar(officer_info_query)
 
-        is_active = (term.end_date is None) or (datetime.today() <= term.end_date)
-        officer_data_list += [OfficerData.from_data(term, officer_info, include_private, is_active)]
+        officer_data_list += [OfficerData.from_data(
+            term,
+            officer_info,
+            include_private,
+            utils.is_active_term(term)
+        )]
 
     return officer_data_list
 

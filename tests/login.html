@@ -6,34 +6,50 @@
 
     <body style="background-color: #333; margin: 0; font-family: sans-serif;">
         <div style="max-width: 900px; min-height: 250px; margin: auto; padding: 20px; background-color: #fff;">
-            <p>please <a id="login" href="">log in here</a></p>
-            <p>current status: <span id="status"></span></p>
-            <p>please <a id="logout" href="" onclick="logOut()">log out here</a></p>
+            <p>
+                You may
+                <a id="login" href="">log in</a> or
+                <a id="logout" href="" onclick="logOut()">log out</a>.
+                <a id="update" href="" onclick="updatePic()">Update profile picture</a>.
+            </p>
+            <img id="profile_picture" src="" alt="Profile picture" />
+            <p id="user"></p>
         </div>
     </body>
 
     <script>
-        const CAS_LOGIN_URL = "https://cas.sfu.ca/cas/login?service="
-        const API_LOGIN_URL = "http://localhost:8080/api/auth/login"
-        const API_CHECK_URL = "http://localhost:8080/api/auth/check"
-        const API_LOGOUT_URL = "http://localhost:8080/api/auth/logout"
+        const CAS_LOGIN_URL = "https://cas.sfu.ca/cas/login"
+        const API_LOGIN_URL = "http://127.0.0.1:8000/api/auth/login"
+        const API_LOGOUT_URL = "http://127.0.0.1:8000/api/auth/logout"
+        const API_USER_URL = "http://127.0.0.1:8000/api/auth/user"
 
-        let str = CAS_LOGIN_URL + API_LOGIN_URL + "?next_url=" + encodeURIComponent(window.location.href)
-        console.log(str)
+        let login_href = CAS_LOGIN_URL + "?service=" + encodeURIComponent(API_LOGIN_URL + "?redirect_path=/obscure/path&redirect_fragment=special_page")
+        document.getElementById("login").href = login_href
 
-        document.getElementById("login").href = str
-        fetch(API_CHECK_URL).then(response => {
+        fetch(API_USER_URL).then(response => {
             response.json().then(json => {
-                document.getElementById("status").innerHTML = json.is_valid ? "logged in" : "not logged in"
-                if (Object.hasOwn(json, 'computing_id')) {
-                    document.getElementById("status").innerHTML += "<br>computing_id = " + json.computing_id
-                }
+                document.getElementById("status").innerHTML = JSON.stringify(json)
+                document.getElementById("profile_picture").src = json.profile_picture_url;
             })
         })
 
         function logOut() {
             fetch(API_LOGOUT_URL, {
                 method: "POST"
+            })
+        }
+
+        function updatePic() {
+            fetch(API_USER_URL, {
+                method: 'PATCH',
+                body: {
+                    profile_picture_url: 'https://random.dog/5e8c71e3-f4be-4ae4-9238-5814cccfa7e4.jpg'
+                }
+            }).then(response => {
+                response.json().then(json => {
+                    document.getElementById("status").innerHTML = JSON.stringify(json)
+                    document.getElementById("profile_picture").src = json.profile_picture_url;
+                })
             })
         }
     </script>

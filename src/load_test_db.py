@@ -215,6 +215,7 @@ async def load_sysadmin(db_session: AsyncSession):
     # put your computing id here for testing purposes
     SYSADMIN_COMPUTING_ID = "gsa92"
 
+    await create_user_session(db_session, "temp_id_4", "gsa92")
     await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Gabe Schulz",
         discord_id=None,

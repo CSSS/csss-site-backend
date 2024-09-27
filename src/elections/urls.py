@@ -48,7 +48,7 @@ async def _validate_user(
 
 @router.get(
     "/create_election",
-    description="asdfasfasdf",
+    description="Creates an election and places it in the database",
 )
 async def create_election(
     request: Request,
@@ -89,10 +89,69 @@ async def create_election(
         "websurvey": websurvey
     }
 
-    result = await elections.crud.create_election(params, db_session)
+    await elections.crud.create_election(params, db_session)
 
-    #print(result)
+    # TODO: create a suitable json response
     return {}
+
+@router.get(
+        "/delete_election",
+        description="Deletes an election from the database"
+)
+async def delete_election(
+    request: Request,
+    db_session: database.DBSession,
+    slug: str
+):
+    session_id = request.cookies.get("session_id", None)
+    user_auth = await _validate_user(db_session, session_id)
+    if user_auth is False:
+        # let's workshop how we actually wanna handle this
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You do not have permission to access this resource",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    if slug is not None:
+        await elections.crud.delete_election(slug, db_session)
+
+@router.get(
+    "/update_election",
+    description="""Updates an election in the database.
+                   Note that this does not allow you to change the _name_ of an election as this would generate a new slug."""
+)
+async def update_election(
+    request: Request,
+    db_session: database.DBSession,
+    slug: str,
+    name: str,
+    election_type: str,
+    date: datetime | None = None,
+    end_date: datetime | None = None,
+    websurvey: str | None = None
+):
+    session_id = request.cookies.get("session_id", None)
+    user_auth = await _validate_user(db_session, session_id)
+    if user_auth is False:
+        # let's workshop how we actually wanna handle this
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="You do not have permission to access this resource",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    if slug is not None:
+        params = {
+            "slug" : slug,
+            "name" : name,
+            "officer_id" : await auth.crud.get_computing_id(db_session, session_id),
+            "type": election_type,
+            "date": date,
+            "end_date": end_date,
+            "websurvey": websurvey
+        }
+        await elections.crud.update_election(params, db_session)
+
 
 @router.get(
     "/test"

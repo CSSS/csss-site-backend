@@ -7,12 +7,6 @@ import sqlalchemy
 from elections.tables import Election
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
-from officers.types import (
-    OfficerData,
-    OfficerInfoData,
-    OfficerPrivateData,
-    OfficerTermData,
-)
 
 _logger = logging.getLogger(__name__)
 

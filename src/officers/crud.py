@@ -4,15 +4,14 @@ from datetime import datetime
 
 import database
 import sqlalchemy
-from auth.models import SiteUser
+import utils
+from auth.tables import SiteUser
+from fastapi import HTTPException
 
 from officers.constants import OfficerPosition
-from officers.models import OfficerInfo, OfficerTerm
-from officers.schemas import (
+from officers.tables import OfficerInfo, OfficerTerm
+from officers.types import (
     OfficerData,
-    OfficerInfoData,
-    OfficerPrivateData,
-    OfficerTermData,
 )
 
 _logger = logging.getLogger(__name__)
@@ -28,9 +27,64 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
     query = query.order_by(OfficerTerm.start_date.desc())
     query = query.limit(1)
 
-    # TODO: can this be replaced with scalar to improve performance?
-    return (await db_session.scalars(query)).first()
+    return await db_session.scalar(query)
 
+async def current_officer_position(db_session: database.DBSession, computing_id: str) -> str | None:
+    """
+    Returns None if the user is not currently an officer
+    """
+
+    query = sqlalchemy.select(OfficerTerm)
+    query = query.where(OfficerTerm.computing_id == computing_id)
+    query = utils.is_active_officer(query)
+    query = query.limit(1)
+
+    officer_term = await db_session.scalar(query)
+    if officer_term is None:
+        return None
+    else:
+        return officer_term.position
+
+async def officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
+    query = (
+        sqlalchemy
+        .select(OfficerInfo)
+        .where(OfficerInfo.computing_id == computing_id)
+    )
+    officer_term = await db_session.scalar(query)
+    if officer_term is None:
+        raise HTTPException(status_code=400, detail=f"officer_info for computing_id={computing_id} does not exist yet")
+    return officer_term
+
+async def officer_term(db_session: database.DBSession, term_id: int) -> OfficerTerm:
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.id == term_id)
+    )
+    officer_term = await db_session.scalar(query)
+    if officer_term is None:
+        raise HTTPException(status_code=400, detail=f"Could not find officer_term with id={term_id}")
+    return officer_term
+
+# TODO: change to "get_officer_terms" naming convention (& all functions in this module)
+async def officer_terms(
+    db_session: database.DBSession,
+    computing_id: str,
+    max_terms: None | int,
+    # will not include officer term info that has not been filled in yet.
+    hide_filled_in: bool
+) -> list[OfficerTerm]:
+    query = sqlalchemy.select(OfficerTerm)
+    query = query.where(OfficerTerm.computing_id == computing_id)
+    if hide_filled_in:
+        query = utils.is_active_officer(query)
+
+    query = query.order_by(OfficerTerm.start_date.desc())
+    if max_terms is not None:
+        query.limit(max_terms)
+
+    return (await db_session.scalars(query)).all()
 
 async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
     """
@@ -40,15 +94,7 @@ async def current_executive_team(db_session: database.DBSession, include_private
     """
 
     query = sqlalchemy.select(OfficerTerm)
-    query = query.where(
-        OfficerTerm.is_filled_in
-        and (
-            # executives without a specified end_date are considered active
-            OfficerTerm.end_date is None
-            # check that today's timestamp is before (smaller than) the term's end date
-            or (datetime.today() <= OfficerTerm.end_date)
-        )
-    )
+    query = utils.is_active_officer(query)
     query = query.order_by(OfficerTerm.start_date.desc())
 
     officer_terms = (await db_session.scalars(query)).all()
@@ -56,14 +102,12 @@ async def current_executive_team(db_session: database.DBSession, include_private
     officer_data = {}
 
     for term in officer_terms:
-        # NOTE: improve performance?
-        if term.position not in [officer.value for officer in OfficerPosition]:
+        if term.position not in OfficerPosition.position_list():
             _logger.warning(
                 f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request."
             )
             continue
 
-        # TODO: improve performance by doing these all in one database request
         officer_info_query = sqlalchemy.select(OfficerInfo)
         officer_info_query = officer_info_query.where(
             OfficerInfo.computing_id == term.computing_id
@@ -78,44 +122,15 @@ async def current_executive_team(db_session: database.DBSession, include_private
             officer_data[term.position] = []
 
         num_officers[term.position] += 1
-        # TODO: move this to a daily cronjob & just ignore any of the extras
-        if num_officers[term.position] > OfficerPosition.from_string(term.position).num_active():
+        # TODO: move this to a ~~daily cronjob~~ SQL model checking
+        if num_officers[term.position] > OfficerPosition.num_active(term.position):
             # If there are more active positions than expected, log it to a file
             _logger.warning(
                 f"There are more active {term.position} positions in the OfficerTerm than expected "
-                f"({num_officers[term.position]} > {OfficerPosition.from_string(term.position).num_active()})"
+                f"({num_officers[term.position]} > {OfficerPosition.num_active(term.position)})"
             )
 
-        officer_data[term.position] += [
-            OfficerData(
-                is_current_officer = True,
-
-                position = term.position,
-                start_date = term.start_date,
-                end_date = term.end_date,
-
-                legal_name = officer_info.legal_name,
-                nickname = term.nickname,
-                discord_name = officer_info.discord_name,
-                discord_nickname = officer_info.discord_nickname,
-
-                favourite_course_0 = term.favourite_course_0,
-                favourite_course_1 = term.favourite_course_1,
-                favourite_language_0 = term.favourite_pl_0,
-                favourite_language_1 = term.favourite_pl_1,
-
-                csss_email = OfficerPosition.from_string(term.position).to_email(),
-                biography = term.biography,
-                photo_url = term.photo_url,
-
-                private_data = OfficerPrivateData(
-                    computing_id = term.computing_id,
-                    phone_number = officer_info.phone_number,
-                    github_username = officer_info.github_username,
-                    google_drive_email = officer_info.google_drive_email,
-                ) if include_private else None,
-            )
-        ]
+        officer_data[term.position] += [OfficerData.from_data(term, officer_info, include_private, is_active=True)]
 
     # validate & warn if there are any data issues
     # TODO: decide whether we should enforce empty instances or force the frontend to deal with it
@@ -135,78 +150,104 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     return officer_data
 
-
-# TODO: do we ever expect to need to remove officer info? Probably not? Just updating it.
-def update_officer_info(db_session: database.DBSession, officer_info_data: OfficerInfoData):
-    """
-    Will create a new officer info entry if one doesn't already exist
-    """
-
-    is_filled_in = True
-    for field in dataclasses.fields(officer_info_data):
-        if getattr(officer_info_data, field.name) is None:
-            is_filled_in = False
-            break
-
-    new_user_session = OfficerInfo(
-        is_filled_in = is_filled_in,
-
-        # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
-        # for now, we should insert a default value
-        legal_name = "default name" if officer_info_data.legal_name is None else officer_info_data.legal_name,
-        discord_id = officer_info_data.discord_id,
-        discord_name = officer_info_data.discord_name,
-        discord_nickname = officer_info_data.discord_nickname,
-
-        computing_id = officer_info_data.computing_id,
-        phone_number = officer_info_data.phone_number,
-        github_username = officer_info_data.github_username,
-        google_drive_email = officer_info_data.google_drive_email,
-    )
-    # TODO: check if an entry with this computing_id already exists, & update it
-    # instead of adding a new entry
-    db_session.add(new_user_session)
-
-
-def update_officer_term(
+async def all_officer_terms(
     db_session: database.DBSession,
-    officer_term_data: OfficerTermData,
+    include_private: bool,
+    view_only_filled_in: bool,
+) -> list[OfficerData]:
+    """
+    Orders officers recent first.
+
+    This could be a lot of data, so be careful.
+
+    TODO: optionally paginate data, so it's not so bad.
+    """
+    query = sqlalchemy.select(OfficerTerm)
+    if view_only_filled_in:
+        query = OfficerTerm.sql_is_filled_in(query)
+    query = query.order_by(OfficerTerm.start_date.desc())
+    officer_terms = (await db_session.scalars(query)).all()
+
+    officer_data_list = []
+    for term in officer_terms:
+        officer_info_query = sqlalchemy.select(OfficerInfo)
+        officer_info_query = officer_info_query.where(
+            OfficerInfo.computing_id == term.computing_id
+        )
+        officer_info = await db_session.scalar(officer_info_query)
+
+        is_active = (term.end_date is None) or (datetime.today() <= term.end_date)
+        officer_data_list += [OfficerData.from_data(term, officer_info, include_private, is_active)]
+
+    return officer_data_list
+
+async def create_new_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
+    """
+    Return False if the officer already exists
+    """
+    query = sqlalchemy.select(OfficerInfo)
+    query = query.where(OfficerInfo.computing_id == officer_info.computing_id)
+    stored_officer_info = await db_session.scalar(query)
+    if stored_officer_info is not None:
+        return False
+
+    db_session.add(new_officer_info)
+    return True
+
+async def create_new_officer_term(
+    db_session: database.DBSession,
+    new_officer_term: OfficerTerm
 ):
-    """
-    Creates an officer term entry
-    """
-
-    is_filled_in = True
-    for field in dataclasses.fields(officer_term_data):
-        # the photo doesn't have to be uploaded for the term to be filled.
-        if field.name == "photo_url":
-            continue
-
-        if getattr(officer_term_data, field.name) is None:
-            is_filled_in = False
-            break
-
-    new_officer_term = OfficerTerm(
-        computing_id = officer_term_data.computing_id,
-        is_filled_in = is_filled_in,
-
-        position = officer_term_data.position,
-        start_date = officer_term_data.start_date,
-        end_date = officer_term_data.end_date,
-
-        nickname = officer_term_data.nickname,
-        favourite_course_0 = officer_term_data.favourite_course_0,
-        favourite_course_1 = officer_term_data.favourite_course_1,
-        favourite_pl_0 = officer_term_data.favourite_pl_0,
-        favourite_pl_1 = officer_term_data.favourite_pl_1,
-        biography = officer_term_data.biography,
-        photo_url = officer_term_data.photo_url,
-    )
-    # TODO: check if an entry with this (computing_id, position, start_date) already exists, & update it
-    # instead of adding a new entry
     db_session.add(new_officer_term)
 
+async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
+    """
+    Return False if the officer doesn't exist yet
+    """
+    query = sqlalchemy.select(OfficerInfo)
+    query = query.where(OfficerInfo.computing_id == new_officer_info.computing_id)
+    officer_info = await db_session.scalar(query)
+    if officer_info is None:
+        return False
+
+    # TODO: how to detect an entry insert error? For example, what happens if
+    # we try to set our discord id to be the same as another executive's?
+    query = (
+        sqlalchemy
+        .update(OfficerInfo)
+        .where(OfficerInfo.computing_id == officer_info.computing_id)
+        .values(new_officer_info.to_update_dict())
+    )
+    await db_session.execute(query)
+
+    return True
+
+async def update_officer_term(
+    db_session: database.DBSession,
+    new_officer_term: OfficerTerm,
+):
+    """
+    Update based on the term id.
+
+    Returns false if the above entry does not exist.
+    """
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.id == new_officer_term.id)
+    )
+    officer_term = await db_session.scalar(query)
+    if officer_term is None:
+        return False
+
+    query = (
+        sqlalchemy
+        .update(OfficerTerm)
+        .where(OfficerTerm.id == new_officer_term.id)
+        .values(new_officer_term.to_update_dict())
+    )
+    await db_session.execute(query)
+    return True
 
 def remove_officer_term():
     pass
-

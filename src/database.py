@@ -7,20 +7,27 @@ from typing import Annotated, Any
 import asyncpg
 import sqlalchemy
 from fastapi import Depends, FastAPI
+from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncSession,
 )
 
-# Base = sqlalchemy.ext.declarative.declarative_base()
+convention = {
+    "ix": "ix_%(column_0_label)s", # index
+    "uq": "uq_%(table_name)s_%(column_0_name)s", # unique
+    "ck": "ck_%(table_name)s_%(constraint_name)s", # check
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s", # foreign key
+    "pk": "pk_%(table_name)s", # primary key
+}
+
 Base = sqlalchemy.orm.declarative_base()
+Base.metadata = MetaData(naming_convention=convention)
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
     def __init__(self, db_url: str, engine_kwargs: dict[str, Any], check_db=True):
-        # engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URL)
         self._engine = sqlalchemy.ext.asyncio.create_async_engine(db_url, **engine_kwargs)
-        # SessionLocal = sqlalchemy.orm.sessionmaker(autocommit=False, autoflush=False, bind=engine)
         self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
 
         if check_db:
@@ -77,6 +84,7 @@ class DatabaseSessionManager:
 
 
 if os.environ.get("DB_PORT") is not None:
+    # using a remote (or docker) database
     db_port = os.environ.get("DB_PORT")
     SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
     SQLALCHEMY_TEST_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/test"
@@ -84,16 +92,17 @@ else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
     SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"
 
+
 # also TODO: make this nicer, using a class to hold state...
 # and use this in load_test_db for the test db as well?
 def setup_database():
     global sessionmanager
 
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
-    if os.environ.get("LOCAL"):
-        sessionmanager = DatabaseSessionManager(SQLALCHEMY_TEST_DATABASE_URL, {"echo": True})
-    else:
-        sessionmanager = DatabaseSessionManager(SQLALCHEMY_DATABASE_URL, {"echo": True})
+    sessionmanager = DatabaseSessionManager(
+        SQLALCHEMY_TEST_DATABASE_URL if os.environ.get("LOCAL") else SQLALCHEMY_DATABASE_URL,
+        { "echo": True },
+    )
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):

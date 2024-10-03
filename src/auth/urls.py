@@ -37,15 +37,19 @@ router = APIRouter(
     description="Login to the sfucsss.org. Must redirect to this endpoint from SFU's cas authentication service for correct parameters",
 )
 async def login_user(
-    next_url: str,  # TODO: ensure next_url is a valid url? or local to our site or something...
+    next_url: str,
     ticket: str,
     db_session: database.DBSession,
     background_tasks: BackgroundTasks,
 ):
+    # TODO: test this
+    if not next_url.startswith(root_ip_address):
+        raise HTTPException(status_code=400, detail=f"invalid next_url={next_url}, must be a page of our site")
+
     # verify the ticket is valid
     url = (
         f"https://cas.sfu.ca/cas/serviceValidate?service={urllib.parse.quote(root_ip_address)}"
-        f"/auth/login%3Fnext_url%3D{urllib.parse.quote(next_url)}&ticket={ticket}"
+        f"/api/auth/login%3Fnext_url%3D{urllib.parse.quote(next_url)}&ticket={ticket}"
     )
     cas_response = xmltodict.parse(requests.get(url).text)
 
@@ -70,6 +74,7 @@ async def login_user(
         return response
 
 
+# TODO: deprecate this when possible
 @router.get(
     "/check",
     description="Check if the current user is logged in based on session_id from cookies",
@@ -87,6 +92,28 @@ async def check_authentication(
         response_dict = {"is_valid": False}
 
     return JSONResponse(response_dict)
+
+
+@router.get(
+    "/info",
+    description="Get info about the current user. Only accessible by that user",
+)
+async def get_info(
+    request: Request,
+    db_session: database.DBSession,
+):
+    """
+    Currently this endpoint only returns the info stored in tables in the auth module.
+    """
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="User must be authenticated to get their info")
+
+    user_info = await crud.user_info(db_session, session_id)
+    if user_info is None:
+        raise HTTPException(status_code=401, detail="Could not find user with session_id, please log in")
+
+    return JSONResponse(user_info)
 
 
 @router.post(

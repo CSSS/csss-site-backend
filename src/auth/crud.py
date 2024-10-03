@@ -3,11 +3,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import sqlalchemy
-from auth.models import SiteUser, UserSession
+from auth.tables import SiteUser, UserSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str) -> None:
+async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str):
     """
     Updates the past user session if one exists, so no duplicate sessions can ever occur.
 
@@ -57,7 +57,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 async def remove_user_session(db_session: AsyncSession, session_id: str) -> dict:
     query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
     user_session = await db_session.scalars(query)
-    await db_session.delete(user_session.first())  # TODO: what to do with this result that we're awaiting?
+    await db_session.delete(user_session.first())
 
 
 async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
@@ -65,8 +65,6 @@ async def check_user_session(db_session: AsyncSession, session_id: str) -> dict:
     existing_user_session = (await db_session.scalars(query)).first()
 
     if existing_user_session:
-        # TODO: replace this select with an sqlalchemy relationship access
-        # see: https://docs.sqlalchemy.org/en/20/orm/basic_relationships.html
         query = sqlalchemy.select(SiteUser).where(SiteUser.computing_id == existing_user_session.computing_id)
         existing_user = (await db_session.scalars(query)).first()
         return {
@@ -86,9 +84,35 @@ async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | N
 
 
 # remove all out of date user sessions
-async def task_clean_expired_user_sessions(db_session: AsyncSession) -> None:
+async def task_clean_expired_user_sessions(db_session: AsyncSession):
     one_day_ago = datetime.now() - timedelta(days=0.5)
 
     query = sqlalchemy.delete(UserSession).where(UserSession.issue_time < one_day_ago)
     await db_session.execute(query)
     await db_session.commit()
+
+
+async def user_info(db_session: AsyncSession, session_id: str) -> None | dict:
+    query = (
+        sqlalchemy
+        .select(UserSession)
+        .where(UserSession.session_id == session_id)
+    )
+    user_session = await db_session.scalar(query)
+    if user_session is None:
+        return None
+
+    query = (
+        sqlalchemy
+        .select(SiteUser)
+        .where(SiteUser.computing_id == user_session.computing_id)
+    )
+    user = await db_session.scalar(query)
+    if user is None:
+        return None
+
+    return {
+        "computing_id": user_session.computing_id,
+        "first_logged_in": user.first_logged_in.isoformat(),
+        "last_logged_in": user.last_logged_in.isoformat()
+    }

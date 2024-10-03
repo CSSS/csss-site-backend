@@ -3,7 +3,7 @@ from logging.config import fileConfig
 
 import auth.tables
 import database
-import elections.models  # TODO: update to tables
+import elections.tables
 import officers.tables
 from alembic import context
 from sqlalchemy import pool

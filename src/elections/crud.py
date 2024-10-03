@@ -4,10 +4,10 @@ from datetime import datetime
 
 import database
 import sqlalchemy
-from elections.models import Election
+from elections.tables import Election
 from officers.constants import OfficerPosition
-from officers.models import OfficerInfo, OfficerTerm
-from officers.schemas import (
+from officers.tables import OfficerInfo, OfficerTerm
+from officers.types import (
     OfficerData,
     OfficerInfoData,
     OfficerPrivateData,

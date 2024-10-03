@@ -6,6 +6,7 @@ import database
 import sqlalchemy
 import utils
 from auth.tables import SiteUser
+from data import semesters
 from fastapi import HTTPException
 
 from officers.constants import OfficerPosition
@@ -198,10 +199,20 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     db_session.add(new_officer_info)
     return True
 
+# TODO: implement this for patch term as well
 async def create_new_officer_term(
     db_session: database.DBSession,
     new_officer_term: OfficerTerm
 ):
+    if new_officer_term.position not in OfficerPosition.position_list():
+        raise HTTPException(status_code=500)
+
+    position_length = OfficerPosition.position_length_in_semesters(new_officer_term.position)
+    if position_length is not None:
+        new_officer_term.end_date = semesters.step_semesters(
+            semesters.current_semester_start(new_officer_term.start_date),
+            position_length,
+        )
     db_session.add(new_officer_term)
 
 async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:

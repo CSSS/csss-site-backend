@@ -33,6 +33,10 @@ class OfficerPosition:
         return _OFFICER_POSITION_LIST
 
     @staticmethod
+    def position_length_in_semesters(position: str) -> int | None:
+        return _LENGTH_MAP[position]
+
+    @staticmethod
     def to_email(position: str) -> str | None:
         return _EMAIL_MAP.get(position, None)
 
@@ -118,6 +122,34 @@ _EMAIL_MAP = {
     OfficerPosition.SYSTEM_ADMINISTRATOR: "csss-sysadmin@sfu.ca",
     OfficerPosition.WEBMASTER: "csss-webmaster@sfu.ca",
     OfficerPosition.SOCIAL_MEDIA_MANAGER: "N/A",
+}
+
+# TODO: when an officer's start date is modified, update the end date as well if it's defined in this list
+# a number of semesters (a semester begins on the 1st of each four month period, starting january)
+# None, means that the length of the position does not have a set length in semesters
+_LENGTH_MAP = {
+    OfficerPosition.PRESIDENT: 3,
+    OfficerPosition.VICE_PRESIDENT: 3,
+    OfficerPosition.TREASURER: 3,
+
+    OfficerPosition.DIRECTOR_OF_RESOURCES: 3,
+    OfficerPosition.DIRECTOR_OF_EVENTS: 3,
+    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS: 3,
+    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS: 3,
+    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS: 3,
+    #OfficerPosition.DIRECTOR_OF_OUTREACH: 3,
+    OfficerPosition.DIRECTOR_OF_MULTIMEDIA: 3,
+    OfficerPosition.DIRECTOR_OF_ARCHIVES: 3,
+    OfficerPosition.EXECUTIVE_AT_LARGE: 1,
+    OfficerPosition.FIRST_YEAR_REPRESENTATIVE: 2,
+
+    OfficerPosition.ELECTIONS_OFFICER: None,
+    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE: 3,
+    OfficerPosition.FROSH_WEEK_CHAIR: None,
+
+    OfficerPosition.SYSTEM_ADMINISTRATOR: None,
+    OfficerPosition.WEBMASTER: None,
+    OfficerPosition.SOCIAL_MEDIA_MANAGER: None,
 }
 
 _OFFICER_POSITION_LIST = [

@@ -1,14 +1,5 @@
 from __future__ import annotations
 
-# from sqlalchemy.orm import relationship
-from constants import (
-    COMPUTING_ID_LEN,
-    DISCORD_ID_LEN,
-    DISCORD_NAME_LEN,
-    DISCORD_NICKNAME_LEN,
-    GITHUB_USERNAME_LEN,
-)
-from database import Base
 from sqlalchemy import (
     # Boolean,
     Column,
@@ -21,6 +12,16 @@ from sqlalchemy import (
     and_,
 )
 
+# from sqlalchemy.orm import relationship
+from constants import (
+    COMPUTING_ID_LEN,
+    DISCORD_ID_LEN,
+    DISCORD_NAME_LEN,
+    DISCORD_NICKNAME_LEN,
+    GITHUB_USERNAME_LEN,
+)
+from database import Base
+
 
 # A row represents an assignment of a person to a position.
 # An officer with multiple positions, such as Frosh Chair & DoE, is broken up into multiple assignments.
@@ -30,7 +31,7 @@ class OfficerTerm(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("user_session.computing_id"),
+        ForeignKey("site_user.computing_id"),
         nullable=False,
     )
 
@@ -123,7 +124,7 @@ class OfficerInfo(Base):
 
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("user_session.computing_id"),
+        ForeignKey("site_user.computing_id"),
         primary_key=True,
     )
 

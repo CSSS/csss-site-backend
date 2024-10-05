@@ -3,9 +3,9 @@ from json import dumps
 from typing import Any
 
 import requests
-from constants import GITHUB_ORG_NAME
 from requests import Response
 
+from constants import GITHUB_ORG_NAME
 from github.types import GithubTeam, GithubUser
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")

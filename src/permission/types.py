@@ -1,11 +1,12 @@
 from datetime import UTC, datetime, timezone
 from typing import ClassVar
 
+from fastapi import HTTPException, Request
+
 import auth.crud
 import database
 import officers.crud
 from data.semesters import current_semester_start, step_semesters
-from fastapi import HTTPException, Request
 from officers.constants import OfficerPosition
 
 

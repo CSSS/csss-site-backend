@@ -2,21 +2,21 @@ import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 
+import sqlalchemy
+from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
+
 import auth.crud
 import database
 import github
-import sqlalchemy
+import officers.crud
 import utils
 from constants import COMPUTING_ID_MAX
 from discord import discord
-from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
-from permission.types import OfficerPrivateInfo, WebsiteAdmin
-
-import officers.crud
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import OfficerInfoUpload, OfficerTermUpload
+from permission.types import OfficerPrivateInfo, WebsiteAdmin
 
 _logger = logging.getLogger(__name__)
 

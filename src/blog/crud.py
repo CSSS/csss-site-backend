@@ -3,10 +3,11 @@ import logging
 from datetime import date, datetime
 from typing import Optional
 
-import database
 import sqlalchemy
-from blog.models import BlogPosts
 from sqlalchemy import func
+
+import database
+from blog.models import BlogPosts
 
 _logger = logging.getLogger(__name__)
 

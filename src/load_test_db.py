@@ -6,12 +6,13 @@ import asyncio
 from datetime import date, datetime, timedelta
 
 import sqlalchemy
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from auth.crud import create_user_session
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from officers.constants import OfficerPosition
 from officers.crud import create_new_officer_info, create_new_officer_term, update_officer_info, update_officer_term
 from officers.tables import OfficerInfo, OfficerTerm
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def reset_db(engine):
@@ -215,6 +216,7 @@ async def load_sysadmin(db_session: AsyncSession):
     # put your computing id here for testing purposes
     SYSADMIN_COMPUTING_ID = "gsa92"
 
+    await create_user_session(db_session, "temp_id_4", "gsa92")
     await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Gabe Schulz",
         discord_id=None,

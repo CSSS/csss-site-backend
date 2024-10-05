@@ -1,11 +1,12 @@
 import re
 from datetime import datetime
 
-from officers.tables import OfficerInfo, OfficerTerm
 from sqlalchemy import Select
 
 # we can't use and/or in sql expressions, so we must use these functions
 from sqlalchemy.sql.expression import and_, or_
+
+from officers.tables import OfficerInfo, OfficerTerm
 
 
 def is_iso_format(date_str: str) -> bool:

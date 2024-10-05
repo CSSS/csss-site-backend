@@ -1,7 +1,8 @@
 import asyncio
 
-import load_test_db
 import pytest
+
+import load_test_db
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
 from officers.crud import all_officer_terms, current_executive_team, most_recent_exec_term

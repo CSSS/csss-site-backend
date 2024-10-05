@@ -1,8 +1,8 @@
-import auth.crud
-import database
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+import auth.crud
+import database
 from permission.types import WebsiteAdmin
 
 router = APIRouter(

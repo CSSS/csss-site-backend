@@ -1,7 +1,8 @@
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+
 from constants import COMPUTING_ID_LEN
 from database import Base
 from officers import tables
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 
 
 # blog table

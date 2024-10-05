@@ -3,8 +3,9 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import sqlalchemy
-from auth.tables import SiteUser, UserSession
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from auth.tables import SiteUser, UserSession
 
 
 async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str):

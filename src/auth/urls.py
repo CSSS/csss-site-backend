@@ -3,13 +3,14 @@ import logging
 import os
 import urllib.parse
 
-import database
 import requests  # TODO: make this async
 import xmltodict
-from auth import crud
-from constants import FRONTEND_ROOT_URL
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+
+import database
+from auth import crud
+from constants import FRONTEND_ROOT_URL
 
 _logger = logging.getLogger(__name__)
 

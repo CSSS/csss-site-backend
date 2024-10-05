@@ -2,12 +2,12 @@ import dataclasses
 import logging
 from datetime import datetime
 
-import database
 import sqlalchemy
-import utils
-from auth.tables import SiteUser
 from fastapi import HTTPException
 
+import database
+import utils
+from auth.tables import SiteUser
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (

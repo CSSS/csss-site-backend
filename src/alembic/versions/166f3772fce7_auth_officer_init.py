@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

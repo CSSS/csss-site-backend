@@ -1,8 +1,9 @@
 from datetime import datetime
 
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
 from database import Base
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 
 
 class UserSession(Base):

@@ -56,7 +56,7 @@ def upgrade() -> None:
         sa.Column("discord_id", sa.String(length=18), nullable=True),
         sa.Column("discord_name", sa.String(length=32), nullable=True),
         sa.Column("discord_nickname", sa.String(length=32), nullable=True),
-        sa.Column("computing_id", sa.String(length=32), sa.ForeignKey("user_session.computing_id"), primary_key=True),
+        sa.Column("computing_id", sa.String(length=32), sa.ForeignKey("site_user.computing_id"), primary_key=True),
         sa.Column("phone_number", sa.String(length=24), nullable=True),
         sa.Column("github_username", sa.String(length=39), nullable=True),
         sa.Column("google_drive_email", sa.String(length=256), nullable=True),

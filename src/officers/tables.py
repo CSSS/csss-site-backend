@@ -30,7 +30,7 @@ class OfficerTerm(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("user_session.computing_id"),
+        ForeignKey("site_user.computing_id"),
         nullable=False,
     )
 
@@ -123,7 +123,7 @@ class OfficerInfo(Base):
 
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("user_session.computing_id"),
+        ForeignKey("site_user.computing_id"),
         primary_key=True,
     )
 

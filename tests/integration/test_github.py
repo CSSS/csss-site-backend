@@ -1,5 +1,6 @@
-import github.internals
 import pytest
+
+import github.internals
 
 # NOTE: must export API key to use github api (mostly...)
 

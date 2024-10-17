@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 
-from constants import COMPUTING_ID_MAX
 from fastapi import HTTPException
 
+from constants import COMPUTING_ID_MAX
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 

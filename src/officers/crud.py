@@ -2,12 +2,12 @@ import dataclasses
 import logging
 from datetime import datetime
 
-import database
 import sqlalchemy
-import utils
-from auth.tables import SiteUser
 from fastapi import HTTPException
 
+import database
+import utils
+from auth.tables import SiteUser
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (
@@ -186,7 +186,7 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     Return False if the officer already exists
     """
     query = sqlalchemy.select(OfficerInfo)
-    query = query.where(OfficerInfo.computing_id == officer_info.computing_id)
+    query = query.where(OfficerInfo.computing_id == new_officer_info.computing_id)
     stored_officer_info = await db_session.scalar(query)
     if stored_officer_info is not None:
         return False

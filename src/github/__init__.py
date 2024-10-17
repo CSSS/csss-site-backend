@@ -1,11 +1,11 @@
 # TODO: does this allow importing anything from the module?
 import logging
 
-#from admin.email import send_email
-from officers.constants import OfficerPosition
-
 from github.internals import add_user_to_team, list_members, list_team_members, list_teams, remove_user_from_team
 from github.types import GithubUserPermissions
+
+#from admin.email import send_email
+from officers.constants import OfficerPosition
 
 # Rules:
 # - all past officers will be members of the github org

@@ -1,8 +1,9 @@
 from datetime import datetime
 
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
 from database import Base
-from sqlalchemy import Column, DateTime, ForeignKey, String
 
 
 class UserSession(Base):
@@ -37,3 +38,6 @@ class SiteUser(Base):
     # note: default date (for pre-existing columns) is June 16th, 2024
     first_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
     last_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
+
+    # optional user information for display purposes
+    profile_picture_url = Column(Text, nullable=True)

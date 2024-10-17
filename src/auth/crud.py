@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.tables import SiteUser, UserSession
+from auth.types import SiteUserData
 
 
 async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str):
@@ -54,6 +54,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
         )
         db_session.add(new_user_session)
 
+
 async def remove_user_session(db_session: AsyncSession, session_id: str) -> dict:
     query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
     user_session = await db_session.scalars(query)
@@ -76,7 +77,7 @@ async def task_clean_expired_user_sessions(db_session: AsyncSession):
 
 
 # get the site user given a session ID; returns None when session is invalid
-async def get_site_user(db_session: AsyncSession, session_id: str) -> None | dict:
+async def get_site_user(db_session: AsyncSession, session_id: str) -> None | SiteUserData:
     query = (
         sqlalchemy
         .select(UserSession)
@@ -95,16 +96,20 @@ async def get_site_user(db_session: AsyncSession, session_id: str) -> None | dic
     if user is None:
         return None
 
-    return {
-        "computing_id": user_session.computing_id,
-        "first_logged_in": user.first_logged_in.isoformat(),
-        "last_logged_in": user.last_logged_in.isoformat(),
-        "profile_picture_url": user.profile_picture_url
-    }
+    return SiteUserData(
+        user_session.computing_id,
+        user.first_logged_in.isoformat(),
+        user.last_logged_in.isoformat(),
+        user.profile_picture_url
+    )
 
 
 # update the optional user info for a given site user (e.g., display name, profile picture, ...)
-async def update_site_user(db_session: AsyncSession, session_id: str, profile_picture_url: str) -> None | dict:
+async def update_site_user(
+    db_session: AsyncSession,
+    session_id: str,
+    profile_picture_url: str
+) -> None | SiteUserData:
     query = (
         sqlalchemy
         .select(UserSession)
@@ -118,16 +123,16 @@ async def update_site_user(db_session: AsyncSession, session_id: str, profile_pi
         sqlalchemy
         .update(SiteUser)
         .where(SiteUser.computing_id == user_session.computing_id)
-        .values(profile_picture_url=profile_picture_url)
+        .values(profile_picture_url = profile_picture_url)
         .returning(SiteUser) # returns all columns of SiteUser
     )
     user = await db_session.scalar(query)
     if user is None:
         return None
 
-    return {
-        "computing_id": user_session.computing_id,
-        "first_logged_in": user.first_logged_in.isoformat(),
-        "last_logged_in": user.last_logged_in.isoformat(),
-        "profile_picture_url": user.profile_picture_url
-    }
+    return SiteUserData(
+        user_session.computing_id,
+        user.first_logged_in.isoformat(),
+        user.last_logged_in.isoformat(),
+        user.profile_picture_url
+    )

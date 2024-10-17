@@ -27,6 +27,7 @@ def upgrade() -> None:
         sa.Column("computing_id", sa.String(32), primary_key=True),
         sa.Column("first_logged_in", sa.DateTime, nullable=False, default=datetime(2024, 6, 16)),
         sa.Column("last_logged_in", sa.DateTime, nullable=False, default=datetime(2024, 6, 16)),
+        sa.Column("profile_picture_url", sa.Text(), nullable=True),
     )
     op.create_table(
         "user_session",

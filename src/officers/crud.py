@@ -8,6 +8,7 @@ from fastapi import HTTPException
 import database
 import utils
 from auth.tables import SiteUser
+from data import semesters
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (
@@ -21,7 +22,6 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
     """
     Returns the most recent OfficerTerm an exec has had
     """
-
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
     query = query.order_by(OfficerTerm.start_date.desc())
@@ -29,21 +29,21 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
 
     return await db_session.scalar(query)
 
-async def current_officer_position(db_session: database.DBSession, computing_id: str) -> str | None:
+async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
     """
-    Returns None if the user is not currently an officer
-    """
+    Returns [] if the user is not currently an officer.
 
+    Gets positions ordered most recent start date first.
+
+    An officer can have multiple positions, such as Webmaster, Frosh chair, and DoEE.
+    """
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
+    query = query.order_by(OfficerTerm.start_date.desc())
     query = utils.is_active_officer(query)
-    query = query.limit(1)
 
-    officer_term = await db_session.scalar(query)
-    if officer_term is None:
-        return None
-    else:
-        return officer_term.position
+    officer_term_list = (await db_session.scalars(query)).all()
+    return [term.position for term in officer_term_list]
 
 async def officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
     query = (
@@ -73,11 +73,12 @@ async def officer_terms(
     computing_id: str,
     max_terms: None | int,
     # will not include officer term info that has not been filled in yet.
-    hide_filled_in: bool
+    view_only_filled_in: bool,
 ) -> list[OfficerTerm]:
     query = sqlalchemy.select(OfficerTerm)
     query = query.where(OfficerTerm.computing_id == computing_id)
-    if hide_filled_in:
+    # TODO: does active == filled_in ?
+    if view_only_filled_in:
         query = utils.is_active_officer(query)
 
     query = query.order_by(OfficerTerm.start_date.desc())
@@ -176,8 +177,12 @@ async def all_officer_terms(
         )
         officer_info = await db_session.scalar(officer_info_query)
 
-        is_active = (term.end_date is None) or (datetime.today() <= term.end_date)
-        officer_data_list += [OfficerData.from_data(term, officer_info, include_private, is_active)]
+        officer_data_list += [OfficerData.from_data(
+            term,
+            officer_info,
+            include_private,
+            utils.is_active_term(term)
+        )]
 
     return officer_data_list
 
@@ -194,10 +199,20 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     db_session.add(new_officer_info)
     return True
 
+# TODO: implement this for patch term as well
 async def create_new_officer_term(
     db_session: database.DBSession,
     new_officer_term: OfficerTerm
 ):
+    if new_officer_term.position not in OfficerPosition.position_list():
+        raise HTTPException(status_code=500)
+
+    position_length = OfficerPosition.position_length_in_semesters(new_officer_term.position)
+    if position_length is not None:
+        new_officer_term.end_date = semesters.step_semesters(
+            semesters.current_semester_start(new_officer_term.start_date),
+            position_length,
+        )
     db_session.add(new_officer_term)
 
 async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:

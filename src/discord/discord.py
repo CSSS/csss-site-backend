@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from time import sleep
 
 import requests
-from constants import ACTIVE_GUILD_ID
 from requests import Response
+
+from constants import ACTIVE_GUILD_ID
 
 # ----------------------- #
 # api

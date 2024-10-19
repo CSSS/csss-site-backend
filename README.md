@@ -8,9 +8,9 @@ The backend & REST API for the CSSS website. Anything the website frontend does 
 
 ## Local Development
 
-See [the csss-backend wiki](https://github.com/CSSS/csss-site-backend/wiki/Local-Setup) for details on how to run the REST API locally on your own machine.
+See [the csss-backend wiki](https://github.com/CSSS/csss-site-backend/wiki/1.-Local-Setup) for details on how to run the REST API locally on your own machine.
 
-If you're planning to read through the source code, please check out this project's [naming conventions](https://github.com/CSSS/csss-site-backend/wiki/Naming-conventions).
+If you're planning to read through the source code, please check out this project's [naming conventions](https://github.com/CSSS/csss-site-backend/wiki/Style-Guide#naming-conventions).
 
 ## Important Directories
 

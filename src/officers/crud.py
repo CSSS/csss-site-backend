@@ -2,13 +2,13 @@ import dataclasses
 import logging
 from datetime import datetime
 
-import database
 import sqlalchemy
+from fastapi import HTTPException
+
+import database
 import utils
 from auth.tables import SiteUser
 from data import semesters
-from fastapi import HTTPException
-
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (

@@ -1,11 +1,11 @@
 import logging
 
+from fastapi import FastAPI
+
 import auth.urls
 import database
 import officers.urls
 import permission.urls
-from fastapi import FastAPI
-
 import tests.urls
 
 logging.basicConfig(level=logging.DEBUG)

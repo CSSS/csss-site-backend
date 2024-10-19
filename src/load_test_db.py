@@ -60,6 +60,7 @@ async def reset_db(engine):
 async def load_test_auth_data(db_session: AsyncSession):
     await create_user_session(db_session, "temp_id_314", "abc314")
     await update_site_user(db_session, "temp_id_314", "www.my_profile_picture_url.ca/test")
+    await db_session.commit()
 
 async def load_test_officers_data(db_session: AsyncSession):
     print("login the 3 users, putting them in the site users table")

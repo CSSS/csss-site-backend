@@ -8,57 +8,48 @@ from auth.tables import SiteUser, UserSession
 from auth.types import SiteUserData
 
 
-# TODO: put "task_" before
 async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str):
     """
     Updates the past user session if one exists, so no duplicate sessions can ever occur.
 
     Also, adds the new user to the SiteUser table if it's their first time logging in.
     """
-    query = sqlalchemy.select(UserSession).where(UserSession.computing_id == computing_id)
-    existing_user_session = await db_session.scalar(query)
+    existing_user_session = await db_session.scalar(
+        sqlalchemy
+        .select(UserSession)
+        .where(UserSession.computing_id == computing_id)
+    )
+    existing_user = await db_session.scalar(
+        sqlalchemy
+        .select(SiteUser)
+        .where(SiteUser.computing_id == computing_id)
+    )
+
+    if existing_user is None:
+        if existing_user_session is not None:
+            # log this strange case that shouldn't be possible
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f"User session {session_id} exists for non-existent user {computing_id} ... !")
+
+        # add new user to User table if it's their first time logging in
+        db_session.add(SiteUser(
+            computing_id=computing_id,
+            first_logged_in=datetime.now(),
+            last_logged_in=datetime.now()
+        ))
+
     if existing_user_session is not None:
         existing_user_session.issue_time = datetime.now()
         existing_user_session.session_id = session_id
-
-        query = sqlalchemy.select(SiteUser).where(SiteUser.computing_id == computing_id)
-        existing_user = await db_session.scalar(query)
-        if existing_user is None:
-            # log this strange case
-            _logger = logging.getLogger(__name__)
-            _logger.warning(f"User session {session_id} exists for non-existent user {computing_id}!")
-
-            db_session.add(SiteUser(
-                computing_id=computing_id,
-                first_logged_in=datetime.now(),
-                last_logged_in=datetime.now()
-            ))
-        else:
+        if existing_user is not None:
             # update the last time the user logged in to now
-            existing_user.last_logged_in=datetime.now()
+            existing_user.last_logged_in = datetime.now()
     else:
-        # add new user to User table if it's their first time logging in
-        query = sqlalchemy.select(SiteUser).where(SiteUser.computing_id == computing_id)
-        existing_user = await db_session.scalar(query)
-        if existing_user is None:
-            db_session.add(SiteUser(
-                computing_id=computing_id,
-                first_logged_in=datetime.now(),
-                last_logged_in=datetime.now()
-            ))
-
         db_session.add(UserSession(
             session_id=session_id,
             computing_id=computing_id,
             issue_time=datetime.now(),
         ))
-
-        new_user_session = UserSession(
-            issue_time=datetime.now(),
-            session_id=session_id,
-            computing_id=computing_id,
-        )
-        db_session.add(new_user_session)
 
 
 async def remove_user_session(db_session: AsyncSession, session_id: str) -> dict:

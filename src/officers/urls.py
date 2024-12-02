@@ -95,11 +95,32 @@ async def get_officer_terms(
     computing_id: str,
     # the maximum number of terms to return, in chronological order
     max_terms: int | None = None,
-    # TODO: implement the following
-    # view_only_filled_in: bool = True,
+    view_only_filled_in: bool = True,
 ):
+    # TODO: put these into a function
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        raise HTTPException(status_code=401)
+
+    # TODO: put these into a function
+    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if session_computing_id is None:
+        raise HTTPException(status_code=401)
+
+    if (
+        not view_only_filled_in
+        and computing_id != session_computing_id
+        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
+    ):
+        raise HTTPException(status_code=401)
+
     # all term info is public, so anyone can get any of it
-    officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
+    officer_terms = await officers.crud.officer_terms(
+        db_session,
+        computing_id,
+        max_terms,
+        view_only_filled_in=view_only_filled_in
+    )
     return JSONResponse([term.serializable_dict() for term in officer_terms])
 
 @router.get(
@@ -154,13 +175,12 @@ async def new_officer_term(
     for officer_info in officer_info_list:
         if len(officer_info.computing_id) > COMPUTING_ID_MAX:
             raise HTTPException(status_code=400, detail=f"computing_id={officer_info.computing_id} is too large")
-        elif officer_info.position not in OfficerPosition.position_values():
+        elif officer_info.position not in OfficerPosition.position_list():
             raise HTTPException(status_code=400, detail=f"invalid position={officer_info.position}")
 
     WebsiteAdmin.validate_request(db_session, request)
 
     for officer_info in officer_info_list:
-        # TODO: fix a bug with this stuff & test inserting & viewing mutliple executives
         await officers.crud.create_new_officer_info(
             db_session,
             # TODO: do I need this object atm?
@@ -170,14 +190,12 @@ async def new_officer_term(
             ).to_officer_info(officer_info.computing_id, None, None),
         )
         # TODO: update create_new_officer_term to be the same as create_new_officer_info
-        success = await officers.crud.create_new_officer_term(db_session, OfficerTermUpload(
+        await officers.crud.create_new_officer_term(db_session, OfficerTerm(
             computing_id = officer_info.computing_id,
             position = officer_info.position,
             # TODO: remove the hours & seconds (etc.) from start_date
             start_date = officer_info.start_date,
-        ).to_officer_term())
-        if not success:
-            raise HTTPException(status_code=400, detail="Officer term already exists, no changes made")
+        ))
 
     await db_session.commit()
     return PlainTextResponse("ok")
@@ -308,6 +326,14 @@ async def update_term(
         # the current user can only input the info for another user if they have permissions
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
+    # TODO: turn is_active into a utils function
+    is_active = (old_officer_term.end_date is None) or (datetime.today() <= old_officer_term.end_date)
+    if (
+        not is_active
+        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
+    ):
+        raise HTTPException(status_code=401, detail="only website admin can update a past (non-active) term")
+
     # NOTE: Only admins can write new versions of position, start_date, and end_date.
     if (
         (
@@ -336,11 +362,6 @@ async def update_term(
     })
 
 """
-# TODO: test this error later
-@router.get("/please_error", description="Raises an error & should send an email to the sysadmin")
-async def raise_error():
-    raise ValueError("This is an error, you're welcome")
-
 @router.post(
     "/remove",
     description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Removes the officer from the system entirely. BE CAREFUL WITH THIS OPTION aaaaaaaaaaaaaaaaaa.",

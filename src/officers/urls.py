@@ -25,6 +25,9 @@ router = APIRouter(
     tags=["officers"],
 )
 
+# ---------------------------------------- #
+# checks
+
 async def has_officer_private_info_access(
     request: Request,
     db_session: database.DBSession,
@@ -41,6 +44,9 @@ async def has_officer_private_info_access(
     has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
     return session_id, computing_id, has_private_access
 
+# ---------------------------------------- #
+# endpoints
+
 @router.get(
     "/current",
     description="Get information about all the officers. More information is given if you're authenticated & have access to private executive data.",
@@ -51,12 +57,11 @@ async def current_officers(
     db_session: database.DBSession,
 ):
     _, _, has_private_access = await has_officer_private_info_access(request, db_session)
-
-    current_executives = await officers.crud.current_executive_team(db_session, has_private_access)
+    current_officers = await officers.crud.current_officers(db_session, has_private_access)
     json_current_executives = {
         position: [
             officer_data.serializable_dict() for officer_data in officer_data_list
-        ] for position, officer_data_list in current_executives.items()
+        ] for position, officer_data_list in current_officers.items()
     }
 
     return JSONResponse(json_current_executives)
@@ -78,10 +83,10 @@ async def all_officers(
         if not is_website_admin:
             raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
-    all_officer_data = await officers.crud.all_officer_data(db_session, has_private_access, not view_not_started_officer_terms)
+    all_officers = await officers.crud.all_officers(db_session, has_private_access, not view_not_started_officer_terms)
     return JSONResponse([
         officer_data.serializable_dict()
-        for officer_data in all_officer_data
+        for officer_data in all_officers
     ])
 
 @router.get(

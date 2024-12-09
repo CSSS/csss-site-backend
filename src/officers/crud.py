@@ -90,7 +90,10 @@ async def get_officer_terms(
 
     return (await db_session.scalars(query)).all()
 
-async def current_executive_team(db_session: database.DBSession, include_private: bool) -> dict[str, list[OfficerData]]:
+async def current_officers(
+    db_session: database.DBSession,
+    include_private: bool
+) -> dict[str, list[OfficerData]]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.
 
@@ -104,17 +107,8 @@ async def current_executive_team(db_session: database.DBSession, include_private
     query = utils.is_active_officer(query)
 
     officer_terms = (await db_session.scalars(query)).all()
-    ##num_officers = {}
     officer_data = {}
     for term in officer_terms:
-        """
-        if term.position not in OfficerPosition.position_list():
-            _logger.warning(
-                f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request."
-            )
-            continue
-        """
-
         officer_info_query = (
             sqlalchemy
             .select(OfficerInfo)
@@ -124,43 +118,16 @@ async def current_executive_team(db_session: database.DBSession, include_private
         if officer_info is None:
             # TODO: make sure there are daily checks that this data actually exists
             continue
-
-        if term.position not in officer_data:
-            ##num_officers[term.position] = 0
+        elif term.position not in officer_data:
             officer_data[term.position] = []
 
-        """
-        num_officers[term.position] += 1
-        # TODO: move this to a daily cronjob
-        if num_officers[term.position] > OfficerPosition.num_active(term.position):
-            # If there are more active positions than expected, log it to a file
-            _logger.warning(
-                f"There are more active {term.position} positions in the OfficerTerm than expected "
-                f"({num_officers[term.position]} > {OfficerPosition.num_active(term.position)})"
-            )
-        """
-        officer_data[term.position] += [OfficerData.from_data(term, officer_info, include_private, is_active=True)]
+        officer_data[term.position] += [
+            OfficerData.from_data(term, officer_info, include_private, is_active=True)
+        ]
 
-    """
-    # validate & warn if there are any data issues
-    # TODO: decide whether we should enforce empty instances or force the frontend to deal with it
-    for position in OfficerPosition.expected_positions():
-        if position not in officer_data:
-            _logger.warning(
-                f"Expected position={position} in response current_executive_team."
-            )
-        elif (
-            OfficerPosition.num_active(position) is not None
-            and len(officer_data[position]) != OfficerPosition.num_active(position)
-        ):
-            _logger.warning(
-                f"Unexpected number of {position} entries "
-                f"({len(officer_data[position])} entries) in current_executive_team response."
-            )
-    """
     return officer_data
 
-async def all_officer_data(
+async def all_officers(
     db_session: database.DBSession,
     include_private_data: bool,
     view_not_started_officer_terms: bool,

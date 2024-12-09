@@ -5,7 +5,7 @@ import pytest
 import load_test_db
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.crud import all_officer_data, current_executive_team, most_recent_officer_term
+from officers.crud import all_officers, current_officers, most_recent_officer_term
 
 # TODO: setup a database on the CI machine & run this as a unit test then (since
 # this isn't really an integration test)
@@ -39,7 +39,7 @@ async def test__read_execs(database_setup):
         assert abc11_officer_term.favourite_course_0 == "CMPT 361"
         assert abc11_officer_term.biography == "Hi! I'm person A and I want school to be over ; _ ;"
 
-        current_exec_team = await current_executive_team(db_session, include_private=False)
+        current_exec_team = await current_officers(db_session, include_private=False)
         assert current_exec_team is not None
         assert len(current_exec_team.keys()) == 1
         assert next(iter(current_exec_team.keys())) == OfficerPosition.PRESIDENT
@@ -47,7 +47,7 @@ async def test__read_execs(database_setup):
         assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.President.to_email()
         assert next(iter(current_exec_team.values()))[0].private_data is None
 
-        current_exec_team = await current_executive_team(db_session, include_private=True)
+        current_exec_team = await current_officers(db_session, include_private=True)
         assert current_exec_team is not None
         assert len(current_exec_team) == 1
         assert next(iter(current_exec_team.keys())) == OfficerPosition.PRESIDENT
@@ -56,7 +56,7 @@ async def test__read_execs(database_setup):
         assert next(iter(current_exec_team.values()))[0].private_data is not None
         assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc33"
 
-        all_terms = await all_officer_data(db_session, include_private=True)
+        all_terms = await all_officers(db_session, include_private=True)
         assert len(all_terms) == 3
 
 

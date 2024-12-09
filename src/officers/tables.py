@@ -36,6 +36,7 @@ class OfficerTerm(Base):
     )
 
     position = Column(String(128), nullable=False)
+    # TODO: replace these with Date, not Datetime
     start_date = Column(DateTime, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
     end_date = Column(DateTime, nullable=True)

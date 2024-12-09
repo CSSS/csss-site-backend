@@ -3,7 +3,7 @@
 # python load_test_db.py
 
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -261,6 +261,23 @@ async def load_sysadmin(db_session: AsyncSession):
         favourite_pl_1="C++",
 
         biography="o hey fellow kids \n\n\n I can newline",
+        photo_url=None,
+    ))
+    await create_new_officer_term(db_session, OfficerTerm(
+        computing_id=SYSADMIN_COMPUTING_ID,
+
+        position=OfficerPosition.SYSTEM_ADMINISTRATOR,
+        start_date=date.today() - timedelta(days=365),
+        end_date=None,
+
+        nickname="Gabe",
+        favourite_course_0="CMPT 379",
+        favourite_course_1="CMPT 295",
+
+        favourite_pl_0="Rust",
+        favourite_pl_1="C",
+
+        biography="The systems are good o7",
         photo_url=None,
     ))
     await db_session.commit()

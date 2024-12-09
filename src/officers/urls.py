@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -16,6 +17,8 @@ from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/officers",
@@ -324,7 +327,7 @@ async def update_term(
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
     if (
-        not utils.is_past_term(old_officer_term)
+        utils.is_past_term(old_officer_term)
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         raise HTTPException(status_code=401, detail="only website admins can update past terms")
@@ -332,8 +335,8 @@ async def update_term(
     # NOTE: Only admins can write new versions of position, start_date, and end_date.
     if (
         officer_term_upload.position != old_officer_term.position
-        or officer_term_upload.start_date != old_officer_term.start_date
-        or officer_term_upload.end_date != old_officer_term.end_date
+        or officer_term_upload.start_date != old_officer_term.start_date.date()
+        or officer_term_upload.end_date != old_officer_term.end_date.date()
     ) and not await WebsiteAdmin.has_permission(db_session, session_computing_id):
         raise HTTPException(status_code=401, detail="Non-admins cannot modify position, start_date, or end_date.")
 

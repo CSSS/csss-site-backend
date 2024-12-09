@@ -1,6 +1,3 @@
-from typing import Self
-
-
 class OfficerPosition:
     PRESIDENT = "president"
     VICE_PRESIDENT = "vice-president"

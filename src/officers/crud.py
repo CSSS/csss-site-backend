@@ -5,7 +5,6 @@ from fastapi import HTTPException
 
 import database
 import utils
-from auth.tables import SiteUser
 from data import semesters
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
@@ -69,24 +68,23 @@ async def officer_term(db_session: database.DBSession, term_id: int) -> OfficerT
         raise HTTPException(status_code=400, detail=f"Could not find officer_term with id={term_id}")
     return officer_term
 
-# TODO: change to "get_officer_terms" naming convention (& all functions in this module)
-async def officer_terms(
+async def get_officer_terms(
     db_session: database.DBSession,
     computing_id: str,
     max_terms: None | int,
-    # will not include officer term info that has not been filled in yet.
-    view_only_filled_in: bool,
+    # will include term info for officers that are not active
+    # or have not yet been filled out
+    include_inactive: bool,
 ) -> list[OfficerTerm]:
     query = (
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.computing_id == computing_id)
+        .order_by(OfficerTerm.start_date.desc())
     )
-    # TODO: does active == filled_in ?
-    if view_only_filled_in:
+    if not include_inactive:
         query = utils.is_active_officer(query)
 
-    query = query.order_by(OfficerTerm.start_date.desc())
     if max_terms is not None:
         query.limit(max_terms)
 
@@ -156,14 +154,12 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     return officer_data
 
-async def all_officer_terms(
+async def all_officer_data(
     db_session: database.DBSession,
     include_private: bool,
     view_only_filled_in: bool,
 ) -> list[OfficerData]:
     """
-    Orders officers recent first.
-
     This could be a lot of data, so be careful.
 
     TODO: optionally paginate data, so it's not so bad.
@@ -171,6 +167,7 @@ async def all_officer_terms(
     query = sqlalchemy.select(OfficerTerm)
     if view_only_filled_in:
         query = OfficerTerm.sql_is_filled_in(query)
+    # Ordered recent first
     query = query.order_by(OfficerTerm.start_date.desc())
     officer_terms = (await db_session.scalars(query)).all()
 

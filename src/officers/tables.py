@@ -194,4 +194,3 @@ class OfficerInfo(Base):
             "github_username": self.github_username,
             "google_drive_email": self.google_drive_email,
         }
-

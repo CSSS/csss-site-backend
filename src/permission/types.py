@@ -46,8 +46,7 @@ class WebsiteAdmin:
         """
         A website admin has to be an active officer who has one of the above positions
         """
-        position_list = await officers.crud.current_officer_positions(db_session, computing_id)
-        for position in position_list:
+        for position in await officers.crud.current_officer_positions(db_session, computing_id):
             if position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS:
                 return True
         return False

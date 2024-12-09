@@ -78,7 +78,7 @@ async def all_officers(
 
     has_private_access = await has_access(db_session, request)
 
-    all_officer_data = await officers.crud.all_officer_terms(db_session, has_private_access, view_only_filled_in)
+    all_officer_data = await officers.crud.all_officer_data(db_session, has_private_access, view_only_filled_in)
     all_officer_data = [officer_data.serializable_dict() for officer_data in all_officer_data]
     return JSONResponse(all_officer_data)
 
@@ -92,7 +92,7 @@ async def get_officer_terms(
     computing_id: str,
     # the maximum number of terms to return, in chronological order
     max_terms: int | None = None,
-    view_only_filled_in: bool = True,
+    include_inactive: bool = False,
 ):
     # TODO: put these into a function
     session_id = request.cookies.get("session_id", None)
@@ -105,18 +105,18 @@ async def get_officer_terms(
         raise HTTPException(status_code=401)
 
     if (
-        not view_only_filled_in
-        and computing_id != session_computing_id
+        computing_id != session_computing_id
+        and include_inactive
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         raise HTTPException(status_code=401)
 
     # all term info is public, so anyone can get any of it
-    officer_terms = await officers.crud.officer_terms(
+    officer_terms = await officers.crud.get_officer_terms(
         db_session,
         computing_id,
         max_terms,
-        view_only_filled_in=view_only_filled_in
+        include_inactive=include_inactive
     )
     return JSONResponse([term.serializable_dict() for term in officer_terms])
 
@@ -323,13 +323,11 @@ async def update_term(
         # the current user can only input the info for another user if they have permissions
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
-    # TODO: turn is_active into a utils function
-    is_active = (old_officer_term.end_date is None) or (datetime.today() <= old_officer_term.end_date)
     if (
-        not is_active
+        not utils.is_active_term(old_officer_term)
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
-        raise HTTPException(status_code=401, detail="only website admin can update a past (non-active) term")
+        raise HTTPException(status_code=401, detail="only website admin can update a non-active term")
 
     # NOTE: Only admins can write new versions of position, start_date, and end_date.
     if (

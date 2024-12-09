@@ -139,17 +139,17 @@ async def current_executive_team(db_session: database.DBSession, include_private
     # validate & warn if there are any data issues
     # TODO: decide whether we should enforce empty instances or force the frontend to deal with it
     for position in OfficerPosition.expected_positions():
-        if position.to_string() not in officer_data:
+        if position not in officer_data:
             _logger.warning(
-                f"Expected position={position.to_string()} in response current_executive_team."
+                f"Expected position={position} in response current_executive_team."
             )
         elif (
-            position.num_active is not None
-            and len(officer_data[position.to_string()]) != position.num_active
+            OfficerPosition.num_active(position) is not None
+            and len(officer_data[position]) != OfficerPosition.num_active(position)
         ):
             _logger.warning(
-                f"Unexpected number of {position.to_string()} entries "
-                f"({len(officer_data[position.to_string()])} entries) in current_executive_team response."
+                f"Unexpected number of {position} entries "
+                f"({len(officer_data[position])} entries) in current_executive_team response."
             )
 
     return officer_data

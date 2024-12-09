@@ -216,6 +216,7 @@ async def create_new_officer_term(
     # if new_officer_term.position not in OfficerPosition.position_list():
     #     raise HTTPException(status_code=500)
 
+    # when creating a new position, assign a default end date if one exists
     position_length = OfficerPosition.length_in_semesters(new_officer_term.position)
     if position_length is not None:
         new_officer_term.end_date = semesters.step_semesters(

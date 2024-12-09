@@ -43,6 +43,15 @@ def is_active_term(term: OfficerTerm) -> bool:
         )
     )
 
+def is_past_term(term: OfficerTerm) -> bool:
+    """Any term which has concluded"""
+    return (
+        # an officer with no end date is current
+        term.end_date is not None
+        # if today is past the end date, it's a past term
+        and datetime.today() > term.end_date
+    )
+
 def is_valid_phone_number(phone_number: str) -> bool:
     return (
         len(phone_number) == 10

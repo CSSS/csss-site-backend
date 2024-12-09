@@ -324,23 +324,20 @@ async def update_term(
         raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
 
     if (
-        not utils.is_active_term(old_officer_term)
+        not utils.is_past_term(old_officer_term)
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
-        raise HTTPException(status_code=401, detail="only website admin can update a non-active term")
+        raise HTTPException(status_code=401, detail="only website admins can update past terms")
 
     # NOTE: Only admins can write new versions of position, start_date, and end_date.
     if (
-        (
-            officer_term_upload.position != old_officer_term.position
-            or officer_term_upload.start_date != old_officer_term.start_date
-            or officer_term_upload.end_date != old_officer_term.end_date
-        )
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
-    ):
+        officer_term_upload.position != old_officer_term.position
+        or officer_term_upload.start_date != old_officer_term.start_date
+        or officer_term_upload.end_date != old_officer_term.end_date
+    ) and not await WebsiteAdmin.has_permission(db_session, session_computing_id):
         raise HTTPException(status_code=401, detail="Non-admins cannot modify position, start_date, or end_date.")
 
-    # TODO: log all important changes just to a .log file
+    # TODO: log all important changes to a .log file
     success = await officers.crud.update_officer_term(
         db_session,
         officer_term_upload.to_officer_term(term_id, old_officer_term.computing_id)

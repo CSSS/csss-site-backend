@@ -14,19 +14,17 @@ from officers.types import (
 
 _logger = logging.getLogger(__name__)
 
-
 async def most_recent_officer_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
     """
     Returns the most recent OfficerTerm an exec has held
     """
-    query = (
+    return await db_session.scalar(
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.computing_id == computing_id)
         .order_by(OfficerTerm.start_date.desc())
         .limit(1)
     )
-    return await db_session.scalar(query)
 
 async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
     """
@@ -34,25 +32,22 @@ async def current_officer_positions(db_session: database.DBSession, computing_id
 
     An officer can have multiple positions at once, such as Webmaster, Frosh chair, and DoEE.
     """
-    query = (
+    query = utils.is_active_officer(
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.computing_id == computing_id)
         # In order of most recent start date first
         .order_by(OfficerTerm.start_date.desc())
     )
-    query = utils.is_active_officer(query)
-
     officer_term_list = (await db_session.scalars(query)).all()
     return [term.position for term in officer_term_list]
 
 async def officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
-    query = (
+    officer_term = await db_session.scalar(
         sqlalchemy
         .select(OfficerInfo)
         .where(OfficerInfo.computing_id == computing_id)
     )
-    officer_term = await db_session.scalar(query)
     if officer_term is None:
         raise HTTPException(status_code=400, detail=f"officer_info for computing_id={computing_id} does not exist yet")
     return officer_term
@@ -250,5 +245,5 @@ async def update_officer_term(
     await db_session.execute(query)
     return True
 
-def remove_officer_term():
+async def remove_officer_term():
     pass

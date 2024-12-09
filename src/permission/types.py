@@ -18,10 +18,10 @@ class OfficerPrivateInfo:
         A semester is defined in semester_start
         """
 
-        most_recent_exec_term = await officers.crud.most_recent_exec_term(db_session, computing_id)
-        if most_recent_exec_term is None:
+        term = await officers.crud.most_recent_officer_term(db_session, computing_id)
+        if term is None:
             return False
-        elif most_recent_exec_term.end_date is None:
+        elif term.end_date is None:
             # considered an active exec if no end_date
             return True
 
@@ -30,7 +30,7 @@ class OfficerPrivateInfo:
         NUM_SEMESTERS = 5
         cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)
 
-        return most_recent_exec_term.end_date > cutoff_date
+        return term.end_date > cutoff_date
 
 class WebsiteAdmin:
     WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [
@@ -44,13 +44,12 @@ class WebsiteAdmin:
     @staticmethod
     async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
         """
-        A website admin has to be one of the following positions, and
+        A website admin has to be an active officer who has one of the above positions
         """
-        position = await officers.crud.current_officer_position(db_session, computing_id)
-        if position is None:
-            return False
-
-        return position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS
+        for position in await officers.crud.current_officer_positions(db_session, computing_id):
+            if position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS:
+                return True
+        return False
 
     @staticmethod
     async def validate_request(db_session: database.DBSession, request: Request) -> bool:

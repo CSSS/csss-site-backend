@@ -67,7 +67,6 @@ class OfficerTermUpload:
         elif self.end_date is not None and self.start_date > self.end_date:
             raise HTTPException(status_code=400, detail="end_date must be after start_date")
 
-
     def to_officer_term(self, term_id: str, computing_id:str) -> OfficerTerm:
         # TODO: many positions have a length; if the length is defined, fill it in right here
         # (end date is 1st of month, 12 months after start date's month).

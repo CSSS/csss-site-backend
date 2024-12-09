@@ -2,7 +2,7 @@ import os
 
 # TODO(future): replace new.sfucsss.org with sfucsss.org during migration
 # TODO(far-future): branch-specific root IP addresses (e.g., devbranch.sfucsss.org)
-FRONTEND_ROOT_URL = "http://127.0.0.1:8000" if os.environ.get("LOCAL") == "true" else "https://new.sfucsss.org"
+FRONTEND_ROOT_URL = "http://localhost:8080" if os.environ.get("LOCAL") == "true" else "https://new.sfucsss.org"
 GITHUB_ORG_NAME = "CSSS-Test-Organization" if os.environ.get("LOCAL") == "true" else "CSSS"
 
 W3_GUILD_ID = "1260652618875797504"

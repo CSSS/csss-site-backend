@@ -25,3 +25,7 @@ If you're planning to read through the source code, please check out this projec
     - `misc/` for anything that can't be easily categorized or is very small
     - `officers/` for officer contact information + photos
 - `test/` for html pages which interact with the backend's local api
+
+## Linter
+
+We use `ruff 0.6.9` as our linter, which you can run with `ruff check --fix`. If you use a different version, it may be inconsistent with our CI checks.

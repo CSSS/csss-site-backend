@@ -36,6 +36,7 @@ class OfficerTerm(Base):
     )
 
     position = Column(String(128), nullable=False)
+    # TODO: replace these with Date, not Datetime
     start_date = Column(DateTime, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
     end_date = Column(DateTime, nullable=True)
@@ -97,7 +98,6 @@ class OfficerTerm(Base):
                 OfficerTerm.biography is not None,
             )
         )
-
 
     def to_update_dict(self) -> dict:
         return {
@@ -194,4 +194,3 @@ class OfficerInfo(Base):
             "github_username": self.github_username,
             "google_drive_email": self.google_drive_email,
         }
-

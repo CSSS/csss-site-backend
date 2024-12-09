@@ -5,7 +5,7 @@ import pytest
 import load_test_db
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.crud import all_officer_terms, current_executive_team, most_recent_exec_term
+from officers.crud import all_officer_terms, current_executive_team, most_recent_officer_term
 
 # TODO: setup a database on the CI machine & run this as a unit test then (since
 # this isn't really an integration test)
@@ -27,9 +27,9 @@ async def test__read_execs(database_setup):
     sessionmanager = await database_setup
     async with sessionmanager.session() as db_session:
         # test that reads from the database succeeded as expected
-        assert (await most_recent_exec_term(db_session, "blarg")) is None
-        assert await most_recent_exec_term(db_session, "abc22") is None
-        abc11_officer_term = await most_recent_exec_term(db_session, "abc11")
+        assert (await most_recent_officer_term(db_session, "blarg")) is None
+        assert await most_recent_officer_term(db_session, "abc22") is None
+        abc11_officer_term = await most_recent_officer_term(db_session, "abc11")
 
         assert abc11_officer_term.computing_id == "abc11"
         assert abc11_officer_term.position == OfficerPosition.EXECUTIVE_AT_LARGE

@@ -18,10 +18,10 @@ class OfficerPrivateInfo:
         A semester is defined in semester_start
         """
 
-        most_recent_exec_term = await officers.crud.most_recent_exec_term(db_session, computing_id)
-        if most_recent_exec_term is None:
+        term = await officers.crud.most_recent_officer_term(db_session, computing_id)
+        if term is None:
             return False
-        elif most_recent_exec_term.end_date is None:
+        elif term.end_date is None:
             # considered an active exec if no end_date
             return True
 
@@ -30,7 +30,7 @@ class OfficerPrivateInfo:
         NUM_SEMESTERS = 5
         cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)
 
-        return most_recent_exec_term.end_date > cutoff_date
+        return term.end_date > cutoff_date
 
 class WebsiteAdmin:
     WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [

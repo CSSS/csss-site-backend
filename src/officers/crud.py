@@ -16,9 +16,9 @@ from officers.types import (
 _logger = logging.getLogger(__name__)
 
 
-async def most_recent_exec_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
+async def most_recent_officer_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
     """
-    Returns the most recent OfficerTerm an exec has had
+    Returns the most recent OfficerTerm an exec has held
     """
     query = (
         sqlalchemy
@@ -31,16 +31,15 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
 
 async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
     """
-    Returns [] if the user is not currently an officer.
+    Returns the list of officer positions a user currently has. Returns [] if the user is not currently an officer.
 
-    Gets positions ordered most recent start date first.
-
-    An officer can have multiple positions, such as Webmaster, Frosh chair, and DoEE.
+    An officer can have multiple positions at once, such as Webmaster, Frosh chair, and DoEE.
     """
     query = (
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.computing_id == computing_id)
+        # In order of most recent start date first
         .order_by(OfficerTerm.start_date.desc())
     )
     query = utils.is_active_officer(query)

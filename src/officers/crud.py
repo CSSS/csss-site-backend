@@ -20,11 +20,13 @@ async def most_recent_exec_term(db_session: database.DBSession, computing_id: st
     """
     Returns the most recent OfficerTerm an exec has had
     """
-    query = sqlalchemy.select(OfficerTerm)
-    query = query.where(OfficerTerm.computing_id == computing_id)
-    query = query.order_by(OfficerTerm.start_date.desc())
-    query = query.limit(1)
-
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.computing_id == computing_id)
+        .order_by(OfficerTerm.start_date.desc())
+        .limit(1)
+    )
     return await db_session.scalar(query)
 
 async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
@@ -35,9 +37,12 @@ async def current_officer_positions(db_session: database.DBSession, computing_id
 
     An officer can have multiple positions, such as Webmaster, Frosh chair, and DoEE.
     """
-    query = sqlalchemy.select(OfficerTerm)
-    query = query.where(OfficerTerm.computing_id == computing_id)
-    query = query.order_by(OfficerTerm.start_date.desc())
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.computing_id == computing_id)
+        .order_by(OfficerTerm.start_date.desc())
+    )
     query = utils.is_active_officer(query)
 
     officer_term_list = (await db_session.scalars(query)).all()
@@ -73,8 +78,11 @@ async def officer_terms(
     # will not include officer term info that has not been filled in yet.
     view_only_filled_in: bool,
 ) -> list[OfficerTerm]:
-    query = sqlalchemy.select(OfficerTerm)
-    query = query.where(OfficerTerm.computing_id == computing_id)
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.computing_id == computing_id)
+    )
     # TODO: does active == filled_in ?
     if view_only_filled_in:
         query = utils.is_active_officer(query)
@@ -169,9 +177,10 @@ async def all_officer_terms(
 
     officer_data_list = []
     for term in officer_terms:
-        officer_info_query = sqlalchemy.select(OfficerInfo)
-        officer_info_query = officer_info_query.where(
-            OfficerInfo.computing_id == term.computing_id
+        officer_info_query = (
+            sqlalchemy
+            .select(OfficerInfo)
+            .where(OfficerInfo.computing_id == term.computing_id)
         )
         officer_info = await db_session.scalar(officer_info_query)
 
@@ -188,8 +197,11 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     """
     Return False if the officer already exists
     """
-    query = sqlalchemy.select(OfficerInfo)
-    query = query.where(OfficerInfo.computing_id == new_officer_info.computing_id)
+    query = (
+        sqlalchemy
+        .select(OfficerInfo)
+        .where(OfficerInfo.computing_id == new_officer_info.computing_id)
+    )
     stored_officer_info = await db_session.scalar(query)
     if stored_officer_info is not None:
         return False
@@ -217,8 +229,11 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
     """
     Return False if the officer doesn't exist yet
     """
-    query = sqlalchemy.select(OfficerInfo)
-    query = query.where(OfficerInfo.computing_id == new_officer_info.computing_id)
+    query = (
+        sqlalchemy
+        .select(OfficerInfo)
+        .where(OfficerInfo.computing_id == new_officer_info.computing_id)
+    )
     officer_info = await db_session.scalar(query)
     if officer_info is None:
         return False

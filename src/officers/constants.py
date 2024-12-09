@@ -1,8 +1,5 @@
-import logging
-from enum import Enum
 from typing import Self
 
-_logger = logging.getLogger(__name__)
 
 class OfficerPosition:
     PRESIDENT = "president"

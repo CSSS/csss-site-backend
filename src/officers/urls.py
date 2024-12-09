@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -17,8 +16,6 @@ from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
-
-_logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/officers",

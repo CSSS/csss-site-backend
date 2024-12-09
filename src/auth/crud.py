@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth.tables import SiteUser, UserSession
 from auth.types import SiteUserData
 
+_logger = logging.getLogger(__name__)
 
 async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str):
     """
@@ -28,7 +29,6 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
     if existing_user is None:
         if existing_user_session is not None:
             # log this strange case that shouldn't be possible
-            _logger = logging.getLogger(__name__)
             _logger.warning(f"User session {session_id} exists for non-existent user {computing_id} ... !")
 
         # add new user to User table if it's their first time logging in

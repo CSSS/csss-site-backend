@@ -1,7 +1,5 @@
-import dataclasses
 import logging
 from datetime import date, datetime
-from typing import Optional
 
 import sqlalchemy
 from sqlalchemy import func
@@ -9,7 +7,6 @@ from sqlalchemy import func
 import database
 from blog.models import BlogPosts
 
-_logger = logging.getLogger(__name__)
 
 async def create_new_entry(
     db_session: database.DBSession,

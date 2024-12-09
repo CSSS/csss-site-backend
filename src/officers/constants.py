@@ -44,13 +44,13 @@ class OfficerPosition:
         """
         # None means there can be any number active
         if (
-            position == OfficerPosition.ExecutiveAtLarge
-            or position == OfficerPosition.FirstYearRepresentative
+            position == OfficerPosition.EXECUTIVE_AT_LARGE
+            or position == OfficerPosition.FIRST_YEAR_REPRESENTATIVE
         ):
             return 2
         elif (
-            position == OfficerPosition.FroshWeekChair
-            or position == OfficerPosition.SocialMediaManager
+            position == OfficerPosition.FROSH_WEEK_CHAIR
+            or position == OfficerPosition.SOCIAL_MEDIA_MANAGER
         ):
             return None
         else:
@@ -62,38 +62,38 @@ class OfficerPosition:
         If the officer is a signing authority of the CSSS
         """
         return (
-            position == OfficerPosition.President
-            or position == OfficerPosition.VicePresident
-            or position == OfficerPosition.Treasurer
-            or position == OfficerPosition.DirectorOfResources
-            or position == OfficerPosition.DirectorOfEvents
+            position == OfficerPosition.PRESIDENT
+            or position == OfficerPosition.VICE_PRESIDENT
+            or position == OfficerPosition.TREASURER
+            or position == OfficerPosition.DIRECTOR_OF_RESOURCES
+            or position == OfficerPosition.DIRECTOR_OF_EVENTS
         )
 
     @staticmethod
     def expected_positions() -> list[str]:
         return [
-            OfficerPosition.President,
-            OfficerPosition.VicePresident,
-            OfficerPosition.Treasurer,
+            OfficerPosition.PRESIDENT,
+            OfficerPosition.VICE_PRESIDENT,
+            OfficerPosition.TREASURER,
 
-            OfficerPosition.DirectorOfResources,
-            OfficerPosition.DirectorOfEvents,
-            OfficerPosition.DirectorOfEducationalEvents,
-            OfficerPosition.AssistantDirectorOfEvents,
-            OfficerPosition.DirectorOfCommunications,
-            #DirectorOfOutreach, # TODO: when https://github.com/CSSS/documents/pull/9/files merged
-            OfficerPosition.DirectorOfMultimedia,
-            OfficerPosition.DirectorOfArchives,
-            OfficerPosition.ExecutiveAtLarge,
+            OfficerPosition.DIRECTOR_OF_RESOURCES,
+            OfficerPosition.DIRECTOR_OF_EVENTS,
+            OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+            OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
+            OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
+            #OfficerPosition.DIRECTOR_OF_OUTREACH, # TODO: when https://github.com/CSSS/documents/pull/9/files merged
+            OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+            OfficerPosition.DIRECTOR_OF_ARCHIVES,
+            OfficerPosition.EXECUTIVE_AT_LARGE,
             # TODO: expect these only during fall & spring semesters. Also, TODO: this todo is correct...
-            #FirstYearRepresentative,
+            #OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
 
             #ElectionsOfficer,
-            OfficerPosition.SFSSCouncilRepresentative,
-            OfficerPosition.FroshWeekChair,
+            OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
+            OfficerPosition.FROSH_WEEK_CHAIR,
 
-            OfficerPosition.SystemAdministrator,
-            OfficerPosition.Webmaster,
+            OfficerPosition.SYSTEM_ADMINISTRATOR,
+            OfficerPosition.WEBMASTER,
         ]
 
 _EMAIL_MAP = {

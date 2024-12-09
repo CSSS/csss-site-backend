@@ -30,7 +30,10 @@ class OfficerPosition:
         return _OFFICER_POSITION_LIST
 
     @staticmethod
-    def position_length_in_semesters(position: str) -> int | None:
+    def length_in_semesters(position: str) -> int | None:
+        # TODO: ask the committee to maintain a json file with all the important details from the constitution
+        # (I can create the version version of the file)
+        """How many semester position is active for, according to the CSSS Constitution"""
         return _LENGTH_MAP[position]
 
     @staticmethod

@@ -189,7 +189,10 @@ async def all_officer_data(
 
     return officer_data_list
 
-async def create_new_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
+async def create_new_officer_info(
+    db_session: database.DBSession,
+    new_officer_info: OfficerInfo
+) -> bool:
     """
     Return False if the officer already exists
     """
@@ -205,13 +208,13 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     db_session.add(new_officer_info)
     return True
 
-# TODO: implement this for patch term as well
 async def create_new_officer_term(
     db_session: database.DBSession,
     new_officer_term: OfficerTerm
 ):
-    if new_officer_term.position not in OfficerPosition.position_list():
-        raise HTTPException(status_code=500)
+    # TODO: does this check need to be here?
+    # if new_officer_term.position not in OfficerPosition.position_list():
+    #     raise HTTPException(status_code=500)
 
     position_length = OfficerPosition.length_in_semesters(new_officer_term.position)
     if position_length is not None:

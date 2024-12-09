@@ -98,7 +98,6 @@ class OfficerTerm(Base):
             )
         )
 
-
     def to_update_dict(self) -> dict:
         return {
             # TODO: do we want computing_id to be changeable?

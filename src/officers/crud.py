@@ -96,25 +96,29 @@ async def current_executive_team(db_session: database.DBSession, include_private
 
     Returns a mapping between officer position and officer terms
     """
-
-    query = sqlalchemy.select(OfficerTerm)
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .order_by(OfficerTerm.start_date.desc())
+    )
     query = utils.is_active_officer(query)
-    query = query.order_by(OfficerTerm.start_date.desc())
 
     officer_terms = (await db_session.scalars(query)).all()
-    num_officers = {}
+    ##num_officers = {}
     officer_data = {}
-
     for term in officer_terms:
+        """
         if term.position not in OfficerPosition.position_list():
             _logger.warning(
                 f"Unknown OfficerTerm.position={term.position} in database. Ignoring in request."
             )
             continue
+        """
 
-        officer_info_query = sqlalchemy.select(OfficerInfo)
-        officer_info_query = officer_info_query.where(
-            OfficerInfo.computing_id == term.computing_id
+        officer_info_query = (
+            sqlalchemy
+            .select(OfficerInfo)
+            .where(OfficerInfo.computing_id == term.computing_id)
         )
         officer_info = (await db_session.scalars(officer_info_query)).first()
         if officer_info is None:
@@ -122,20 +126,22 @@ async def current_executive_team(db_session: database.DBSession, include_private
             continue
 
         if term.position not in officer_data:
-            num_officers[term.position] = 0
+            ##num_officers[term.position] = 0
             officer_data[term.position] = []
 
+        """
         num_officers[term.position] += 1
-        # TODO: move this to a ~~daily cronjob~~ SQL model checking
+        # TODO: move this to a daily cronjob
         if num_officers[term.position] > OfficerPosition.num_active(term.position):
             # If there are more active positions than expected, log it to a file
             _logger.warning(
                 f"There are more active {term.position} positions in the OfficerTerm than expected "
                 f"({num_officers[term.position]} > {OfficerPosition.num_active(term.position)})"
             )
-
+        """
         officer_data[term.position] += [OfficerData.from_data(term, officer_info, include_private, is_active=True)]
 
+    """
     # validate & warn if there are any data issues
     # TODO: decide whether we should enforce empty instances or force the frontend to deal with it
     for position in OfficerPosition.expected_positions():
@@ -151,39 +157,39 @@ async def current_executive_team(db_session: database.DBSession, include_private
                 f"Unexpected number of {position} entries "
                 f"({len(officer_data[position])} entries) in current_executive_team response."
             )
-
+    """
     return officer_data
 
 async def all_officer_data(
     db_session: database.DBSession,
-    include_private: bool,
-    view_only_filled_in: bool,
+    include_private_data: bool,
+    view_not_started_officer_terms: bool,
 ) -> list[OfficerData]:
     """
-    This could be a lot of data, so be careful.
-
-    TODO: optionally paginate data, so it's not so bad.
+    This could be a lot of data, so be careful
     """
-    query = sqlalchemy.select(OfficerTerm)
-    if view_only_filled_in:
-        query = OfficerTerm.sql_is_filled_in(query)
-    # Ordered recent first
-    query = query.order_by(OfficerTerm.start_date.desc())
-    officer_terms = (await db_session.scalars(query)).all()
+    # NOTE: paginate data if needed
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        # Ordered recent first
+        .order_by(OfficerTerm.start_date.desc())
+    )
+    if not view_not_started_officer_terms:
+        query = utils.has_term_started(query)
 
     officer_data_list = []
+    officer_terms = (await db_session.scalars(query)).all()
     for term in officer_terms:
-        officer_info_query = (
+        officer_info = await db_session.scalar(
             sqlalchemy
             .select(OfficerInfo)
             .where(OfficerInfo.computing_id == term.computing_id)
         )
-        officer_info = await db_session.scalar(officer_info_query)
-
         officer_data_list += [OfficerData.from_data(
             term,
             officer_info,
-            include_private,
+            include_private_data,
             utils.is_active_term(term)
         )]
 

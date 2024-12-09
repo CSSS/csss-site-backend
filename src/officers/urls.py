@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 
 import sqlalchemy
 from fastapi import APIRouter, Body, HTTPException, Request
@@ -25,7 +25,22 @@ router = APIRouter(
     tags=["officers"],
 )
 
-# TODO: combine the following two endpoints
+async def has_officer_private_info_access(
+    request: Request,
+    db_session: database.DBSession,
+) -> tuple[None | str, None | str, bool]:
+    # determine if the user has access to this private data
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        return None, None, False
+
+    computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if computing_id is None:
+        return session_id, None, False
+
+    has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+    return session_id, computing_id, has_private_access
+
 @router.get(
     "/current",
     description="Get information about all the officers. More information is given if you're authenticated & have access to private executive data.",
@@ -35,13 +50,7 @@ async def current_officers(
     request: Request,
     db_session: database.DBSession,
 ):
-    # determine if the user has access to this private data
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        has_private_access = False
-    else:
-        computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+    _, _, has_private_access = await has_officer_private_info_access(request, db_session)
 
     current_executives = await officers.crud.current_executive_team(db_session, has_private_access)
     json_current_executives = {
@@ -54,36 +63,26 @@ async def current_officers(
 
 @router.get(
     "/all",
-    description="Information from all exec terms. If year is not included, all years will be returned. If semester is not included, all semesters that year will be returned. If semester is given, but year is not, return all years and all semesters.",
+    description="Information for all execs from all exec terms",
 )
 async def all_officers(
     request: Request,
     db_session: database.DBSession,
-    view_only_filled_in: bool = True,
+    # Officer terms for officers which have not yet started their term yet are considered private,
+    # and may only be accessed by that officer and executives.
+    view_not_started_officer_terms: bool = False,
 ):
-    async def has_access(db_session: database.DBSession, request: Request) -> bool:
-        # determine if user has access to this private data
-        session_id = request.cookies.get("session_id", None)
-        if session_id is None:
-            return False
+    _, computing_id, has_private_access = await has_officer_private_info_access(request, db_session)
+    if view_not_started_officer_terms:
+        is_website_admin = (computing_id is not None) and (await WebsiteAdmin.has_permission(db_session, computing_id))
+        if not is_website_admin:
+            raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
-        computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        if computing_id is None:
-            return False
-        else:
-            has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
-            is_website_admin = await WebsiteAdmin.has_permission(db_session, computing_id)
-
-            if not view_only_filled_in and (session_id is None or not is_website_admin):
-                raise HTTPException(status_code=401, detail="must have private access to view not filled in terms")
-
-            return has_private_access
-
-    has_private_access = await has_access(db_session, request)
-
-    all_officer_data = await officers.crud.all_officer_data(db_session, has_private_access, view_only_filled_in)
-    all_officer_data = [officer_data.serializable_dict() for officer_data in all_officer_data]
-    return JSONResponse(all_officer_data)
+    all_officer_data = await officers.crud.all_officer_data(db_session, has_private_access, not view_not_started_officer_terms)
+    return JSONResponse([
+        officer_data.serializable_dict()
+        for officer_data in all_officer_data
+    ])
 
 @router.get(
     "/terms/{computing_id}",

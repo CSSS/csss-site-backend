@@ -5,7 +5,6 @@ from datetime import date, datetime
 
 from fastapi import HTTPException
 
-from constants import COMPUTING_ID_MAX
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 
@@ -117,7 +116,7 @@ class OfficerData:
 
     csss_email: str | None
     biography: str | None
-    photo_url: str | None  # some urls get big...
+    photo_url: str | None
 
     private_data: OfficerPrivateData | None
 
@@ -133,7 +132,7 @@ class OfficerData:
     def from_data(
         term: OfficerTerm,
         officer_info: OfficerInfo,
-        include_private: bool,
+        include_private_data: bool,
         is_active: bool,
     ) -> OfficerData:
         return OfficerData(
@@ -162,5 +161,5 @@ class OfficerData:
                 phone_number = officer_info.phone_number,
                 github_username = officer_info.github_username,
                 google_drive_email = officer_info.google_drive_email,
-            ) if include_private else None,
+            ) if include_private_data else None,
         )

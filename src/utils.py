@@ -6,7 +6,7 @@ from sqlalchemy import Select
 # we can't use and/or in sql expressions, so we must use these functions
 from sqlalchemy.sql.expression import and_, or_
 
-from officers.tables import OfficerInfo, OfficerTerm
+from officers.tables import OfficerTerm
 
 
 def is_iso_format(date_str: str) -> bool:
@@ -17,6 +17,10 @@ def is_iso_format(date_str: str) -> bool:
         return False
 
 def is_active_officer(query: Select) -> Select:
+    """
+    An active officer is one who is currently part of the CSSS officer team.
+    That is, they are not tentative, or past.
+    """
     query = query.where(
         and_(
             # cannot be an officer who has not started yet
@@ -42,6 +46,9 @@ def is_active_term(term: OfficerTerm) -> bool:
             or datetime.today() <= term.end_date
         )
     )
+
+def has_term_started(term: OfficerTerm) -> bool:
+    return term.start_date <= datetime.today()
 
 def is_past_term(term: OfficerTerm) -> bool:
     """Any term which has concluded"""

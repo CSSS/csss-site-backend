@@ -28,6 +28,7 @@ class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
     # TODO: change primary key to computing_id, position, start_date?
+    # nah, I like having a term-id -> just do a check when inserting?
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     computing_id = Column(

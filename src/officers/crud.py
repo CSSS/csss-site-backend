@@ -184,7 +184,10 @@ async def create_new_officer_term(
         )
     db_session.add(new_officer_term)
 
-async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
+async def update_officer_info(
+    db_session: database.DBSession,
+    new_officer_info: OfficerInfo
+) -> bool:
     """
     Return False if the officer doesn't exist yet
     """
@@ -209,28 +212,25 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
 async def update_officer_term(
     db_session: database.DBSession,
     new_officer_term: OfficerTerm,
-):
+) -> bool:
     """
     Update based on the term id.
-
     Returns false if the above entry does not exist.
     """
-    query = (
+    officer_term = await db_session.scalar(
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.id == new_officer_term.id)
     )
-    officer_term = await db_session.scalar(query)
     if officer_term is None:
         return False
 
-    query = (
+    await db_session.execute(
         sqlalchemy
         .update(OfficerTerm)
         .where(OfficerTerm.id == new_officer_term.id)
         .values(new_officer_term.to_update_dict())
     )
-    await db_session.execute(query)
     return True
 
 async def remove_officer_term():

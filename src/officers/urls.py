@@ -276,38 +276,33 @@ async def update_term(
     officer_term_upload: OfficerTermUpload = Body(), # noqa: B008
 ):
     officer_term_upload.valid_or_raise()
-
-    # Refactor all of these gets & raises into small functions
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="must be logged in")
-
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if session_computing_id is None:
-        raise HTTPException(status_code=401)
+    _, session_computing_id = logged_in_or_raise(request, db_session)
 
     old_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
+    if old_officer_term.computing_id != session_computing_id:
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="must have website admin permissions to update another user"
+        )
+    elif utils.is_past_term(old_officer_term):
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="only website admins can update past terms"
+        )
 
-    if (
-        old_officer_term.computing_id != session_computing_id
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
-    ):
-        # the current user can only input the info for another user if they have permissions
-        raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
-
-    if (
-        utils.is_past_term(old_officer_term)
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
-    ):
-        raise HTTPException(status_code=401, detail="only website admins can update past terms")
-
-    # NOTE: Only admins can write new versions of position, start_date, and end_date.
     if (
         officer_term_upload.position != old_officer_term.position
         or officer_term_upload.start_date != old_officer_term.start_date.date()
         or officer_term_upload.end_date != old_officer_term.end_date.date()
-    ) and not await WebsiteAdmin.has_permission(db_session, session_computing_id):
-        raise HTTPException(status_code=401, detail="Non-admins cannot modify position, start_date, or end_date.")
+    ):
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="only admins can write new versions of position, start_date, and end_date"
+        )
+
+    if officer_term_upload.position != old_officer_term.position:
+        # TODO: update the end_date here
+        pass
 
     # TODO: log all important changes to a .log file
     success = await officers.crud.update_officer_term(

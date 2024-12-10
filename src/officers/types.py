@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 
 from fastapi import HTTPException
 
-from constants import COMPUTING_ID_MAX
+import github
+import utils
+from discord import discord
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 
@@ -19,12 +22,10 @@ class OfficerInfoUpload:
     github_username: None | str = None
     google_drive_email: None | str = None
 
-    def validate(self) -> None | HTTPException:
-        if self.legal_name is not None and self.legal_name == "":
-            return HTTPException(status_code=400, detail="legal name must not be empty")
+    def valid_or_raise(self):
         # TODO: more checks
-        else:
-            return None
+        if self.legal_name is not None and self.legal_name == "":
+            raise HTTPException(status_code=400, detail="legal name must not be empty")
 
     def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
         return OfficerInfo(
@@ -39,6 +40,57 @@ class OfficerInfoUpload:
             github_username = self.github_username,
             google_drive_email = self.google_drive_email,
         )
+
+    async def validate(self, computing_id: str, old_officer_info: OfficerInfo) -> tuple[list[str], OfficerInfo]:
+        """
+        Validate that the uploaded officer info is correct; if it's not, revert it to old_officer_info.
+        """
+        validation_failures = []
+        corrected_officer_info = self.to_officer_info(
+            computing_id=computing_id,
+            discord_id=None,
+            discord_nickname=None,
+        )
+
+        if self.phone_number is None or not utils.is_valid_phone_number(self.phone_number):
+            validation_failures += [f"invalid phone number {self.phone_number}"]
+            corrected_officer_info.phone_number = old_officer_info.phone_number
+
+        if self.discord_name is None or self.discord_name == "":
+            corrected_officer_info.discord_name = None
+            corrected_officer_info.discord_id = None
+            corrected_officer_info.discord_nickname = None
+        else:
+            discord_user_list = await discord.search_username(self.discord_name)
+            if len(discord_user_list) != 1:
+                validation_failures += [
+                    f"unable to find discord user with the name {self.discord_name}"
+                    if len(discord_user_list) == 0
+                    else f"too many discord users start with {self.discord_name}"
+                ]
+                corrected_officer_info.discord_name = old_officer_info.discord_name
+                corrected_officer_info.discord_id = old_officer_info.discord_id
+                corrected_officer_info.discord_nickname = old_officer_info.discord_nickname
+            else:
+                discord_user = discord_user_list[0]
+                corrected_officer_info.discord_name = discord_user.username
+                corrected_officer_info.discord_id = discord_user.id
+                corrected_officer_info.discord_nickname = discord_user.global_name
+
+        # TODO: validate google-email using google module, by trying to assign the user to a permission or something
+        if not utils.is_valid_email(self.google_drive_email):
+            validation_failures += [f"invalid email format {self.google_drive_email}"]
+            corrected_officer_info.google_drive_email = old_officer_info.google_drive_email
+
+        # validate that github user is real
+        if await github.internals.get_user_by_username(self.github_username) is None:
+            validation_failures += [f"invalid github username {self.github_username}"]
+            corrected_officer_info.github_username = old_officer_info.github_username
+
+        # TODO: invite github user
+        # TODO: detect if changing github username & uninvite old user
+
+        return validation_failures, corrected_officer_info
 
 @dataclass
 class OfficerTermUpload:
@@ -59,8 +111,7 @@ class OfficerTermUpload:
     # NOTE: changing the name of this variable without changing all instances is breaking
     photo_url: None | str = None
 
-    def validate(self):
-        """input validation"""
+    def valid_or_raise(self):
         # NOTE: An officer can change their own data for terms that are ongoing.
         if self.position not in OfficerPosition.position_list():
             raise HTTPException(status_code=400, detail=f"invalid new position={self.position}")
@@ -117,7 +168,7 @@ class OfficerData:
 
     csss_email: str | None
     biography: str | None
-    photo_url: str | None  # some urls get big...
+    photo_url: str | None
 
     private_data: OfficerPrivateData | None
 
@@ -133,7 +184,7 @@ class OfficerData:
     def from_data(
         term: OfficerTerm,
         officer_info: OfficerInfo,
-        include_private: bool,
+        include_private_data: bool,
         is_active: bool,
     ) -> OfficerData:
         return OfficerData(
@@ -162,5 +213,5 @@ class OfficerData:
                 phone_number = officer_info.phone_number,
                 github_username = officer_info.github_username,
                 google_drive_email = officer_info.google_drive_email,
-            ) if include_private else None,
+            ) if include_private_data else None,
         )

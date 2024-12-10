@@ -233,6 +233,9 @@ async def update_officer_term(
     )
     return True
 
-async def remove_officer_term():
-    # TODO: implement this
-    pass
+async def delete_officer_term_by_id(db_session: database.DBSession, term_id: int):
+    await db_session.execute(
+        sqlalchemy
+        .delete(OfficerTerm)
+        .where(OfficerTerm.id == term_id)
+    )

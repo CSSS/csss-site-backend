@@ -261,7 +261,7 @@ async def update_info(
 
     updated_officer_info = await officers.crud.get_officer_info(db_session, computing_id)
     return JSONResponse({
-        "updated_officer_info": updated_officer_info.serializable_dict(),
+        "officer_info": updated_officer_info.serializable_dict(),
         "validation_failures": validation_failures,
     })
 
@@ -316,14 +316,31 @@ async def update_term(
 
     new_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
     return JSONResponse({
-        "updated_officer_term": new_officer_term.serializable_dict(),
+        "officer_term": new_officer_term.serializable_dict(),
         "validation_failures": [], # none for now, but may be important later
     })
 
+# TODO: test this endpoint
 @router.delete(
     "/term/{term_id}",
     description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!",
 )
-async def remove_officer():
-    # TODO: this
-    return {}
+async def remove_officer(
+    request: Request,
+    db_session: database.DBSession,
+    term_id: int,
+):
+    _, session_computing_id = logged_in_or_raise(request, db_session)
+    await WebsiteAdmin.has_permission_or_raise(
+        db_session, session_computing_id,
+        errmsg="must have website admin permissions to remove a term"
+    )
+
+    deleted_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
+
+    # TODO: log all important changes to a .log file
+    await officers.crud.delete_officer_term_by_id(db_session, term_id)
+
+    return JSONResponse({
+        "officer_term": deleted_officer_term.serializable_dict(),
+    })

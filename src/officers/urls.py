@@ -30,9 +30,9 @@ router = APIRouter(
 
 async def has_officer_private_info_access(
     request: Request,
-    db_session: database.DBSession,
+    db_session: database.DBSession
 ) -> tuple[None | str, None | str, bool]:
-    # determine if the user has access to this private data
+    """determine if the user has access to private officer info"""
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
         return None, None, False
@@ -43,6 +43,21 @@ async def has_officer_private_info_access(
 
     has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
     return session_id, computing_id, has_private_access
+
+async def logged_in_or_raise(
+    request: Request,
+    db_session: database.DBSession
+) -> tuple[str, str]:
+    """gets the user's computing_id, or raises an exception if the current request is not logged in"""
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        raise HTTPException(status_code=401)
+
+    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if session_computing_id is None:
+        raise HTTPException(status_code=401)
+
+    return session_id, session_computing_id
 
 # ---------------------------------------- #
 # endpoints
@@ -58,32 +73,32 @@ async def current_officers(
 ):
     _, _, has_private_access = await has_officer_private_info_access(request, db_session)
     current_officers = await officers.crud.current_officers(db_session, has_private_access)
-    json_current_executives = {
+    return JSONResponse({
         position: [
-            officer_data.serializable_dict() for officer_data in officer_data_list
-        ] for position, officer_data_list in current_officers.items()
-    }
-
-    return JSONResponse(json_current_executives)
+            officer_data.serializable_dict()
+            for officer_data in officer_data_list
+        ]
+        for position, officer_data_list in current_officers.items()
+    })
 
 @router.get(
     "/all",
-    description="Information for all execs from all exec terms",
+    description="Information for all execs from all exec terms"
 )
 async def all_officers(
     request: Request,
     db_session: database.DBSession,
     # Officer terms for officers which have not yet started their term yet are considered private,
-    # and may only be accessed by that officer and executives.
-    view_not_started_officer_terms: bool = False,
+    # and may only be accessed by that officer and executives. All other officer terms are public.
+    include_future_terms: bool = False,
 ):
     _, computing_id, has_private_access = await has_officer_private_info_access(request, db_session)
-    if view_not_started_officer_terms:
+    if include_future_terms:
         is_website_admin = (computing_id is not None) and (await WebsiteAdmin.has_permission(db_session, computing_id))
         if not is_website_admin:
             raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
-    all_officers = await officers.crud.all_officers(db_session, has_private_access, not view_not_started_officer_terms)
+    all_officers = await officers.crud.all_officers(db_session, has_private_access, include_future_terms)
     return JSONResponse([
         officer_data.serializable_dict()
         for officer_data in all_officers
@@ -91,29 +106,27 @@ async def all_officers(
 
 @router.get(
     "/terms/{computing_id}",
-    description="Get term info for an executive. Private info will be provided if you have permissions.",
+    description="""Get term info for an executive. All term info is public for all past or active terms.""",
+    tags=["login-required"]
 )
 async def get_officer_terms(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
+    # TODO: remove `max_terms`
     # the maximum number of terms to return, in chronological order
+    # helpful if you only want the most recent... though a person can have many active terms,
+    # so not really that helpful imo....
     max_terms: int | None = None,
-    include_inactive: bool = False,
+    include_future_terms: bool = False
 ):
-    # TODO: put these into a function
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401)
-
-    # TODO: put these into a function
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if session_computing_id is None:
-        raise HTTPException(status_code=401)
+    # TODO: should this be login-required if a user does not want to include future terms? The info is
+    # supposed to all be public
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
 
     if (
         computing_id != session_computing_id
-        and include_inactive
+        and include_future_terms
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
         raise HTTPException(status_code=401)
@@ -123,37 +136,33 @@ async def get_officer_terms(
         db_session,
         computing_id,
         max_terms,
-        include_inactive=include_inactive
+        include_future_terms
     )
-    return JSONResponse([term.serializable_dict() for term in officer_terms])
+    return JSONResponse([
+        term.serializable_dict() for term in officer_terms
+    ])
 
 @router.get(
     "/info/{computing_id}",
-    description="Get officer info for the current user, if they've ever been an exec.",
+    description="Get officer info for the current user, if they've ever been an exec. Only admins can get info about another user.",
+    tags=["login-required"]
 )
 async def get_officer_info(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
 ):
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401)
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
 
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if session_computing_id is None:
-        raise HTTPException(status_code=401)
-
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
     if (
         computing_id != session_computing_id
         and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
-        # the current user can only input the info for another user if they have permissions
         raise HTTPException(status_code=401, detail="must have website admin permissions to get officer info about another user")
 
-    officer_info = await officers.crud.officer_info(db_session, computing_id)
+    officer_info = await officers.crud.get_officer_info(db_session, computing_id)
     if officer_info is None:
+        # this will be triggered if a non-officer calls the endpoint
         raise HTTPException(status_code=404, detail="user has no officer info")
 
     return JSONResponse(officer_info.serializable_dict())
@@ -210,7 +219,7 @@ async def new_officer_term(
         "After elections, officer computing ids are input into our system. "
         "If you have been elected as a new officer, you may authenticate with SFU CAS, "
         "then input your information & the valid token for us. Admins may update this info."
-    ),
+    )
 )
 async def update_info(
     request: Request,
@@ -236,7 +245,7 @@ async def update_info(
 
     # TODO: log all important changes just to a .log file
 
-    old_officer_info = await officers.crud.officer_info(db_session, computing_id)
+    old_officer_info = await officers.crud.get_officer_info(db_session, computing_id)
     new_officer_info = officer_info_upload.to_officer_info(
         computing_id=computing_id,
         discord_id=None,
@@ -295,7 +304,7 @@ async def update_info(
 
     await db_session.commit()
 
-    updated_officer_info = await officers.crud.officer_info(db_session, computing_id)
+    updated_officer_info = await officers.crud.get_officer_info(db_session, computing_id)
     return JSONResponse({
         "updated_officer_info": updated_officer_info.serializable_dict(),
         "validation_failures": validation_failures,
@@ -303,6 +312,7 @@ async def update_info(
 
 @router.patch(
     "/term/{term_id}",
+    description=""
 )
 async def update_term(
     request: Request,
@@ -321,7 +331,7 @@ async def update_term(
     if session_computing_id is None:
         raise HTTPException(status_code=401)
 
-    old_officer_term = await officers.crud.officer_term(db_session, term_id)
+    old_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
 
     if (
         old_officer_term.computing_id != session_computing_id
@@ -354,17 +364,16 @@ async def update_term(
 
     await db_session.commit()
 
-    new_officer_term = await officers.crud.officer_term(db_session, term_id)
+    new_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
     return JSONResponse({
         "updated_officer_term": new_officer_term.serializable_dict(),
         "validation_failures": [], # none for now, but may be important later
     })
 
-"""
 @router.post(
-    "/remove",
-    description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Removes the officer from the system entirely. BE CAREFUL WITH THIS OPTION aaaaaaaaaaaaaaaaaa.",
+    "/remove/{term_id}",
+    description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!"
 )
 async def remove_officer():
+    # TODO: this
     return {}
-"""

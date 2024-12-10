@@ -42,49 +42,6 @@ async def current_officer_positions(db_session: database.DBSession, computing_id
     officer_term_list = (await db_session.scalars(query)).all()
     return [term.position for term in officer_term_list]
 
-async def officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
-    officer_term = await db_session.scalar(
-        sqlalchemy
-        .select(OfficerInfo)
-        .where(OfficerInfo.computing_id == computing_id)
-    )
-    if officer_term is None:
-        raise HTTPException(status_code=400, detail=f"officer_info for computing_id={computing_id} does not exist yet")
-    return officer_term
-
-async def officer_term(db_session: database.DBSession, term_id: int) -> OfficerTerm:
-    query = (
-        sqlalchemy
-        .select(OfficerTerm)
-        .where(OfficerTerm.id == term_id)
-    )
-    officer_term = await db_session.scalar(query)
-    if officer_term is None:
-        raise HTTPException(status_code=400, detail=f"Could not find officer_term with id={term_id}")
-    return officer_term
-
-async def get_officer_terms(
-    db_session: database.DBSession,
-    computing_id: str,
-    max_terms: None | int,
-    # will include term info for officers that are not active
-    # or have not yet been filled out
-    include_inactive: bool,
-) -> list[OfficerTerm]:
-    query = (
-        sqlalchemy
-        .select(OfficerTerm)
-        .where(OfficerTerm.computing_id == computing_id)
-        .order_by(OfficerTerm.start_date.desc())
-    )
-    if not include_inactive:
-        query = utils.is_active_officer(query)
-
-    if max_terms is not None:
-        query.limit(max_terms)
-
-    return (await db_session.scalars(query)).all()
-
 async def current_officers(
     db_session: database.DBSession,
     include_private: bool
@@ -125,7 +82,7 @@ async def current_officers(
 async def all_officers(
     db_session: database.DBSession,
     include_private_data: bool,
-    view_not_started_officer_terms: bool,
+    include_future_terms: bool,
 ) -> list[OfficerData]:
     """
     This could be a lot of data, so be careful
@@ -137,8 +94,8 @@ async def all_officers(
         # Ordered recent first
         .order_by(OfficerTerm.start_date.desc())
     )
-    if not view_not_started_officer_terms:
-        query = utils.has_term_started(query)
+    if not include_future_terms:
+        query = utils.has_started_term(query)
 
     officer_data_list = []
     officer_terms = (await db_session.scalars(query)).all()
@@ -156,6 +113,47 @@ async def all_officers(
         )]
 
     return officer_data_list
+
+async def get_officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
+    officer_term = await db_session.scalar(
+        sqlalchemy
+        .select(OfficerInfo)
+        .where(OfficerInfo.computing_id == computing_id)
+    )
+    if officer_term is None:
+        raise HTTPException(status_code=400, detail=f"officer_info for computing_id={computing_id} does not exist yet")
+    return officer_term
+
+async def get_officer_terms(
+    db_session: database.DBSession,
+    computing_id: str,
+    max_terms: None | int,
+    include_future_terms: bool,
+) -> list[OfficerTerm]:
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.computing_id == computing_id)
+        .order_by(OfficerTerm.start_date.desc())
+    )
+    if not include_future_terms:
+        query = utils.has_started_term(query)
+
+    if max_terms is not None:
+        query.limit(max_terms)
+
+    return (await db_session.scalars(query)).all()
+
+async def get_officer_term_by_id(db_session: database.DBSession, term_id: int) -> OfficerTerm:
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.id == term_id)
+    )
+    officer_term = await db_session.scalar(query)
+    if officer_term is None:
+        raise HTTPException(status_code=400, detail=f"Could not find officer_term with id={term_id}")
+    return officer_term
 
 async def create_new_officer_info(
     db_session: database.DBSession,
@@ -246,4 +244,5 @@ async def update_officer_term(
     return True
 
 async def remove_officer_term():
+    # TODO: implement this
     pass

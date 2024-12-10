@@ -19,7 +19,7 @@ def is_iso_format(date_str: str) -> bool:
 def is_active_officer(query: Select) -> Select:
     """
     An active officer is one who is currently part of the CSSS officer team.
-    That is, they are not tentative, or past.
+    That is, they are not upcoming, or in the past.
     """
     query = query.where(
         and_(
@@ -47,7 +47,7 @@ def is_active_term(term: OfficerTerm) -> bool:
         )
     )
 
-def has_term_started(term: OfficerTerm) -> bool:
+def has_started_term(term: OfficerTerm) -> bool:
     return term.start_date <= datetime.today()
 
 def is_past_term(term: OfficerTerm) -> bool:

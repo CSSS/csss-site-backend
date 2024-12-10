@@ -47,7 +47,7 @@ class OfficerTerm(Base):
     favourite_pl_0 = Column(String(32), nullable=True)
     favourite_pl_1 = Column(String(32), nullable=True)
     biography = Column(Text, nullable=True)
-    photo_url = Column(Text, nullable=True)  # some urls get big, best to let it be a string
+    photo_url = Column(Text, nullable=True) # some urls get big, best to let it be a string
 
     def serializable_dict(self) -> dict:
         return {

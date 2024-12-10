@@ -14,6 +14,8 @@ from officers.types import (
 
 _logger = logging.getLogger(__name__)
 
+# NOTE: this module should do any data validation; that should be done in the urls.py or higher layer
+
 async def most_recent_officer_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
     """
     Returns the most recent OfficerTerm an exec has held
@@ -82,7 +84,7 @@ async def current_officers(
 async def all_officers(
     db_session: database.DBSession,
     include_private_data: bool,
-    include_future_terms: bool,
+    include_future_terms: bool
 ) -> list[OfficerData]:
     """
     This could be a lot of data, so be careful
@@ -138,19 +140,17 @@ async def get_officer_terms(
     )
     if not include_future_terms:
         query = utils.has_started_term(query)
-
     if max_terms is not None:
         query.limit(max_terms)
 
     return (await db_session.scalars(query)).all()
 
 async def get_officer_term_by_id(db_session: database.DBSession, term_id: int) -> OfficerTerm:
-    query = (
+    officer_term = await db_session.scalar(
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.id == term_id)
     )
-    officer_term = await db_session.scalar(query)
     if officer_term is None:
         raise HTTPException(status_code=400, detail=f"Could not find officer_term with id={term_id}")
     return officer_term
@@ -159,16 +159,13 @@ async def create_new_officer_info(
     db_session: database.DBSession,
     new_officer_info: OfficerInfo
 ) -> bool:
-    """
-    Return False if the officer already exists
-    """
-    query = (
+    """Return False if the officer already exists & don't do anything."""
+    existing_officer_info = await db_session.scalar(
         sqlalchemy
         .select(OfficerInfo)
         .where(OfficerInfo.computing_id == new_officer_info.computing_id)
     )
-    stored_officer_info = await db_session.scalar(query)
-    if stored_officer_info is not None:
+    if existing_officer_info is not None:
         return False
 
     db_session.add(new_officer_info)
@@ -178,13 +175,9 @@ async def create_new_officer_term(
     db_session: database.DBSession,
     new_officer_term: OfficerTerm
 ):
-    # TODO: does this check need to be here?
-    # if new_officer_term.position not in OfficerPosition.position_list():
-    #     raise HTTPException(status_code=500)
-
-    # when creating a new position, assign a default end date if one exists
     position_length = OfficerPosition.length_in_semesters(new_officer_term.position)
     if position_length is not None:
+        # when creating a new position, assign a default end date if one exists
         new_officer_term.end_date = semesters.step_semesters(
             semesters.current_semester_start(new_officer_term.start_date),
             position_length,

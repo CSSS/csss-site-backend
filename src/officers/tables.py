@@ -27,7 +27,9 @@ from database import Base
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
+    # TODO: change primary key to computing_id, position, start_date?
     id = Column(Integer, primary_key=True, autoincrement=True)
+
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),

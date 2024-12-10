@@ -167,51 +167,66 @@ async def get_officer_info(
 
     return JSONResponse(officer_info.serializable_dict())
 
+# TODO: move this to types?
 @dataclass
 class InitialOfficerInfo:
     computing_id: str
     position: str
     start_date: date
 
+    def valid_or_raise(self):
+        if len(self.computing_id) > COMPUTING_ID_MAX:
+            raise HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
+        elif self.computing_id == "":
+            raise HTTPException(status_code=400, detail="computing_id cannot be empty")
+        elif self.position not in OfficerPosition.position_list():
+            raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
+
 @router.post(
     "/term",
-    description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Updates the system with a new officer, and enables the user to login to the system to input their information.",
+    description="""
+        Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA.
+        Updates the system with a new officer, and enables the user to login to the system to input their information.
+    """,
 )
 async def new_officer_term(
     request: Request,
     db_session: database.DBSession,
-    officer_info_list: list[InitialOfficerInfo] = Body(),  # noqa: B008
+    officer_info_list: list[InitialOfficerInfo] = Body(), # noqa: B008
 ):
     """
     If the current computing_id is not already an officer, officer_info will be created for them.
     """
     for officer_info in officer_info_list:
-        if len(officer_info.computing_id) > COMPUTING_ID_MAX:
-            raise HTTPException(status_code=400, detail=f"computing_id={officer_info.computing_id} is too large")
-        elif officer_info.position not in OfficerPosition.position_list():
-            raise HTTPException(status_code=400, detail=f"invalid position={officer_info.position}")
+        officer_info.valid_or_raise()
 
-    WebsiteAdmin.validate_request(db_session, request)
+    _, session_computing_id = logged_in_or_raise(request, db_session)
+    WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
 
     for officer_info in officer_info_list:
-        await officers.crud.create_new_officer_info(
-            db_session,
-            # TODO: do I need this object atm?
-            OfficerInfoUpload(
-                # TODO: use sfu api to get legal name
-                legal_name = "default name",
-            ).to_officer_info(officer_info.computing_id, None, None),
-        )
-        # TODO: update create_new_officer_term to be the same as create_new_officer_info
+        await officers.crud.create_new_officer_info(db_session, OfficerInfo(
+            computing_id = officer_info.computing_id,
+            # TODO: use sfu api to get legal name from officer_info.computing_id
+            legal_name = "default name",
+            phone_number = None,
+
+            discord_id = None,
+            discord_name = None,
+            discord_nickname = None,
+
+            google_drive_email = None,
+            github_username = None,
+        ))
         await officers.crud.create_new_officer_term(db_session, OfficerTerm(
             computing_id = officer_info.computing_id,
             position = officer_info.position,
             # TODO: remove the hours & seconds (etc.) from start_date
+            # TODO: start_date should be a Date, not a Datetime
             start_date = officer_info.start_date,
         ))
 
     await db_session.commit()
-    return PlainTextResponse("ok")
+    return PlainTextResponse("success")
 
 @router.patch(
     "/info/{computing_id}",
@@ -227,9 +242,7 @@ async def update_info(
     computing_id: str,
     officer_info_upload: OfficerInfoUpload = Body(), # noqa: B008
 ):
-    http_exception = officer_info_upload.validate()
-    if http_exception is not None:
-        raise http_exception
+    officer_info_upload.valid_or_raise()
 
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
@@ -320,7 +333,7 @@ async def update_term(
     term_id: int,
     officer_term_upload: OfficerTermUpload = Body(), # noqa: B008
 ):
-    officer_term_upload.validate()
+    officer_term_upload.valid_or_raise()
 
     # Refactor all of these gets & raises into small functions
     session_id = request.cookies.get("session_id", None)
@@ -370,9 +383,9 @@ async def update_term(
         "validation_failures": [], # none for now, but may be important later
     })
 
-@router.post(
-    "/remove/{term_id}",
-    description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!"
+@router.delete(
+    "/term/{term_id}",
+    description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!",
 )
 async def remove_officer():
     # TODO: this

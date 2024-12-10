@@ -52,15 +52,6 @@ class WebsiteAdmin:
         return False
 
     @staticmethod
-    async def validate_request(db_session: database.DBSession, request: Request) -> bool:
-        """
-        Checks if the provided request satisfies these permissions, and raises the neccessary
-        exceptions if not
-        """
-        session_id = request.cookies.get("session_id", None)
-        if session_id is None:
-            raise HTTPException(status_code=401, detail="must be logged in")
-        else:
-            computing_id = await auth.crud.get_computing_id(db_session, session_id)
-            if not await WebsiteAdmin.has_permission(db_session, computing_id):
-                raise HTTPException(status_code=401, detail="must have website admin permissions")
+    async def has_permission_or_raise(db_session: database.DBSession, computing_id: str) -> bool:
+        if not await WebsiteAdmin.has_permission(db_session, computing_id):
+            raise HTTPException(status_code=401, detail="must have website admin permissions")

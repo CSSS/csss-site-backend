@@ -18,12 +18,10 @@ class OfficerInfoUpload:
     github_username: None | str = None
     google_drive_email: None | str = None
 
-    def validate(self) -> None | HTTPException:
-        if self.legal_name is not None and self.legal_name == "":
-            return HTTPException(status_code=400, detail="legal name must not be empty")
+    def valid_or_raise(self):
         # TODO: more checks
-        else:
-            return None
+        if self.legal_name is not None and self.legal_name == "":
+            raise HTTPException(status_code=400, detail="legal name must not be empty")
 
     def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
         return OfficerInfo(
@@ -58,8 +56,7 @@ class OfficerTermUpload:
     # NOTE: changing the name of this variable without changing all instances is breaking
     photo_url: None | str = None
 
-    def validate(self):
-        """input validation"""
+    def valid_or_raise(self):
         # NOTE: An officer can change their own data for terms that are ongoing.
         if self.position not in OfficerPosition.position_list():
             raise HTTPException(status_code=400, detail=f"invalid new position={self.position}")

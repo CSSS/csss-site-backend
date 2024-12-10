@@ -104,7 +104,6 @@ async def all_officers(
 @router.get(
     "/terms/{computing_id}",
     description="""Get term info for an executive. All term info is public for all past or active terms.""",
-    tags=["login-required"]
 )
 async def get_officer_terms(
     request: Request,
@@ -119,9 +118,8 @@ async def get_officer_terms(
     if (
         computing_id != session_computing_id
         and include_future_terms
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
     ):
-        raise HTTPException(status_code=401)
+        await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
 
     # all term info is public, so anyone can get any of it
     officer_terms = await officers.crud.get_officer_terms(
@@ -136,7 +134,6 @@ async def get_officer_terms(
 @router.get(
     "/info/{computing_id}",
     description="Get officer info for the current user, if they've ever been an exec. Only admins can get info about another user.",
-    tags=["login-required"]
 )
 async def get_officer_info(
     request: Request,

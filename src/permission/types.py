@@ -52,6 +52,10 @@ class WebsiteAdmin:
         return False
 
     @staticmethod
-    async def has_permission_or_raise(db_session: database.DBSession, computing_id: str) -> bool:
+    async def has_permission_or_raise(
+        db_session: database.DBSession,
+        computing_id: str,
+        errmsg:str = "must have website admin permissions"
+    ) -> bool:
         if not await WebsiteAdmin.has_permission(db_session, computing_id):
-            raise HTTPException(status_code=401, detail="must have website admin permissions")
+            raise HTTPException(status_code=401, detail=errmsg)

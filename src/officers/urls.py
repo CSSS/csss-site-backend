@@ -2,17 +2,14 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 
-import sqlalchemy
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 import auth.crud
 import database
-import github
 import officers.crud
 import utils
 from constants import COMPUTING_ID_MAX
-from discord import discord
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import OfficerInfoUpload, OfficerTermUpload
@@ -154,11 +151,11 @@ async def get_officer_info(
 ):
     _, session_computing_id = await logged_in_or_raise(request, db_session)
 
-    if (
-        computing_id != session_computing_id
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
-    ):
-        raise HTTPException(status_code=401, detail="must have website admin permissions to get officer info about another user")
+    if computing_id != session_computing_id:
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="must have website admin permissions to get officer info about another user"
+        )
 
     officer_info = await officers.crud.get_officer_info(db_session, computing_id)
     if officer_info is None:
@@ -201,7 +198,7 @@ async def new_officer_term(
         officer_info.valid_or_raise()
 
     _, session_computing_id = logged_in_or_raise(request, db_session)
-    WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
+    await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
 
     for officer_info in officer_info_list:
         await officers.crud.create_new_officer_info(db_session, OfficerInfo(
@@ -230,88 +227,33 @@ async def new_officer_term(
 
 @router.patch(
     "/info/{computing_id}",
-    description=(
-        "After elections, officer computing ids are input into our system. "
-        "If you have been elected as a new officer, you may authenticate with SFU CAS, "
-        "then input your information & the valid token for us. Admins may update this info."
-    )
+    description="""
+        After elections, officer computing ids are input into our system.
+        If you have been elected as a new officer, you may authenticate with SFU CAS,
+        then input your information & the valid token for us. Admins may update this info.
+    """
 )
 async def update_info(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
-    officer_info_upload: OfficerInfoUpload = Body(), # noqa: B008
+    officer_info_upload: OfficerInfoUpload = Body() # noqa: B008
 ):
     officer_info_upload.valid_or_raise()
+    _, session_computing_id = logged_in_or_raise(request, db_session)
 
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="must be logged in")
-
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if (
-        computing_id != session_computing_id
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
-    ):
-        # the current user can only input the info for another user if they have permissions
-        raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
-
-    # TODO: log all important changes just to a .log file
+    if computing_id != session_computing_id:
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="must have website admin permissions to update another user"
+        )
 
     old_officer_info = await officers.crud.get_officer_info(db_session, computing_id)
-    new_officer_info = officer_info_upload.to_officer_info(
-        computing_id=computing_id,
-        discord_id=None,
-        discord_nickname=None,
-    )
+    validation_failures, corrected_officer_info = await officer_info_upload.validate(computing_id, old_officer_info)
 
-    # TODO: turn this into a function
-    validation_failures = []
+    # TODO: log all important changes just to a .log file & persist them for a few years
 
-    if not utils.is_valid_phone_number(officer_info_upload.phone_number):
-        validation_failures += [f"invalid phone number {officer_info_upload.phone_number}"]
-        new_officer_info.phone_number = old_officer_info.phone_number
-
-    if officer_info_upload.discord_name is None or officer_info_upload.discord_name == "":
-        new_officer_info.discord_name = None
-        new_officer_info.discord_id = None
-        new_officer_info.discord_nickname = None
-    else:
-        discord_user_list = await discord.search_username(officer_info_upload.discord_name)
-        if discord_user_list == []:
-            validation_failures += [f"unable to find discord user with the name {officer_info_upload.discord_name}"]
-            new_officer_info.discord_name = old_officer_info.discord_name
-            new_officer_info.discord_id = old_officer_info.discord_id
-            new_officer_info.discord_nickname = old_officer_info.discord_nickname
-        elif len(discord_user_list) > 1:
-            validation_failures += [f"too many discord users start with {officer_info_upload.discord_name}"]
-            new_officer_info.discord_name = old_officer_info.discord_name
-            new_officer_info.discord_id = old_officer_info.discord_id
-            new_officer_info.discord_nickname = old_officer_info.discord_nickname
-        else:
-            discord_user = discord_user_list[0]
-            new_officer_info.discord_name = discord_user.username
-            new_officer_info.discord_id = discord_user.id
-            new_officer_info.discord_nickname = (
-                discord_user.global_name
-                if discord_user.global_name is not None
-                else discord_user.username
-            )
-
-    # TODO: validate google-email using google module, by trying to assign the user to a permission or something
-    if not utils.is_valid_email(officer_info_upload.google_drive_email):
-        validation_failures += [f"invalid email format {officer_info_upload.google_drive_email}"]
-        new_officer_info.google_drive_email = old_officer_info.google_drive_email
-
-    # validate github user is real
-    if await github.internals.get_user_by_username(officer_info_upload.github_username) is None:
-        validation_failures += [f"invalid github username {officer_info_upload.github_username}"]
-        new_officer_info.github_username = old_officer_info.github_username
-
-    # TODO: invite github user
-    # TODO: detect if changing github username & uninvite old user
-
-    success = await officers.crud.update_officer_info(db_session, new_officer_info)
+    success = await officers.crud.update_officer_info(db_session, corrected_officer_info)
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 

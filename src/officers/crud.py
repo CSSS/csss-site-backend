@@ -188,25 +188,22 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
     """
     Return False if the officer doesn't exist yet
     """
-    query = (
+    officer_info = await db_session.scalar(
         sqlalchemy
         .select(OfficerInfo)
         .where(OfficerInfo.computing_id == new_officer_info.computing_id)
     )
-    officer_info = await db_session.scalar(query)
     if officer_info is None:
         return False
 
     # TODO: how to detect an entry insert error? For example, what happens if
     # we try to set our discord id to be the same as another executive's?
-    query = (
+    await db_session.execute(
         sqlalchemy
         .update(OfficerInfo)
         .where(OfficerInfo.computing_id == officer_info.computing_id)
         .values(new_officer_info.to_update_dict())
     )
-    await db_session.execute(query)
-
     return True
 
 async def update_officer_term(

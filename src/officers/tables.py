@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from sqlalchemy import (
-    # Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -28,7 +27,10 @@ from database import Base
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
+    # TODO: change primary key to computing_id, position, start_date?
+    # nah, I like having a term-id -> just do a check when inserting?
     id = Column(Integer, primary_key=True, autoincrement=True)
+
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),
@@ -48,7 +50,7 @@ class OfficerTerm(Base):
     favourite_pl_0 = Column(String(32), nullable=True)
     favourite_pl_1 = Column(String(32), nullable=True)
     biography = Column(Text, nullable=True)
-    photo_url = Column(Text, nullable=True)  # some urls get big, best to let it be a string
+    photo_url = Column(Text, nullable=True) # some urls get big, best to let it be a string
 
     def serializable_dict(self) -> dict:
         return {

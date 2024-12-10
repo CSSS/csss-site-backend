@@ -110,11 +110,6 @@ async def get_officer_terms(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
-    # TODO: remove `max_terms`
-    # the maximum number of terms to return, in chronological order
-    # helpful if you only want the most recent... though a person can have many active terms,
-    # so not really that helpful imo....
-    max_terms: int | None = None,
     include_future_terms: bool = False
 ):
     # TODO: should this be login-required if a user does not want to include future terms? The info is
@@ -132,7 +127,6 @@ async def get_officer_terms(
     officer_terms = await officers.crud.get_officer_terms(
         db_session,
         computing_id,
-        max_terms,
         include_future_terms
     )
     return JSONResponse([
@@ -251,7 +245,7 @@ async def update_info(
     old_officer_info = await officers.crud.get_officer_info(db_session, computing_id)
     validation_failures, corrected_officer_info = await officer_info_upload.validate(computing_id, old_officer_info)
 
-    # TODO: log all important changes just to a .log file & persist them for a few years
+    # TODO (#27): log all important changes just to a .log file & persist them for a few years
 
     success = await officers.crud.update_officer_info(db_session, corrected_officer_info)
     if not success:
@@ -304,7 +298,7 @@ async def update_term(
         # TODO: update the end_date here
         pass
 
-    # TODO: log all important changes to a .log file
+    # TODO (#27): log all important changes to a .log file
     success = await officers.crud.update_officer_term(
         db_session,
         officer_term_upload.to_officer_term(term_id, old_officer_term.computing_id)
@@ -338,7 +332,7 @@ async def remove_officer(
 
     deleted_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
 
-    # TODO: log all important changes to a .log file
+    # TODO (#27): log all important changes to a .log file
     await officers.crud.delete_officer_term_by_id(db_session, term_id)
 
     return JSONResponse({

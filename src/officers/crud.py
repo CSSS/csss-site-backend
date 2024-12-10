@@ -129,7 +129,6 @@ async def get_officer_info(db_session: database.DBSession, computing_id: str) ->
 async def get_officer_terms(
     db_session: database.DBSession,
     computing_id: str,
-    max_terms: None | int,
     include_future_terms: bool,
 ) -> list[OfficerTerm]:
     query = (
@@ -140,8 +139,6 @@ async def get_officer_terms(
     )
     if not include_future_terms:
         query = utils.has_started_term(query)
-    if max_terms is not None:
-        query.limit(max_terms)
 
     return (await db_session.scalars(query)).all()
 

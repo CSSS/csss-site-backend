@@ -1,31 +1,44 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import HTTPException
 
 import github
 import utils
+from constants import COMPUTING_ID_MAX
 from discord import discord
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 
 
 @dataclass
+class InitialOfficerInfo:
+    computing_id: str
+    position: str
+    start_date: date
+
+    def valid_or_raise(self):
+        if len(self.computing_id) > COMPUTING_ID_MAX:
+            raise HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
+        elif self.computing_id == "":
+            raise HTTPException(status_code=400, detail="computing_id cannot be empty")
+        elif self.position not in OfficerPosition.position_list():
+            raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
+
+@dataclass
 class OfficerInfoUpload:
-    # TODO: compute this using SFU's API; if unable, use a default value
+    # TODO (#71): compute this using SFU's API & remove from being uploaded
     legal_name: str
     phone_number: None | str = None
     discord_name: None | str = None
     github_username: None | str = None
     google_drive_email: None | str = None
 
-    # TODO: why are valid_or_raise and validate separate?
+    # TODO (#71): remove this once legal name is computed using SFU's API.
     def valid_or_raise(self):
-        # TODO: more checks
-        if self.legal_name is not None and self.legal_name == "":
+        if self.legal_name is None or self.legal_name == "":
             raise HTTPException(status_code=400, detail="legal name must not be empty")
 
     def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
@@ -88,7 +101,8 @@ class OfficerInfoUpload:
             validation_failures += [f"invalid github username {self.github_username}"]
             corrected_officer_info.github_username = old_officer_info.github_username
 
-        # TODO: invite github user
+        # TODO: if github user exists, invite the github user to the org (or can we simply add them directly?)
+        # -> do so outside this function
         # TODO: detect if changing github username & uninvite old user
 
         return validation_failures, corrected_officer_info

@@ -1,6 +1,4 @@
 import logging
-from dataclasses import dataclass
-from datetime import date
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -9,10 +7,8 @@ import auth.crud
 import database
 import officers.crud
 import utils
-from constants import COMPUTING_ID_MAX
-from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
-from officers.types import OfficerInfoUpload, OfficerTermUpload
+from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
 
 _logger = logging.getLogger(__name__)
@@ -155,21 +151,6 @@ async def get_officer_info(
 
     return JSONResponse(officer_info.serializable_dict())
 
-# TODO: move this to types?
-@dataclass
-class InitialOfficerInfo:
-    computing_id: str
-    position: str
-    start_date: date
-
-    def valid_or_raise(self):
-        if len(self.computing_id) > COMPUTING_ID_MAX:
-            raise HTTPException(status_code=400, detail=f"computing_id={self.computing_id} is too large")
-        elif self.computing_id == "":
-            raise HTTPException(status_code=400, detail="computing_id cannot be empty")
-        elif self.position not in OfficerPosition.position_list():
-            raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
-
 @router.post(
     "/term",
     description="""
@@ -194,7 +175,7 @@ async def new_officer_term(
     for officer_info in officer_info_list:
         await officers.crud.create_new_officer_info(db_session, OfficerInfo(
             computing_id = officer_info.computing_id,
-            # TODO: use sfu api to get legal name from officer_info.computing_id
+            # TODO (#71): use sfu api to get legal name from officer_info.computing_id
             legal_name = "default name",
             phone_number = None,
 

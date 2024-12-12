@@ -69,7 +69,6 @@ class OfficerTerm(Base):
             "photo_url": self.photo_url,
         }
 
-    # a record will only be publically visible if sufficient data has been given
     def is_filled_in(self):
         return (
             # photo & end_date don't have to be uploaded for the term to be "filled"

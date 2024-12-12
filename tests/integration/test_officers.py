@@ -5,7 +5,7 @@ import pytest
 import load_test_db
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.crud import all_officer_data, current_executive_team, most_recent_officer_term
+from officers.crud import all_officers, current_officers, get_active_officer_terms
 
 # TODO: setup a database on the CI machine & run this as a unit test then (since
 # this isn't really an integration test)
@@ -27,19 +27,19 @@ async def test__read_execs(database_setup):
     sessionmanager = await database_setup
     async with sessionmanager.session() as db_session:
         # test that reads from the database succeeded as expected
-        assert (await most_recent_officer_term(db_session, "blarg")) is None
-        assert await most_recent_officer_term(db_session, "abc22") is None
-        abc11_officer_term = await most_recent_officer_term(db_session, "abc11")
+        assert (await get_active_officer_terms(db_session, "blarg")) is None
+        assert (await get_active_officer_terms(db_session, "abc22")) is None
+        abc11_officer_terms = await get_active_officer_terms(db_session, "abc11")
 
-        assert abc11_officer_term.computing_id == "abc11"
-        assert abc11_officer_term.position == OfficerPosition.EXECUTIVE_AT_LARGE
-        assert abc11_officer_term.start_date is not None
-        assert abc11_officer_term.end_date is None
-        assert abc11_officer_term.nickname == "the holy A"
-        assert abc11_officer_term.favourite_course_0 == "CMPT 361"
-        assert abc11_officer_term.biography == "Hi! I'm person A and I want school to be over ; _ ;"
+        assert abc11_officer_terms[0].computing_id == "abc11"
+        assert abc11_officer_terms[0].position == OfficerPosition.EXECUTIVE_AT_LARGE
+        assert abc11_officer_terms[0].start_date is not None
+        assert abc11_officer_terms[0].end_date is None
+        assert abc11_officer_terms[0].nickname == "the holy A"
+        assert abc11_officer_terms[0].favourite_course_0 == "CMPT 361"
+        assert abc11_officer_terms[0].biography == "Hi! I'm person A and I want school to be over ; _ ;"
 
-        current_exec_team = await current_executive_team(db_session, include_private=False)
+        current_exec_team = await current_officers(db_session, include_private=False)
         assert current_exec_team is not None
         assert len(current_exec_team.keys()) == 1
         assert next(iter(current_exec_team.keys())) == OfficerPosition.PRESIDENT
@@ -47,7 +47,7 @@ async def test__read_execs(database_setup):
         assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.President.to_email()
         assert next(iter(current_exec_team.values()))[0].private_data is None
 
-        current_exec_team = await current_executive_team(db_session, include_private=True)
+        current_exec_team = await current_officers(db_session, include_private=True)
         assert current_exec_team is not None
         assert len(current_exec_team) == 1
         assert next(iter(current_exec_team.keys())) == OfficerPosition.PRESIDENT
@@ -56,7 +56,7 @@ async def test__read_execs(database_setup):
         assert next(iter(current_exec_team.values()))[0].private_data is not None
         assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc33"
 
-        all_terms = await all_officer_data(db_session, include_private=True)
+        all_terms = await all_officers(db_session, include_private=True)
         assert len(all_terms) == 3
 
 

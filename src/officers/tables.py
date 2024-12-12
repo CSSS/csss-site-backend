@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from sqlalchemy import (
-    # Boolean,
     Column,
-    DateTime,
+    Date,
     ForeignKey,
     Integer,
-    Select,
     String,
     Text,
-    and_,
 )
 
 # from sqlalchemy.orm import relationship
@@ -28,7 +25,10 @@ from database import Base
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
+    # TODO: change primary key to computing_id, position, start_date?
+    # nah, I like having a term-id -> just do a check when inserting?
     id = Column(Integer, primary_key=True, autoincrement=True)
+
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),
@@ -36,10 +36,9 @@ class OfficerTerm(Base):
     )
 
     position = Column(String(128), nullable=False)
-    # TODO: replace these with Date, not Datetime
-    start_date = Column(DateTime, nullable=False)
+    start_date = Column(Date, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date = Column(DateTime, nullable=True)
+    end_date = Column(Date, nullable=True)
 
     nickname = Column(String(128), nullable=True)
     favourite_course_0 = Column(String(32), nullable=True)
@@ -48,7 +47,7 @@ class OfficerTerm(Base):
     favourite_pl_0 = Column(String(32), nullable=True)
     favourite_pl_1 = Column(String(32), nullable=True)
     biography = Column(Text, nullable=True)
-    photo_url = Column(Text, nullable=True)  # some urls get big, best to let it be a string
+    photo_url = Column(Text, nullable=True) # some urls get big, best to let it be a string
 
     def serializable_dict(self) -> dict:
         return {
@@ -68,7 +67,6 @@ class OfficerTerm(Base):
             "photo_url": self.photo_url,
         }
 
-    # a record will only be publically visible if sufficient data has been given
     def is_filled_in(self):
         return (
             # photo & end_date don't have to be uploaded for the term to be "filled"
@@ -81,22 +79,6 @@ class OfficerTerm(Base):
             and self.favourite_pl_0 is not None
             and self.favourite_pl_1 is not None
             and self.biography is not None
-        )
-
-    @staticmethod
-    def sql_is_filled_in(query: Select) -> Select:
-        """Should be identical to self.is_filled_in()"""
-        return query.where(
-            and_(
-                OfficerTerm.computing_id is not None,
-                OfficerTerm.start_date is not None,
-                OfficerTerm.nickname is not None,
-                OfficerTerm.favourite_course_0 is not None,
-                OfficerTerm.favourite_course_1 is not None,
-                OfficerTerm.favourite_pl_0 is not None,
-                OfficerTerm.favourite_pl_1 is not None,
-                OfficerTerm.biography is not None,
-            )
         )
 
     def to_update_dict(self) -> dict:
@@ -128,7 +110,7 @@ class OfficerInfo(Base):
         primary_key=True,
     )
 
-    # TODO: we'll need to use SFU's API to get the legal name for users
+    # TODO (#71): we'll need to use SFU's API to get the legal name for users
     legal_name = Column(String(128), nullable=False) # some people have long names, you never know
     phone_number = Column(String(24), nullable=True)
 
@@ -182,7 +164,7 @@ class OfficerInfo(Base):
 
     def to_update_dict(self) -> dict:
         return {
-            # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
+            # TODO (#71): if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
             # for now, we should insert a default value
             "legal_name": "default name" if self.legal_name is None else self.legal_name,
 

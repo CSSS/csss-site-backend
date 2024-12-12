@@ -188,7 +188,7 @@ async def new_officer_term(
     for officer_info in officer_info_list:
         officer_info.valid_or_raise()
 
-    _, session_computing_id = logged_in_or_raise(request, db_session)
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
     await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
 
     for officer_info in officer_info_list:
@@ -231,7 +231,7 @@ async def update_info(
     officer_info_upload: OfficerInfoUpload = Body() # noqa: B008
 ):
     officer_info_upload.valid_or_raise()
-    _, session_computing_id = logged_in_or_raise(request, db_session)
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
 
     if computing_id != session_computing_id:
         await WebsiteAdmin.has_permission_or_raise(
@@ -266,8 +266,11 @@ async def update_term(
     term_id: int,
     officer_term_upload: OfficerTermUpload = Body(), # noqa: B008
 ):
+    """
+    A website admin may change the position & term length however they wish.
+    """
     officer_term_upload.valid_or_raise()
-    _, session_computing_id = logged_in_or_raise(request, db_session)
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
 
     old_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
     if old_officer_term.computing_id != session_computing_id:
@@ -291,10 +294,6 @@ async def update_term(
             errmsg="only admins can write new versions of position, start_date, and end_date"
         )
 
-    if officer_term_upload.position != old_officer_term.position:
-        # TODO: update the end_date here
-        pass
-
     # TODO (#27): log all important changes to a .log file
     success = await officers.crud.update_officer_term(
         db_session,
@@ -308,10 +307,10 @@ async def update_term(
     new_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
     return JSONResponse({
         "officer_term": new_officer_term.serializable_dict(),
-        "validation_failures": [], # none for now, but may be important later
+        # none for now, but may be added if frontend requests
+        "validation_failures": [],
     })
 
-# TODO: test this endpoint
 @router.delete(
     "/term/{term_id}",
     description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!",
@@ -321,7 +320,7 @@ async def remove_officer(
     db_session: database.DBSession,
     term_id: int,
 ):
-    _, session_computing_id = logged_in_or_raise(request, db_session)
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
     await WebsiteAdmin.has_permission_or_raise(
         db_session, session_computing_id,
         errmsg="must have website admin permissions to remove a term"
@@ -331,6 +330,7 @@ async def remove_officer(
 
     # TODO (#27): log all important changes to a .log file
     await officers.crud.delete_officer_term_by_id(db_session, term_id)
+    await db_session.commit()
 
     return JSONResponse({
         "officer_term": deleted_officer_term.serializable_dict(),

@@ -231,6 +231,7 @@ async def update_officer_term(
     return True
 
 async def delete_officer_term_by_id(db_session: database.DBSession, term_id: int):
+    # TODO: detect error and return the response
     await db_session.execute(
         sqlalchemy
         .delete(OfficerTerm)

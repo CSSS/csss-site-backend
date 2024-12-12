@@ -114,7 +114,7 @@ class OfficerTermUpload:
     start_date: date
     end_date: None | date = None
 
-    # officer should change
+    # officer should change:
     nickname: None | str = None
     favourite_course_0: None | str = None
     favourite_course_1: None | str = None

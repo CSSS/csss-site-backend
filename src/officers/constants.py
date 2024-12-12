@@ -121,8 +121,6 @@ _EMAIL_MAP = {
     OfficerPosition.SOCIAL_MEDIA_MANAGER: "N/A",
 }
 
-# TODO: when an officer's start date is modified, update the end date as well if it's defined in this list
-# a number of semesters (a semester begins on the 1st of each four month period, starting january)
 # None, means that the length of the position does not have a set length in semesters
 _LENGTH_MAP = {
     OfficerPosition.PRESIDENT: 3,

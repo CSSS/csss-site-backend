@@ -42,7 +42,7 @@ async def current_officers(
         )
         officer_info = (await db_session.scalars(officer_info_query)).first()
         if officer_info is None:
-            # TODO: make sure there are daily checks that this data actually exists
+            # TODO (#93): make sure there are daily checks that this data actually exists
             continue
         elif term.position not in officer_data:
             officer_data[term.position] = []

@@ -5,10 +5,8 @@ from sqlalchemy import (
     Date,
     ForeignKey,
     Integer,
-    Select,
     String,
     Text,
-    and_,
 )
 
 # from sqlalchemy.orm import relationship
@@ -112,7 +110,7 @@ class OfficerInfo(Base):
         primary_key=True,
     )
 
-    # TODO: we'll need to use SFU's API to get the legal name for users
+    # TODO (#71): we'll need to use SFU's API to get the legal name for users
     legal_name = Column(String(128), nullable=False) # some people have long names, you never know
     phone_number = Column(String(24), nullable=True)
 
@@ -166,7 +164,7 @@ class OfficerInfo(Base):
 
     def to_update_dict(self) -> dict:
         return {
-            # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
+            # TODO (#71): if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
             # for now, we should insert a default value
             "legal_name": "default name" if self.legal_name is None else self.legal_name,
 

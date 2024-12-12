@@ -152,8 +152,8 @@ class OfficerData:
 
     # an officer may have multiple positions, such as FroshWeekChair & DirectorOfEvents
     position: str
-    start_date: datetime
-    end_date: datetime | None
+    start_date: date
+    end_date: date | None
 
     legal_name: str  # some people have long names, you never know
     nickname: str | None

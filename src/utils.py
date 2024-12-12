@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import Select
 
@@ -21,34 +21,33 @@ def is_active_officer(query: Select) -> Select:
     An active officer is one who is currently part of the CSSS officer team.
     That is, they are not upcoming, or in the past.
     """
-    query = query.where(
+    return query.where(
         and_(
             # cannot be an officer who has not started yet
-            OfficerTerm.start_date <= datetime.today(),
+            OfficerTerm.start_date <= date.today(),
             or_(
                 # executives without a specified end_date are considered active
                 OfficerTerm.end_date.is_(None),
                 # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date,
+                date.today() <= OfficerTerm.end_date,
             )
         )
     )
-    return OfficerTerm.sql_is_filled_in(query)
 
 def is_active_term(term: OfficerTerm) -> bool:
     return (
         # cannot be an officer who has not started yet
-        term.start_date <= datetime.today()
+        term.start_date <= date.today()
         and (
             # executives without a specified end_date are considered active
             term.end_date is None
             # check that today's timestamp is before (smaller than) the term's end date
-            or datetime.today() <= term.end_date
+            or date.today() <= term.end_date
         )
     )
 
 def has_started_term(term: OfficerTerm) -> bool:
-    return term.start_date <= datetime.today()
+    return term.start_date <= date.today()
 
 def is_past_term(term: OfficerTerm) -> bool:
     """Any term which has concluded"""
@@ -56,7 +55,7 @@ def is_past_term(term: OfficerTerm) -> bool:
         # an officer with no end date is current
         term.end_date is not None
         # if today is past the end date, it's a past term
-        and datetime.today() > term.end_date
+        and date.today() > term.end_date
     )
 
 def is_valid_phone_number(phone_number: str) -> bool:

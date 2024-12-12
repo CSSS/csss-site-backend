@@ -1,12 +1,12 @@
-from datetime import UTC, datetime, timezone
+from datetime import date
 from typing import ClassVar
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 
-import auth.crud
 import database
 import officers.crud
-from data.semesters import current_semester_start, step_semesters
+import utils
+from data.semesters import step_semesters
 from officers.constants import OfficerPosition
 
 
@@ -18,19 +18,16 @@ class OfficerPrivateInfo:
         A semester is defined in semester_start
         """
 
-        term = await officers.crud.most_recent_officer_term(db_session, computing_id)
-        if term is None:
-            return False
-        elif term.end_date is None:
-            # considered an active exec if no end_date
-            return True
+        term_list = await officers.crud.get_officer_terms(db_session, computing_id)
+        for term in term_list:
+            if utils.is_active_term(term):
+                return True
 
-        current_date = datetime.now(UTC)
-        semester_start = current_semester_start(current_date)
-        NUM_SEMESTERS = 5
-        cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)
+            NUM_SEMESTERS = 5
+            if date.today() <= step_semesters(term.end_date, NUM_SEMESTERS):
+                return True
 
-        return term.end_date > cutoff_date
+        return False
 
 class WebsiteAdmin:
     WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [

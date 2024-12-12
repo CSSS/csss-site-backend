@@ -208,8 +208,6 @@ async def new_officer_term(
         await officers.crud.create_new_officer_term(db_session, OfficerTerm(
             computing_id = officer_info.computing_id,
             position = officer_info.position,
-            # TODO: remove the hours & seconds (etc.) from start_date
-            # TODO: start_date should be a Date, not a Datetime
             start_date = officer_info.start_date,
         ))
 
@@ -286,8 +284,8 @@ async def update_term(
 
     if (
         officer_term_upload.position != old_officer_term.position
-        or officer_term_upload.start_date != old_officer_term.start_date.date()
-        or officer_term_upload.end_date != old_officer_term.end_date.date()
+        or officer_term_upload.start_date != old_officer_term.start_date
+        or officer_term_upload.end_date != old_officer_term.end_date
     ):
         await WebsiteAdmin.has_permission_or_raise(
             db_session, session_computing_id,

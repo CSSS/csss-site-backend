@@ -14,35 +14,7 @@ from officers.types import (
 
 _logger = logging.getLogger(__name__)
 
-# NOTE: this module should do any data validation; that should be done in the urls.py or higher layer
-
-async def most_recent_officer_term(db_session: database.DBSession, computing_id: str) -> OfficerTerm | None:
-    """
-    Returns the most recent OfficerTerm an exec has held
-    """
-    return await db_session.scalar(
-        sqlalchemy
-        .select(OfficerTerm)
-        .where(OfficerTerm.computing_id == computing_id)
-        .order_by(OfficerTerm.start_date.desc())
-        .limit(1)
-    )
-
-async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
-    """
-    Returns the list of officer positions a user currently has. Returns [] if the user is not currently an officer.
-
-    An officer can have multiple positions at once, such as Webmaster, Frosh chair, and DoEE.
-    """
-    query = utils.is_active_officer(
-        sqlalchemy
-        .select(OfficerTerm)
-        .where(OfficerTerm.computing_id == computing_id)
-        # In order of most recent start date first
-        .order_by(OfficerTerm.start_date.desc())
-    )
-    officer_term_list = (await db_session.scalars(query)).all()
-    return [term.position for term in officer_term_list]
+# NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
 
 async def current_officers(
     db_session: database.DBSession,
@@ -135,12 +107,40 @@ async def get_officer_terms(
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.computing_id == computing_id)
+        # In order of most recent start date first
         .order_by(OfficerTerm.start_date.desc())
     )
     if not include_future_terms:
         query = utils.has_started_term(query)
 
     return (await db_session.scalars(query)).all()
+
+async def get_active_officer_terms(
+    db_session: database.DBSession,
+    computing_id: str
+) -> list[OfficerTerm]:
+    """
+    Returns the list of active officer terms for a user. Returns [] if the user is not currently an officer.
+    An officer can have multiple positions at once, such as Webmaster, Frosh chair, and DoEE.
+    """
+    query = (
+        sqlalchemy
+        .select(OfficerTerm)
+        .where(OfficerTerm.computing_id == computing_id)
+        # In order of most recent start date first
+        .order_by(OfficerTerm.start_date.desc())
+    )
+    query = utils.is_active_officer(query)
+
+    officer_term_list = (await db_session.scalars(query)).all()
+    return officer_term_list
+
+async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
+    """
+    Returns the list of officer positions a user currently has. [] if not currently an officer.
+    """
+    officer_term_list = get_active_officer_terms(db_session, computing_id)
+    return [term.position for term in officer_term_list]
 
 async def get_officer_term_by_id(db_session: database.DBSession, term_id: int) -> OfficerTerm:
     officer_term = await db_session.scalar(

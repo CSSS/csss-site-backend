@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     Column,
-    DateTime,
+    Date,
     ForeignKey,
     Integer,
     Select,
@@ -38,10 +38,9 @@ class OfficerTerm(Base):
     )
 
     position = Column(String(128), nullable=False)
-    # TODO: replace these with Date, not Datetime
-    start_date = Column(DateTime, nullable=False)
+    start_date = Column(Date, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date = Column(DateTime, nullable=True)
+    end_date = Column(Date, nullable=True)
 
     nickname = Column(String(128), nullable=True)
     favourite_course_0 = Column(String(32), nullable=True)
@@ -85,6 +84,8 @@ class OfficerTerm(Base):
             and self.biography is not None
         )
 
+    # TODO: do we need some way of telling whether info is filled in? NO!
+    # TODO: remove this
     @staticmethod
     def sql_is_filled_in(query: Select) -> Select:
         """Should be identical to self.is_filled_in()"""

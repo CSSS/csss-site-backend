@@ -84,24 +84,6 @@ class OfficerTerm(Base):
             and self.biography is not None
         )
 
-    # TODO: do we need some way of telling whether info is filled in? NO!
-    # TODO: remove this
-    @staticmethod
-    def sql_is_filled_in(query: Select) -> Select:
-        """Should be identical to self.is_filled_in()"""
-        return query.where(
-            and_(
-                OfficerTerm.computing_id is not None,
-                OfficerTerm.start_date is not None,
-                OfficerTerm.nickname is not None,
-                OfficerTerm.favourite_course_0 is not None,
-                OfficerTerm.favourite_course_1 is not None,
-                OfficerTerm.favourite_pl_0 is not None,
-                OfficerTerm.favourite_pl_1 is not None,
-                OfficerTerm.biography is not None,
-            )
-        )
-
     def to_update_dict(self) -> dict:
         return {
             # TODO: do we want computing_id to be changeable?

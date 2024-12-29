@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy.exc import IntegrityError
 
 import auth.crud
 import database
@@ -166,6 +167,8 @@ async def new_officer_term(
     await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
 
     for officer_info in officer_info_list:
+        # if user with officer_info.computing_id has never logged into the website before,
+        # a site_user tuple will be created for them.
         await officers.crud.create_new_officer_info(db_session, OfficerInfo(
             computing_id = officer_info.computing_id,
             # TODO (#71): use sfu api to get legal name from officer_info.computing_id

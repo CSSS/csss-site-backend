@@ -1,4 +1,5 @@
 import asyncio  # NOTE: don't comment this out; it's required
+import json
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -120,11 +121,21 @@ async def test__endpoints(client, database_setup):
     response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 401
 
-    # TODO: this
-    response = await client.post("officers/term/abc11")
+    response = await client.post("officers/term", content=json.dumps([{
+        "computing_id": "ehbc12",
+        "position": OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+        "start_date": "2025-12-29"
+    }]))
+    assert response.status_code == 401
+
+    response = await client.post("officers/term", content=json.dumps([{
+        "computing_id": "ehbc12",
+        "position": "balargho",
+        "start_date": "2025-12-29"
+    }]))
+    assert response.status_code == 400
 
     # TODO: add tests for the POST & PATCH commands
-    # TODO: ensure that the database is being reset every time!
 
 @pytest.mark.anyio
 async def test__endpoints_admin(client, database_setup):
@@ -168,5 +179,21 @@ async def test__endpoints_admin(client, database_setup):
     assert response.json() != {}
     response = await client.get("/officers/info/balargho")
     assert response.status_code == 404
+
+    response = await client.get("/officers/terms/ehbc12?include_future_terms=true")
+    assert response.status_code == 200
+    assert response.json() == []
+
+    response = await client.post("officers/term", content=json.dumps([{
+        "computing_id": "ehbc12",
+        "position": OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+        "start_date": "2025-12-29"
+    }]))
+    assert response.status_code == 200
+
+    response = await client.get("/officers/terms/ehbc12?include_future_terms=true")
+    assert response.status_code == 200
+    assert response.json() != []
+    assert len(response.json()) == 1
 
     # TODO: ensure that all endpoints are tested at least once

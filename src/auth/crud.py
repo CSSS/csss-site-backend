@@ -101,6 +101,15 @@ async def get_site_user(db_session: AsyncSession, session_id: str) -> None | Sit
     )
 
 
+async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:
+    user = await db_session.scalar(
+        sqlalchemy
+        .select(SiteUser)
+        .where(SiteUser.computing_id == computing_id)
+    )
+    return user is not None
+
+
 # update the optional user info for a given site user (e.g., display name, profile picture, ...)
 async def update_site_user(
     db_session: AsyncSession,

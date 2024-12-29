@@ -1,8 +1,11 @@
 import logging
+from datetime import datetime
 
 import sqlalchemy
 from fastapi import HTTPException
 
+import auth.crud
+import auth.tables
 import database
 import utils
 from data import semesters
@@ -157,6 +160,14 @@ async def create_new_officer_info(
     new_officer_info: OfficerInfo
 ) -> bool:
     """Return False if the officer already exists & don't do anything."""
+    if not await auth.crud.site_user_exists(db_session, new_officer_info.computing_id):
+        # if computing_id has not been created as a site_user yet, add them
+        db_session.add(auth.tables.SiteUser(
+            computing_id=new_officer_info.computing_id,
+            first_logged_in=datetime.now(),
+            last_logged_in=datetime.now()
+        ))
+
     existing_officer_info = await db_session.scalar(
         sqlalchemy
         .select(OfficerInfo)

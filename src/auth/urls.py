@@ -130,8 +130,9 @@ async def update_user(
     if session_id is None:
         raise HTTPException(status_code=401, detail="User must be authenticated to get their info")
 
-    user_info = await crud.update_site_user(db_session, session_id, profile_picture_url)
-    if user_info is None:
+    ok = await crud.update_site_user(db_session, session_id, profile_picture_url)
+    await db_session.commit()
+    if not ok:
         raise HTTPException(status_code=401, detail="Could not find user with session_id, please log in")
 
-    return JSONResponse(user_info.serializable_dict())
+    return "OK"

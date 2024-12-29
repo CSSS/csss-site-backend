@@ -120,6 +120,9 @@ async def test__endpoints(client, database_setup):
     response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 401
 
+    # TODO: this
+    response = await client.post("officers/term/abc11")
+
     # TODO: add tests for the POST & PATCH commands
     # TODO: ensure that the database is being reset every time!
 

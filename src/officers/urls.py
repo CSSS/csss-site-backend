@@ -99,7 +99,10 @@ async def all_officers(
 
 @router.get(
     "/terms/{computing_id}",
-    description="""Get term info for an executive. All term info is public for all past or active terms.""",
+    description="""
+        Get term info for an executive. All term info is public for all past or active terms.
+        Future terms can only be accessed by website admins.
+    """,
 )
 async def get_officer_terms(
     request: Request,
@@ -107,15 +110,10 @@ async def get_officer_terms(
     computing_id: str,
     include_future_terms: bool = False
 ):
-    # TODO: should this be login-required if a user does not want to include future terms? The info is
-    # supposed to all be public
-    _, session_computing_id = await logged_in_or_raise(request, db_session)
-
-    if (
-        computing_id != session_computing_id
-        and include_future_terms
-    ):
-        await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
+    if include_future_terms:
+        _, session_computing_id = await logged_in_or_raise(request, db_session)
+        if computing_id != session_computing_id:
+            await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
 
     # all term info is public, so anyone can get any of it
     officer_terms = await officers.crud.get_officer_terms(

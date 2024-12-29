@@ -135,18 +135,13 @@ async def get_officer_info(
     computing_id: str,
 ):
     _, session_computing_id = await logged_in_or_raise(request, db_session)
-
     if computing_id != session_computing_id:
         await WebsiteAdmin.has_permission_or_raise(
             db_session, session_computing_id,
             errmsg="must have website admin permissions to get officer info about another user"
         )
 
-    officer_info = await officers.crud.get_officer_info(db_session, computing_id)
-    if officer_info is None:
-        # this will be triggered if a non-officer calls the endpoint
-        raise HTTPException(status_code=404, detail="user has no officer info")
-
+    officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
     return JSONResponse(officer_info.serializable_dict())
 
 @router.post(
@@ -216,7 +211,7 @@ async def update_info(
             errmsg="must have website admin permissions to update another user"
         )
 
-    old_officer_info = await officers.crud.get_officer_info(db_session, computing_id)
+    old_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
     validation_failures, corrected_officer_info = await officer_info_upload.validate(computing_id, old_officer_info)
 
     # TODO (#27): log all important changes just to a .log file & persist them for a few years
@@ -227,7 +222,7 @@ async def update_info(
 
     await db_session.commit()
 
-    updated_officer_info = await officers.crud.get_officer_info(db_session, computing_id)
+    updated_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
     return JSONResponse({
         "officer_info": updated_officer_info.serializable_dict(),
         "validation_failures": validation_failures,

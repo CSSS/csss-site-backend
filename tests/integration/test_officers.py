@@ -18,13 +18,6 @@ def anyio_backend():
     return "asyncio"
 
 @pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for each test case"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-@pytest.fixture(scope="session")
 async def client():
     # base_url is just a random placeholder url
     # ASGITransport is just telling the async client to pass all requests to app
@@ -79,8 +72,11 @@ async def test__read_execs(database_setup):
         assert next(iter(current_exec_team.values()))[0].private_data is not None
         assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc11"
 
-        all_terms = await all_officers(db_session, include_private_data=True, include_future_terms=True)
+        all_terms = await all_officers(db_session, include_private_data=True, include_future_terms=False)
         assert len(all_terms) == 6
+
+        all_terms = await all_officers(db_session, include_private_data=True, include_future_terms=True)
+        assert len(all_terms) == 7
 
 #async def test__update_execs(database_setup):
 #    # TODO: the second time an update_officer_info call occurs, the user should be updated with info
@@ -88,7 +84,7 @@ async def test__read_execs(database_setup):
 
 @pytest.mark.anyio
 async def test__endpoints(client, database_setup):
-    # reset & load the test database
+    # `database_setup` resets & loads the test database
 
     response = await client.get("/officers/current")
     assert response.status_code == 200
@@ -100,22 +96,32 @@ async def test__endpoints(client, database_setup):
     assert response.status_code == 200
     assert response.json() != []
     assert len(response.json()) == 6
-    assert not response.json()[0]["private_data"]
+    assert response.json()[0]["private_data"] is None
 
     response = await client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 401
 
-    """
-    response = await client.get("/officers/all")
+    response = await client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false")
     assert response.status_code == 200
-    assert response.json() != {}
-    # TODO: ensure `include_future_terms` works
+    assert response.json() != []
+    assert len(response.json()) == 2
+    assert response.json()[0]["nickname"] == "G2"
+    assert response.json()[1]["nickname"] == "G1"
 
-    # TODO: ensure the test database is being used & has access to abc11
-    response = await client.get("/officers/terms/abc11")
+    response = await client.get("/officers/terms/balargho?include_future_terms=false")
     assert response.status_code == 200
-    assert response.json() != {}
-    """
+    assert response.json() == []
+
+    response = await client.get("/officers/terms/abc11?include_future_terms=true")
+    assert response.status_code == 401
+
+    response = await client.get("/officers/info/abc11")
+    assert response.status_code == 401
+    response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    assert response.status_code == 401
+
+    # TODO: add tests for the POST & PATCH commands
+    # TODO: ensure that the database is being reset every time!
 
 @pytest.mark.anyio
 async def test__endpoints_admin(client, database_setup):
@@ -124,18 +130,40 @@ async def test__endpoints_admin(client, database_setup):
     async with database_setup.session() as db_session:
         await create_user_session(db_session, session_id, load_test_db.SYSADMIN_COMPUTING_ID)
 
+    client.cookies = { "session_id": session_id }
+
     # test that more info is given if logged in & with access to it
-    response = await client.get("/officers/current", cookies={ "session_id": session_id })
+    response = await client.get("/officers/current")
     assert response.status_code == 200
     assert response.json() != {}
     assert len(response.json().values()) == 4
     assert response.json()["executive at large"][0]["private_data"]
 
-    response = await client.get("/officers/all?include_future_terms=true", cookies={ "session_id": session_id })
+    response = await client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() != []
     print(len(response.json()))
-    assert len(response.json()) == 6 # TODO: we expect larger than 6
-    assert response.json()[0]["private_data"]["phone_number"] == "1234567890"
+    assert len(response.json()) == 7
+    assert response.json()[1]["private_data"]["phone_number"] == "1234567890"
+
+    response = await client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false")
+    assert response.status_code == 200
+    assert response.json() != []
+    assert len(response.json()) == 2
+
+    response = await client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=true")
+    assert response.status_code == 200
+    assert response.json() != []
+    assert len(response.json()) == 3
+
+    response = await client.get("/officers/info/abc11")
+    assert response.status_code == 200
+    assert response.json() != {}
+    assert response.json()["legal_name"] == "Person A"
+    response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    assert response.status_code == 200
+    assert response.json() != {}
+    response = await client.get("/officers/info/balargho")
+    assert response.status_code == 404
 
     # TODO: ensure that all endpoints are tested at least once

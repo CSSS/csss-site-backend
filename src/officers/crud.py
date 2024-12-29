@@ -88,14 +88,14 @@ async def all_officers(
 
     return officer_data_list
 
-async def get_officer_info(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
+async def get_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
     officer_term = await db_session.scalar(
         sqlalchemy
         .select(OfficerInfo)
         .where(OfficerInfo.computing_id == computing_id)
     )
     if officer_term is None:
-        raise HTTPException(status_code=400, detail=f"officer_info for computing_id={computing_id} does not exist yet")
+        raise HTTPException(status_code=404, detail=f"officer_info for computing_id={computing_id} does not exist yet")
     return officer_term
 
 async def get_officer_terms(

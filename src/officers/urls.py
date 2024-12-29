@@ -186,7 +186,7 @@ async def new_officer_term(
         ))
 
     await db_session.commit()
-    return PlainTextResponse("success")
+    return PlainTextResponse("ok")
 
 @router.patch(
     "/info/{computing_id}",

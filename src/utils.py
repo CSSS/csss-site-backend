@@ -34,6 +34,11 @@ def is_active_officer(query: Select) -> Select:
         )
     )
 
+def has_started_term(query: Select) -> bool:
+    return query.where(
+        OfficerTerm.start_date <= date.today()
+    )
+
 def is_active_term(term: OfficerTerm) -> bool:
     return (
         # cannot be an officer who has not started yet
@@ -45,9 +50,6 @@ def is_active_term(term: OfficerTerm) -> bool:
             or date.today() <= term.end_date
         )
     )
-
-def has_started_term(term: OfficerTerm) -> bool:
-    return term.start_date <= date.today()
 
 def is_past_term(term: OfficerTerm) -> bool:
     """Any term which has concluded"""

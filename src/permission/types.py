@@ -18,7 +18,7 @@ class OfficerPrivateInfo:
         A semester is defined in semester_start
         """
 
-        term_list = await officers.crud.get_officer_terms(db_session, computing_id)
+        term_list = await officers.crud.get_officer_terms(db_session, computing_id, include_future_terms=False)
         for term in term_list:
             if utils.is_active_term(term):
                 return True

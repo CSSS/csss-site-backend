@@ -1,7 +1,7 @@
 import asyncio  # NOTE: don't comment this out; it's required
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 import load_test_db
 from auth.crud import create_user_session
@@ -12,6 +12,24 @@ from officers.crud import all_officers, current_officers, get_active_officer_ter
 
 # TODO: setup a database on the CI machine & run this as a unit test then (since
 # this isn't really an integration test)
+
+@pytest.fixture(scope="session")
+def anyio_backend():
+    return "asyncio"
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for each test case"""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+@pytest.fixture(scope="session")
+async def client():
+    # base_url is just a random placeholder url
+    # ASGITransport is just telling the async client to pass all requests to app
+    async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
+        yield client
 
 # run this again for every function
 @pytest.fixture(scope="function")
@@ -26,6 +44,7 @@ async def database_setup():
 
     return sessionmanager
 
+# TODO: switch to mark.anyio
 @pytest.mark.asyncio
 async def test__read_execs(database_setup):
     sessionmanager = await database_setup
@@ -67,46 +86,56 @@ async def test__read_execs(database_setup):
 #    # TODO: the second time an update_officer_info call occurs, the user should be updated with info
 #    pass
 
-@pytest.mark.asyncio
-async def test__endpoints(database_setup):
+@pytest.mark.anyio
+async def test__endpoints(client, database_setup):
     # reset & load the test database
-    _ = await database_setup
-    client = TestClient(app)
 
-    response = client.get("/officers/current")
+    response = await client.get("/officers/current")
     assert response.status_code == 200
     assert response.json() != {}
     assert len(response.json().values()) == 4
     assert not response.json()["executive at large"][0]["private_data"]
 
+    response = await client.get("/officers/all?include_future_terms=false")
+    assert response.status_code == 200
+    assert response.json() != []
+    assert len(response.json()) == 6
+    assert not response.json()[0]["private_data"]
+
+    response = await client.get("/officers/all?include_future_terms=true")
+    assert response.status_code == 401
+
     """
-    response = client.get("/officers/all")
+    response = await client.get("/officers/all")
     assert response.status_code == 200
     assert response.json() != {}
     # TODO: ensure `include_future_terms` works
 
     # TODO: ensure the test database is being used & has access to abc11
-    response = client.get("/officers/terms/abc11")
+    response = await client.get("/officers/terms/abc11")
     assert response.status_code == 200
     assert response.json() != {}
     """
 
-@pytest.mark.asyncio
-async def test__endpoints_admin(database_setup):
-    # reset & load the test database
-    sessionmanager = await database_setup
-    client = TestClient(app)
-
+@pytest.mark.anyio
+async def test__endpoints_admin(client, database_setup):
     # login as website admin
     session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
-    async with sessionmanager.session() as db_session:
+    async with database_setup.session() as db_session:
         await create_user_session(db_session, session_id, load_test_db.SYSADMIN_COMPUTING_ID)
 
     # test that more info is given if logged in & with access to it
-    response = client.get("/officers/current", cookies={ "session_id": session_id })
+    response = await client.get("/officers/current", cookies={ "session_id": session_id })
     assert response.status_code == 200
     assert response.json() != {}
     assert len(response.json().values()) == 4
     assert response.json()["executive at large"][0]["private_data"]
+
+    response = await client.get("/officers/all?include_future_terms=true", cookies={ "session_id": session_id })
+    assert response.status_code == 200
+    assert response.json() != []
+    print(len(response.json()))
+    assert len(response.json()) == 6 # TODO: we expect larger than 6
+    assert response.json()[0]["private_data"]["phone_number"] == "1234567890"
 
     # TODO: ensure that all endpoints are tested at least once

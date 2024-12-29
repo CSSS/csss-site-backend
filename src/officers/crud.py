@@ -139,7 +139,7 @@ async def current_officer_positions(db_session: database.DBSession, computing_id
     """
     Returns the list of officer positions a user currently has. [] if not currently an officer.
     """
-    officer_term_list = get_active_officer_terms(db_session, computing_id)
+    officer_term_list = await get_active_officer_terms(db_session, computing_id)
     return [term.position for term in officer_term_list]
 
 async def get_officer_term_by_id(db_session: database.DBSession, term_id: int) -> OfficerTerm:

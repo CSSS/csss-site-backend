@@ -1,5 +1,5 @@
 # major
-fastapi==0.109.1
+fastapi==0.115.6
 gunicorn==21.2.0
 uvicorn[standard]==0.27.1
 sqlalchemy[asyncio]==2.0.27
@@ -19,3 +19,4 @@ ruff==0.6.9
 # test
 pytest
 pytest-asyncio
+httpx

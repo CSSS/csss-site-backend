@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from sqlalchemy import (
-    # Boolean,
     Column,
-    DateTime,
+    Date,
     ForeignKey,
     Integer,
-    Select,
     String,
     Text,
-    and_,
 )
 
 # from sqlalchemy.orm import relationship
@@ -28,7 +25,9 @@ from database import Base
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
+    # TODO (#98): create a unique constraint for (computing_id, position, start_date).
     id = Column(Integer, primary_key=True, autoincrement=True)
+
     computing_id = Column(
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),
@@ -36,10 +35,9 @@ class OfficerTerm(Base):
     )
 
     position = Column(String(128), nullable=False)
-    # TODO: replace these with Date, not Datetime
-    start_date = Column(DateTime, nullable=False)
+    start_date = Column(Date, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date = Column(DateTime, nullable=True)
+    end_date = Column(Date, nullable=True)
 
     nickname = Column(String(128), nullable=True)
     favourite_course_0 = Column(String(32), nullable=True)
@@ -48,7 +46,7 @@ class OfficerTerm(Base):
     favourite_pl_0 = Column(String(32), nullable=True)
     favourite_pl_1 = Column(String(32), nullable=True)
     biography = Column(Text, nullable=True)
-    photo_url = Column(Text, nullable=True)  # some urls get big, best to let it be a string
+    photo_url = Column(Text, nullable=True) # some urls get big, best to let it be a string
 
     def serializable_dict(self) -> dict:
         return {
@@ -68,7 +66,6 @@ class OfficerTerm(Base):
             "photo_url": self.photo_url,
         }
 
-    # a record will only be publically visible if sufficient data has been given
     def is_filled_in(self):
         return (
             # photo & end_date don't have to be uploaded for the term to be "filled"
@@ -83,26 +80,9 @@ class OfficerTerm(Base):
             and self.biography is not None
         )
 
-    @staticmethod
-    def sql_is_filled_in(query: Select) -> Select:
-        """Should be identical to self.is_filled_in()"""
-        return query.where(
-            and_(
-                OfficerTerm.computing_id is not None,
-                OfficerTerm.start_date is not None,
-                OfficerTerm.nickname is not None,
-                OfficerTerm.favourite_course_0 is not None,
-                OfficerTerm.favourite_course_1 is not None,
-                OfficerTerm.favourite_pl_0 is not None,
-                OfficerTerm.favourite_pl_1 is not None,
-                OfficerTerm.biography is not None,
-            )
-        )
-
     def to_update_dict(self) -> dict:
         return {
-            # TODO: do we want computing_id to be changeable?
-            # "computing_id": self.computing_id,
+            "computing_id": self.computing_id,
 
             "position": self.position,
             "start_date": self.start_date,
@@ -128,12 +108,11 @@ class OfficerInfo(Base):
         primary_key=True,
     )
 
-    # TODO: we'll need to use SFU's API to get the legal name for users
+    # TODO (#71): we'll need to use SFU's API to get the legal name for users
     legal_name = Column(String(128), nullable=False) # some people have long names, you never know
     phone_number = Column(String(24), nullable=True)
 
-    # a null discord id would mean you don't have discord
-    # TODO: add unique constraints to these (stops users from stealing the username of someone else)
+    # TODO (#99): add unique constraints to discord_id (stops users from stealing the username of someone else)
     discord_id = Column(String(DISCORD_ID_LEN), nullable=True)
     discord_name = Column(String(DISCORD_NAME_LEN), nullable=True)
     # this is their nickname in the csss server
@@ -141,15 +120,13 @@ class OfficerInfo(Base):
 
     # Technically 320 is the most common max-size for emails, but we'll use 256 instead,
     # since it's reasonably large (input validate this too)
-    # TODO: add unique constraint to this (stops users from stealing the username of someone else)
+    # TODO (#99): add unique constraint to this (stops users from stealing the username of someone else)
     google_drive_email = Column(String(256), nullable=True)
 
-    # TODO: add unique constraint to this (stops users from stealing the username of someone else)
+    # TODO (#99): add unique constraint to this (stops users from stealing the username of someone else)
     github_username = Column(String(GITHUB_USERNAME_LEN), nullable=True)
 
-    # NOTE: not sure if we'll need this, depending on implementation
-    # TODO: get this data on the fly when requested, but rate limit users
-    # to something like 1/s 100/hour
+    # TODO (#22): add support for giving executives bitwarden access automagically
     # has_signed_into_bitwarden = Column(Boolean)
 
     def serializable_dict(self) -> dict:
@@ -182,7 +159,7 @@ class OfficerInfo(Base):
 
     def to_update_dict(self) -> dict:
         return {
-            # TODO: if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
+            # TODO (#71): if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
             # for now, we should insert a default value
             "legal_name": "default name" if self.legal_name is None else self.legal_name,
 

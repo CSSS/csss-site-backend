@@ -28,8 +28,7 @@ class OfficerPosition:
 
     @staticmethod
     def length_in_semesters(position: str) -> int | None:
-        # TODO: ask the committee to maintain a json file with all the important details from the constitution
-        # (I can create the version version of the file)
+        # TODO (#101): ask the committee to maintain a json file with all the important details from the constitution
         """How many semester position is active for, according to the CSSS Constitution"""
         return _LENGTH_MAP[position]
 
@@ -71,6 +70,7 @@ class OfficerPosition:
 
     @staticmethod
     def expected_positions() -> list[str]:
+        # TODO (#93): use this function in the daily cronjobs
         return [
             OfficerPosition.PRESIDENT,
             OfficerPosition.VICE_PRESIDENT,
@@ -81,11 +81,11 @@ class OfficerPosition:
             OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
             OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
             OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
-            #OfficerPosition.DIRECTOR_OF_OUTREACH, # TODO: when https://github.com/CSSS/documents/pull/9/files merged
+            #OfficerPosition.DIRECTOR_OF_OUTREACH, # TODO (#101): when https://github.com/CSSS/documents/pull/9/files merged
             OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
             OfficerPosition.DIRECTOR_OF_ARCHIVES,
             OfficerPosition.EXECUTIVE_AT_LARGE,
-            # TODO: expect these only during fall & spring semesters. Also, TODO: this todo is correct...
+            # TODO (#101): expect these only during fall & spring semesters.
             #OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
 
             #ElectionsOfficer,
@@ -121,8 +121,6 @@ _EMAIL_MAP = {
     OfficerPosition.SOCIAL_MEDIA_MANAGER: "N/A",
 }
 
-# TODO: when an officer's start date is modified, update the end date as well if it's defined in this list
-# a number of semesters (a semester begins on the 1st of each four month period, starting january)
 # None, means that the length of the position does not have a set length in semesters
 _LENGTH_MAP = {
     OfficerPosition.PRESIDENT: 3,

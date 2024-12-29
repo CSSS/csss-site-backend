@@ -1,12 +1,12 @@
-from datetime import UTC, datetime, timezone
+from datetime import date
 from typing import ClassVar
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 
-import auth.crud
 import database
 import officers.crud
-from data.semesters import current_semester_start, step_semesters
+import utils
+from data.semesters import step_semesters
 from officers.constants import OfficerPosition
 
 
@@ -18,19 +18,16 @@ class OfficerPrivateInfo:
         A semester is defined in semester_start
         """
 
-        term = await officers.crud.most_recent_officer_term(db_session, computing_id)
-        if term is None:
-            return False
-        elif term.end_date is None:
-            # considered an active exec if no end_date
-            return True
+        term_list = await officers.crud.get_officer_terms(db_session, computing_id, include_future_terms=False)
+        for term in term_list:
+            if utils.is_active_term(term):
+                return True
 
-        current_date = datetime.now(UTC)
-        semester_start = current_semester_start(current_date)
-        NUM_SEMESTERS = 5
-        cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)
+            NUM_SEMESTERS = 5
+            if date.today() <= step_semesters(term.end_date, NUM_SEMESTERS):
+                return True
 
-        return term.end_date > cutoff_date
+        return False
 
 class WebsiteAdmin:
     WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [
@@ -52,15 +49,10 @@ class WebsiteAdmin:
         return False
 
     @staticmethod
-    async def validate_request(db_session: database.DBSession, request: Request) -> bool:
-        """
-        Checks if the provided request satisfies these permissions, and raises the neccessary
-        exceptions if not
-        """
-        session_id = request.cookies.get("session_id", None)
-        if session_id is None:
-            raise HTTPException(status_code=401, detail="must be logged in")
-        else:
-            computing_id = await auth.crud.get_computing_id(db_session, session_id)
-            if not await WebsiteAdmin.has_permission(db_session, computing_id):
-                raise HTTPException(status_code=401, detail="must have website admin permissions")
+    async def has_permission_or_raise(
+        db_session: database.DBSession,
+        computing_id: str,
+        errmsg:str = "must have website admin permissions"
+    ) -> bool:
+        if not await WebsiteAdmin.has_permission(db_session, computing_id):
+            raise HTTPException(status_code=401, detail=errmsg)

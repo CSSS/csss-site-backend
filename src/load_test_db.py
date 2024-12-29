@@ -212,10 +212,9 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
+SYSADMIN_COMPUTING_ID = "gsa92"
 async def load_sysadmin(db_session: AsyncSession):
     # put your computing id here for testing purposes
-    SYSADMIN_COMPUTING_ID = "gsa92"
-
     print(f"loading new sysadmin '{SYSADMIN_COMPUTING_ID}'")
     await create_user_session(db_session, f"temp_id_{SYSADMIN_COMPUTING_ID}", SYSADMIN_COMPUTING_ID)
     await create_new_officer_info(db_session, OfficerInfo(
@@ -261,23 +260,6 @@ async def load_sysadmin(db_session: AsyncSession):
         favourite_pl_1="C++",
 
         biography="o hey fellow kids \n\n\n I can newline",
-        photo_url=None,
-    ))
-    await create_new_officer_term(db_session, OfficerTerm(
-        computing_id=SYSADMIN_COMPUTING_ID,
-
-        position=OfficerPosition.SYSTEM_ADMINISTRATOR,
-        start_date=date.today() - timedelta(days=365),
-        end_date=None,
-
-        nickname="Gabe",
-        favourite_course_0="CMPT 379",
-        favourite_course_1="CMPT 295",
-
-        favourite_pl_0="Rust",
-        favourite_pl_1="C",
-
-        biography="The systems are good o7",
         photo_url=None,
     ))
     await db_session.commit()

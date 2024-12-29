@@ -262,7 +262,8 @@ async def update_term(
         )
 
     if (
-        officer_term_upload.position != old_officer_term.position
+        officer_term_upload.computing_id != old_officer_term.computing_id
+        or officer_term_upload.position != old_officer_term.position
         or officer_term_upload.start_date != old_officer_term.start_date
         or officer_term_upload.end_date != old_officer_term.end_date
     ):
@@ -274,7 +275,7 @@ async def update_term(
     # TODO (#27): log all important changes to a .log file
     success = await officers.crud.update_officer_term(
         db_session,
-        officer_term_upload.to_officer_term(term_id, old_officer_term.computing_id)
+        officer_term_upload.to_officer_term(term_id)
     )
     if not success:
         raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create it first")
@@ -306,6 +307,8 @@ async def remove_officer(
     deleted_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
 
     # TODO (#27): log all important changes to a .log file
+
+    # TODO (#100): return whether the deletion succeeded or not
     await officers.crud.delete_officer_term_by_id(db_session, term_id)
     await db_session.commit()
 

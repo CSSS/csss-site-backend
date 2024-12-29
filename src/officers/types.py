@@ -91,7 +91,7 @@ class OfficerInfoUpload:
                 corrected_officer_info.discord_id = discord_user.id
                 corrected_officer_info.discord_nickname = discord_user.global_name
 
-        # TODO: validate google-email using google module, by trying to assign the user to a permission or something
+        # TODO (#82): validate google-email using google module, by trying to assign the user to a permission or something
         if not utils.is_valid_email(self.google_drive_email):
             validation_failures += [f"invalid email format {self.google_drive_email}"]
             corrected_officer_info.google_drive_email = old_officer_info.google_drive_email
@@ -101,15 +101,16 @@ class OfficerInfoUpload:
             validation_failures += [f"invalid github username {self.github_username}"]
             corrected_officer_info.github_username = old_officer_info.github_username
 
-        # TODO: if github user exists, invite the github user to the org (or can we simply add them directly?)
-        # -> do so outside this function
-        # TODO: detect if changing github username & uninvite old user
+        # TODO (#93): add the following to the daily cronjob
+        # TODO (#97): if github user exists, invite the github user to the org (or can we simply add them directly?)
+        # -> do so outside this function. Also, detect if the github username is being changed & uninvite the old user
 
         return validation_failures, corrected_officer_info
 
 @dataclass
 class OfficerTermUpload:
     # only admins can change:
+    computing_id: str
     position: str
     start_date: date
     end_date: None | date = None
@@ -122,22 +123,20 @@ class OfficerTermUpload:
     favourite_pl_1: None | str = None
     biography: None | str = None
 
-    # TODO: we're going to need an API call to upload images
-    # NOTE: changing the name of this variable without changing all instances is breaking
+    # TODO (#39): we're going to need an endpoint for uploading images
     photo_url: None | str = None
 
     def valid_or_raise(self):
-        # NOTE: An officer can change their own data for terms that are ongoing.
         if self.position not in OfficerPosition.position_list():
             raise HTTPException(status_code=400, detail=f"invalid new position={self.position}")
         elif self.end_date is not None and self.start_date > self.end_date:
             raise HTTPException(status_code=400, detail="end_date must be after start_date")
 
-    def to_officer_term(self, term_id: str, computing_id:str) -> OfficerTerm:
+    def to_officer_term(self, term_id: str) -> OfficerTerm:
         return OfficerTerm(
             id = term_id,
-            computing_id = computing_id,
 
+            computing_id = self.computing_id,
             position = self.position,
             start_date = self.start_date,
             end_date = self.end_date,

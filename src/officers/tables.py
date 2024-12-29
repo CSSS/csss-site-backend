@@ -25,8 +25,7 @@ from database import Base
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
-    # TODO: change primary key to computing_id, position, start_date?
-    # nah, I like having a term-id -> just do a check when inserting?
+    # TODO (#98): create a unique constraint for (computing_id, position, start_date).
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     computing_id = Column(
@@ -83,8 +82,7 @@ class OfficerTerm(Base):
 
     def to_update_dict(self) -> dict:
         return {
-            # TODO: do we want computing_id to be changeable?
-            # "computing_id": self.computing_id,
+            "computing_id": self.computing_id,
 
             "position": self.position,
             "start_date": self.start_date,
@@ -114,8 +112,7 @@ class OfficerInfo(Base):
     legal_name = Column(String(128), nullable=False) # some people have long names, you never know
     phone_number = Column(String(24), nullable=True)
 
-    # a null discord id would mean you don't have discord
-    # TODO: add unique constraints to these (stops users from stealing the username of someone else)
+    # TODO (#99): add unique constraints to discord_id (stops users from stealing the username of someone else)
     discord_id = Column(String(DISCORD_ID_LEN), nullable=True)
     discord_name = Column(String(DISCORD_NAME_LEN), nullable=True)
     # this is their nickname in the csss server
@@ -123,15 +120,13 @@ class OfficerInfo(Base):
 
     # Technically 320 is the most common max-size for emails, but we'll use 256 instead,
     # since it's reasonably large (input validate this too)
-    # TODO: add unique constraint to this (stops users from stealing the username of someone else)
+    # TODO (#99): add unique constraint to this (stops users from stealing the username of someone else)
     google_drive_email = Column(String(256), nullable=True)
 
-    # TODO: add unique constraint to this (stops users from stealing the username of someone else)
+    # TODO (#99): add unique constraint to this (stops users from stealing the username of someone else)
     github_username = Column(String(GITHUB_USERNAME_LEN), nullable=True)
 
-    # NOTE: not sure if we'll need this, depending on implementation
-    # TODO: get this data on the fly when requested, but rate limit users
-    # to something like 1/s 100/hour
+    # TODO (#22): add support for giving executives bitwarden access automagically
     # has_signed_into_bitwarden = Column(Boolean)
 
     def serializable_dict(self) -> dict:

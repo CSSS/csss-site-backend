@@ -135,6 +135,15 @@ async def test__endpoints(client, database_setup):
     }]))
     assert response.status_code == 400
 
+    response = await client.patch("officers/info/abc11", content=json.dumps({
+        "legal_name": "fancy name",
+        "phone_number": None,
+        "discord_name": None,
+        "github_username": None,
+        "google_drive_email": None,
+    }))
+    assert response.status_code == 401
+
     # TODO: add tests for the POST & PATCH commands
 
 @pytest.mark.anyio
@@ -195,5 +204,24 @@ async def test__endpoints_admin(client, database_setup):
     assert response.status_code == 200
     assert response.json() != []
     assert len(response.json()) == 1
+
+    response = await client.patch("officers/info/abc11", content=json.dumps({
+        "legal_name": "Person A2",
+        "phone_number": "12345asdab67890",
+        "discord_name": "person_a_yeah",
+        "github_username": "person_a",
+        "google_drive_email": "person_a@gmail.com",
+    }))
+    assert response.status_code == 200
+    assert len(response.json()["validation_failures"]) == 3
+
+    response = await client.patch("officers/info/aaabbbc", content=json.dumps({
+        "legal_name": "Person AABBCC",
+        "phone_number": "1234567890",
+        "discord_name": None,
+        "github_username": None,
+        "google_drive_email": "person_aaa_bbb_ccc+spam@gmail.com",
+    }))
+    assert response.status_code == 404
 
     # TODO: ensure that all endpoints are tested at least once

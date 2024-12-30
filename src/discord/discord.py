@@ -43,6 +43,10 @@ class Channel:
     name: str
     permission_overwrites: list[str] | None = None
 
+def is_active() -> bool:
+    # if there is no discord token, then consider the module inactive; calling functions may fail without warning!
+    return os.environ.get("DISCORD_TOKEN") is not None
+
 async def _discord_request(
     url: str,
     token: str

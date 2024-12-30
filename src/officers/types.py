@@ -70,26 +70,36 @@ class OfficerInfoUpload:
             validation_failures += [f"invalid phone number {self.phone_number}"]
             corrected_officer_info.phone_number = old_officer_info.phone_number
 
-        if self.discord_name is None or self.discord_name == "":
-            corrected_officer_info.discord_name = None
-            corrected_officer_info.discord_id = None
-            corrected_officer_info.discord_nickname = None
-        else:
-            discord_user_list = await discord.search_username(self.discord_name)
-            if len(discord_user_list) != 1:
-                validation_failures += [
-                    f"unable to find discord user with the name {self.discord_name}"
-                    if len(discord_user_list) == 0
-                    else f"too many discord users start with {self.discord_name}"
-                ]
-                corrected_officer_info.discord_name = old_officer_info.discord_name
-                corrected_officer_info.discord_id = old_officer_info.discord_id
-                corrected_officer_info.discord_nickname = old_officer_info.discord_nickname
+        if discord.is_active():
+            if self.discord_name is None or self.discord_name == "":
+                corrected_officer_info.discord_name = None
+                corrected_officer_info.discord_id = None
+                corrected_officer_info.discord_nickname = None
             else:
-                discord_user = discord_user_list[0]
-                corrected_officer_info.discord_name = discord_user.username
-                corrected_officer_info.discord_id = discord_user.id
-                corrected_officer_info.discord_nickname = discord_user.global_name
+                discord_user_list = await discord.search_username(self.discord_name)
+                if len(discord_user_list) != 1:
+                    validation_failures += [
+                        f"unable to find discord user with the name {self.discord_name}"
+                        if len(discord_user_list) == 0
+                        else f"too many discord users start with {self.discord_name}"
+                    ]
+                    corrected_officer_info.discord_name = old_officer_info.discord_name
+                    corrected_officer_info.discord_id = old_officer_info.discord_id
+                    corrected_officer_info.discord_nickname = old_officer_info.discord_nickname
+                else:
+                    discord_user = discord_user_list[0]
+                    corrected_officer_info.discord_name = discord_user.username
+                    corrected_officer_info.discord_id = discord_user.id
+                    corrected_officer_info.discord_nickname = discord_user.global_name
+        else:
+            # TODO (#27): log that the module is inactive & send an email to csss_sysadmin@sfu.ca
+            # (if local is false & we have the email permissions or smth)
+
+            # if module is inactive, don't allow updates to discord username
+            corrected_officer_info.discord_name = old_officer_info.discord_name
+            corrected_officer_info.discord_id = old_officer_info.discord_id
+            corrected_officer_info.discord_nickname = old_officer_info.discord_nickname
+            validation_failures += ["discord module inactive"]
 
         # TODO (#82): validate google-email using google module, by trying to assign the user to a permission or something
         if not utils.is_valid_email(self.google_drive_email):
@@ -97,9 +107,14 @@ class OfficerInfoUpload:
             corrected_officer_info.google_drive_email = old_officer_info.google_drive_email
 
         # validate that github user is real
-        if await github.internals.get_user_by_username(self.github_username) is None:
-            validation_failures += [f"invalid github username {self.github_username}"]
-            corrected_officer_info.github_username = old_officer_info.github_username
+        if github.is_active():
+            if await github.internals.get_user_by_username(self.github_username) is None:
+                validation_failures += [f"invalid github username {self.github_username}"]
+                corrected_officer_info.github_username = old_officer_info.github_username
+        else:
+            # TODO (#27): log that the module is inactive & send an email to csss_sysadmin@sfu.ca
+            # (if local is false & we have the email permissions or smth)
+            validation_failures += ["github module inactive"]
 
         # TODO (#93): add the following to the daily cronjob
         # TODO (#97): if github user exists, invite the github user to the org (or can we simply add them directly?)

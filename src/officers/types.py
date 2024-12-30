@@ -114,6 +114,7 @@ class OfficerInfoUpload:
         else:
             # TODO (#27): log that the module is inactive & send an email to csss_sysadmin@sfu.ca
             # (if local is false & we have the email permissions or smth)
+            corrected_officer_info.github_username = old_officer_info.github_username
             validation_failures += ["github module inactive"]
 
         # TODO (#93): add the following to the daily cronjob

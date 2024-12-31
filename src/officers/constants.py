@@ -30,7 +30,11 @@ class OfficerPosition:
     def length_in_semesters(position: str) -> int | None:
         # TODO (#101): ask the committee to maintain a json file with all the important details from the constitution
         """How many semester position is active for, according to the CSSS Constitution"""
-        return _LENGTH_MAP[position]
+        if position not in _LENGTH_MAP:
+            # this can occur for legacy positions
+            return None
+        else:
+            return _LENGTH_MAP[position]
 
     @staticmethod
     def to_email(position: str) -> str | None:

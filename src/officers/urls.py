@@ -2,7 +2,6 @@ import logging
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
-from sqlalchemy.exc import IntegrityError
 
 import auth.crud
 import database

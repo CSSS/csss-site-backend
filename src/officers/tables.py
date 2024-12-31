@@ -40,11 +40,11 @@ class OfficerTerm(Base):
     end_date = Column(Date, nullable=True)
 
     nickname = Column(String(128), nullable=True)
-    favourite_course_0 = Column(String(32), nullable=True)
-    favourite_course_1 = Column(String(32), nullable=True)
+    favourite_course_0 = Column(String(64), nullable=True)
+    favourite_course_1 = Column(String(64), nullable=True)
     # programming language
-    favourite_pl_0 = Column(String(32), nullable=True)
-    favourite_pl_1 = Column(String(32), nullable=True)
+    favourite_pl_0 = Column(String(64), nullable=True)
+    favourite_pl_1 = Column(String(64), nullable=True)
     biography = Column(Text, nullable=True)
     photo_url = Column(Text, nullable=True) # some urls get big, best to let it be a string
 

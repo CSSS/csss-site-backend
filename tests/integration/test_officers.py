@@ -1,4 +1,6 @@
 import asyncio  # NOTE: don't comment this out; it's required
+import json
+from datetime import date, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -120,8 +122,47 @@ async def test__endpoints(client, database_setup):
     response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 401
 
-    # TODO: add tests for the POST & PATCH commands
-    # TODO: ensure that the database is being reset every time!
+    response = await client.post("officers/term", content=json.dumps([{
+        "computing_id": "ehbc12",
+        "position": OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+        "start_date": "2025-12-29"
+    }]))
+    assert response.status_code == 401
+
+    response = await client.post("officers/term", content=json.dumps([{
+        "computing_id": "ehbc12",
+        "position": "balargho",
+        "start_date": "2025-12-29"
+    }]))
+    assert response.status_code == 400
+
+    response = await client.patch("officers/info/abc11", content=json.dumps({
+        "legal_name": "fancy name",
+        "phone_number": None,
+        "discord_name": None,
+        "github_username": None,
+        "google_drive_email": None,
+    }))
+    assert response.status_code == 401
+
+    response = await client.patch("officers/term/1", content=json.dumps({
+        "computing_id": "abc11",
+        "position": OfficerPosition.VICE_PRESIDENT,
+        "start_date": (date.today() - timedelta(days=365)).isoformat(),
+        "end_date": (date.today() - timedelta(days=1)).isoformat(),
+
+        # officer should change:
+        "nickname": "1",
+        "favourite_course_0": "2",
+        "favourite_course_1": "3",
+        "favourite_pl_0": "4",
+        "favourite_pl_1": "5",
+        "biography": "hello"
+    }))
+    assert response.status_code == 401
+
+    response = await client.delete("officers/term/1")
+    assert response.status_code == 401
 
 @pytest.mark.anyio
 async def test__endpoints_admin(client, database_setup):
@@ -166,4 +207,76 @@ async def test__endpoints_admin(client, database_setup):
     response = await client.get("/officers/info/balargho")
     assert response.status_code == 404
 
-    # TODO: ensure that all endpoints are tested at least once
+    response = await client.get("/officers/terms/ehbc12?include_future_terms=true")
+    assert response.status_code == 200
+    assert response.json() == []
+
+    response = await client.post("officers/term", content=json.dumps([{
+        "computing_id": "ehbc12",
+        "position": OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+        "start_date": "2025-12-29"
+    }]))
+    assert response.status_code == 200
+
+    response = await client.get("/officers/terms/ehbc12?include_future_terms=true")
+    assert response.status_code == 200
+    assert response.json() != []
+    assert len(response.json()) == 1
+
+    response = await client.patch("officers/info/abc11", content=json.dumps({
+        "legal_name": "Person A2",
+        "phone_number": "12345asdab67890",
+        "discord_name": "person_a_yeah",
+        "github_username": "person_a",
+        "google_drive_email": "person_a@gmail.com",
+    }))
+    assert response.status_code == 200
+    assert response.json()["officer_info"] != {}
+    assert len(response.json()["validation_failures"]) == 3
+
+    response = await client.patch("officers/info/aaabbbc", content=json.dumps({
+        "legal_name": "Person AABBCC",
+        "phone_number": "1234567890",
+        "discord_name": None,
+        "github_username": None,
+        "google_drive_email": "person_aaa_bbb_ccc+spam@gmail.com",
+    }))
+    assert response.status_code == 404
+
+    response = await client.patch("officers/term/1", content=json.dumps({
+        "computing_id": "abc11",
+        "position": OfficerPosition.TREASURER,
+        "start_date": (date.today() - timedelta(days=365)).isoformat(),
+        "end_date": (date.today() - timedelta(days=1)).isoformat(),
+        "nickname": "1",
+        "favourite_course_0": "2",
+        "favourite_course_1": "3",
+        "favourite_pl_0": "4",
+        "favourite_pl_1": "5",
+        "biography": "hello o77"
+    }))
+    assert response.status_code == 200
+
+    response = await client.get("/officers/terms/abc11?include_future_terms=true")
+    assert response.status_code == 200
+    assert response.json() != []
+    assert response.json()[1]["position"] == OfficerPosition.TREASURER
+    assert response.json()[0]["favourite_course_0"] != "2"
+    assert response.json()[1]["biography"] == "hello o77"
+
+    async with database_setup.session() as db_session:
+        all_terms = await all_officers(db_session, include_private_data=True, include_future_terms=True)
+        assert len(all_terms) == 8
+
+    response = await client.delete("officers/term/1")
+    assert response.status_code == 200
+    response = await client.delete("officers/term/2")
+    assert response.status_code == 200
+    response = await client.delete("officers/term/3")
+    assert response.status_code == 200
+    response = await client.delete("officers/term/4")
+    assert response.status_code == 200
+
+    async with database_setup.session() as db_session:
+        all_terms = await all_officers(db_session, include_private_data=True, include_future_terms=True)
+        assert len(all_terms) == (8 - 4)

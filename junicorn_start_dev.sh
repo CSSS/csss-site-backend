@@ -1,19 +1,19 @@
 #!/bin/bash
 
 NAME=csss-site
-DIR=/home/csss-site/csss-site-backend/src
-USER=csss-site
-GROUP=csss-site
+DIR= # fill this out yourself
+USER= # fill this out yourself
+GROUP= # fill this out yourself
 WORKERS=2 # TODO: should we increase this?
 WORKER_CLASS=uvicorn.workers.UvicornWorker
-VENV=/home/csss-site/.venv/bin/activate
-BIND=unix:/var/www/gunicorn.sock
+VENV= # fill this out yourself
+BIND= # e.g., unix:/var/www/gunicorn.sock
 LOG_LEVEL=error
 
 cd $DIR
 source $VENV
 
-exec gunicorn main:app \
+gunicorn main:app \
   --name $NAME \
   --workers $WORKERS \
   --worker-class $WORKER_CLASS \

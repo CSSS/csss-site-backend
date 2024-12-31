@@ -1,10 +1,13 @@
-from datetime import datetime
+import re
+from datetime import date, datetime
+from pathlib import Path
 
-from officers.tables import OfficerInfo, OfficerTerm
 from sqlalchemy import Select
 
 # we can't use and/or in sql expressions, so we must use these functions
 from sqlalchemy.sql.expression import and_, or_
+
+from officers.tables import OfficerTerm
 
 
 def is_iso_format(date_str: str) -> bool:
@@ -14,22 +17,25 @@ def is_iso_format(date_str: str) -> bool:
     except ValueError:
         return False
 
-
 def is_active_officer(query: Select) -> Select:
-    # TODO: assert this constraint at the SQL level, so that we don't even have to check it?
+    """
+    An active officer is one who is currently part of the CSSS officer team.
+    That is, they are not upcoming, or in the past.
+    """
     return query.where(
         and_(
-            OfficerTerm.is_filled_in,
+            # cannot be an officer who has not started yet
+            OfficerTerm.start_date <= date.today(),
             or_(
                 # executives without a specified end_date are considered active
                 OfficerTerm.end_date.is_(None),
                 # check that today's timestamp is before (smaller than) the term's end date
-                datetime.today() <= OfficerTerm.end_date
+                date.today() <= OfficerTerm.end_date,
             )
         )
     )
 
-
+# TODO: test this
 def path_in_dir(path: str, parent_dir: str):
     """
     Determine if path is in parent_dir. A useful check for input
@@ -37,4 +43,39 @@ def path_in_dir(path: str, parent_dir: str):
     """
     parent = Path(parent_dir).resolve()
     child = Path(path).resolve()
-    return root in child.parents
+    return parent in child.parents
+
+def has_started_term(query: Select) -> bool:
+    return query.where(
+        OfficerTerm.start_date <= date.today()
+    )
+
+def is_active_term(term: OfficerTerm) -> bool:
+    return (
+        # cannot be an officer who has not started yet
+        term.start_date <= date.today()
+        and (
+            # executives without a specified end_date are considered active
+            term.end_date is None
+            # check that today's timestamp is before (smaller than) the term's end date
+            or date.today() <= term.end_date
+        )
+    )
+
+def is_past_term(term: OfficerTerm) -> bool:
+    """Any term which has concluded"""
+    return (
+        # an officer with no end date is current
+        term.end_date is not None
+        # if today is past the end date, it's a past term
+        and date.today() > term.end_date
+    )
+
+def is_valid_phone_number(phone_number: str) -> bool:
+    return (
+        len(phone_number) == 10
+        and phone_number.isnumeric()
+    )
+
+def is_valid_email(email: str):
+    return re.match(r"^[^@]+@[^@]+\.[a-zA-Z]*$", email)

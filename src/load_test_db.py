@@ -3,15 +3,16 @@
 # python load_test_db.py
 
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import sqlalchemy
-from auth.crud import create_user_session
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from officers.constants import OfficerPosition
 from officers.crud import create_new_officer_info, create_new_officer_term, update_officer_info, update_officer_term
-from officers.types import OfficerInfoData, OfficerTermData
-from sqlalchemy.ext.asyncio import AsyncSession
+from officers.tables import OfficerInfo, OfficerTerm
 
 
 async def reset_db(engine):
@@ -56,8 +57,10 @@ async def reset_db(engine):
         else:
             print(f"new tables: {table_list}")
 
-async def load_test_auth_data():
-    pass
+async def load_test_auth_data(db_session: AsyncSession):
+    await create_user_session(db_session, "temp_id_314", "abc314")
+    await update_site_user(db_session, "temp_id_314", "www.my_profile_picture_url.ca/test")
+    await db_session.commit()
 
 async def load_test_officers_data(db_session: AsyncSession):
     print("login the 3 users, putting them in the site users table")
@@ -68,7 +71,7 @@ async def load_test_officers_data(db_session: AsyncSession):
 
     print("add officer info")
     # this person has uploaded all of their info
-    await create_new_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Person A",
         discord_id=str(88_1234_7182_4877_1111),
         discord_name="person_a_yeah",
@@ -80,19 +83,21 @@ async def load_test_officers_data(db_session: AsyncSession):
         google_drive_email="person_a@gmail.com",
     ))
     # this person has not joined the CSSS discord, so their discord name & nickname could not be found
-    await create_new_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfo(
+        computing_id="abc22",
+
         legal_name="Person B",
+        phone_number="1112223333",
+
         discord_id=str(88_1234_7182_4877_2222),
         discord_name=None,
         discord_nickname=None,
 
-        computing_id="abc22",
-        phone_number="1112223333",
-        github_username="person_b",
         google_drive_email="person_b@gmail.com",
+        github_username="person_b",
     ))
     # this person has uploaded the minimal amount of information
-    await create_new_officer_info(db_session, OfficerInfoData(
+    await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Person C",
         discord_id=None,
         discord_name=None,
@@ -105,7 +110,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
-    await create_new_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc11",
 
         position=OfficerPosition.VICE_PRESIDENT,
@@ -122,7 +127,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="Hi! I'm person A and I do lots of cool things! :)",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
-    await create_new_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc11",
 
         position=OfficerPosition.EXECUTIVE_AT_LARGE,
@@ -139,7 +144,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         biography="Hi! I'm person A and I want school to be over ; _ ;",
         photo_url=None, # TODO: this should be replaced with a default image
     ))
-    await create_new_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc33",
 
         position=OfficerPosition.PRESIDENT,
@@ -157,7 +162,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         photo_url=None, # TODO: this should be replaced with a default image
     ))
     # this officer term is not fully filled in
-    await create_new_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc22",
 
         position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
@@ -176,7 +181,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
-    await update_officer_info(db_session, OfficerInfoData(
+    await update_officer_info(db_session, OfficerInfo(
         legal_name="Person C ----",
         discord_id=None,
         discord_name=None,
@@ -188,7 +193,7 @@ async def load_test_officers_data(db_session: AsyncSession):
         github_username=None,
         google_drive_email=None,
     ))
-    await update_officer_term(db_session, OfficerTermData(
+    await update_officer_term(db_session, OfficerTerm(
         computing_id="abc33",
 
         position=OfficerPosition.PRESIDENT,
@@ -207,12 +212,12 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
+SYSADMIN_COMPUTING_ID = "gsa92"
 async def load_sysadmin(db_session: AsyncSession):
-    print("loading new sysadmin")
     # put your computing id here for testing purposes
-    SYSADMIN_COMPUTING_ID = "gsa92"
-
-    await create_new_officer_info(db_session, OfficerInfoData(
+    print(f"loading new sysadmin '{SYSADMIN_COMPUTING_ID}'")
+    await create_user_session(db_session, f"temp_id_{SYSADMIN_COMPUTING_ID}", SYSADMIN_COMPUTING_ID)
+    await create_new_officer_info(db_session, OfficerInfo(
         legal_name="Gabe Schulz",
         discord_id=None,
         discord_name=None,
@@ -223,14 +228,31 @@ async def load_sysadmin(db_session: AsyncSession):
         github_username=None,
         google_drive_email=None,
     ))
-    await create_new_officer_term(db_session, OfficerTermData(
+    await create_new_officer_term(db_session, OfficerTerm(
+        computing_id=SYSADMIN_COMPUTING_ID,
+
+        position=OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+        start_date=date.today() - timedelta(days=(365*3)),
+        end_date=date.today() - timedelta(days=(365*2)),
+
+        nickname="G1",
+        favourite_course_0="MACM 101",
+        favourite_course_1="CMPT 125",
+
+        favourite_pl_0="C#",
+        favourite_pl_1="C++",
+
+        biography="o hey fellow kids \n\n\n I can newline",
+        photo_url=None,
+    ))
+    await create_new_officer_term(db_session, OfficerTerm(
         computing_id=SYSADMIN_COMPUTING_ID,
 
         position=OfficerPosition.SYSTEM_ADMINISTRATOR,
         start_date=date.today() - timedelta(days=365),
         end_date=None,
 
-        nickname="Gabe",
+        nickname="G2",
         favourite_course_0="CMPT 379",
         favourite_course_1="CMPT 295",
 
@@ -240,12 +262,30 @@ async def load_sysadmin(db_session: AsyncSession):
         biography="The systems are good o7",
         photo_url=None,
     ))
+    # a future term
+    await create_new_officer_term(db_session, OfficerTerm(
+        computing_id=SYSADMIN_COMPUTING_ID,
+
+        position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
+        start_date=date.today() + timedelta(days=365*1),
+        end_date=date.today() + timedelta(days=365*2),
+
+        nickname="G3",
+        favourite_course_0="MACM 102",
+        favourite_course_1="CMPT 127",
+
+        favourite_pl_0="C%",
+        favourite_pl_1="C$$",
+
+        biography="o hey fellow kids \n\n\n I will can newline .... !!",
+        photo_url=None,
+    ))
     await db_session.commit()
 
 async def async_main(sessionmanager):
     await reset_db(sessionmanager._engine)
     async with sessionmanager.session() as db_session:
-        # load_test_auth_data
+        await load_test_auth_data(db_session)
         await load_test_officers_data(db_session)
         await load_sysadmin(db_session)
 

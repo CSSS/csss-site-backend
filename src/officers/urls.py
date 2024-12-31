@@ -1,17 +1,15 @@
 import logging
-from datetime import date, datetime
+
+from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 import auth.crud
 import database
-from constants import COMPUTING_ID_MAX
-from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
-from permission.types import OfficerPrivateInfo, WebsiteAdmin
-from utils import is_iso_format
-
 import officers.crud
-from officers.constants import OfficerPosition
-from officers.types import OfficerInfoData, OfficerTermData
+import utils
+from officers.tables import OfficerInfo, OfficerTerm
+from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
+from permission.types import OfficerPrivateInfo, WebsiteAdmin
 
 _logger = logging.getLogger(__name__)
 
@@ -19,6 +17,43 @@ router = APIRouter(
     prefix="/officers",
     tags=["officers"],
 )
+
+# ---------------------------------------- #
+# checks
+
+async def has_officer_private_info_access(
+    request: Request,
+    db_session: database.DBSession
+) -> tuple[None | str, None | str, bool]:
+    """determine if the user has access to private officer info"""
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        return None, None, False
+
+    computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if computing_id is None:
+        return session_id, None, False
+
+    has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+    return session_id, computing_id, has_private_access
+
+async def logged_in_or_raise(
+    request: Request,
+    db_session: database.DBSession
+) -> tuple[str, str]:
+    """gets the user's computing_id, or raises an exception if the current request is not logged in"""
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        raise HTTPException(status_code=401)
+
+    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    if session_computing_id is None:
+        raise HTTPException(status_code=401)
+
+    return session_id, session_computing_id
+
+# ---------------------------------------- #
+# endpoints
 
 @router.get(
     "/current",
@@ -29,200 +64,251 @@ async def current_officers(
     request: Request,
     db_session: database.DBSession,
 ):
-    # determine if the user has access to this private data
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        has_private_access = False
-    else:
-        computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
-
-    current_executives = await officers.crud.current_executive_team(db_session, has_private_access)
-    json_current_executives = {
+    _, _, has_private_access = await has_officer_private_info_access(request, db_session)
+    current_officers = await officers.crud.current_officers(db_session, has_private_access)
+    return JSONResponse({
         position: [
-            officer_data.serializable_dict() for officer_data in officer_data_list
-        ] for position, officer_data_list in current_executives.items()
-    }
-
-    return JSONResponse(json_current_executives)
+            officer_data.serializable_dict()
+            for officer_data in officer_data_list
+        ]
+        for position, officer_data_list in current_officers.items()
+    })
 
 @router.get(
     "/all",
-    description="Information from all exec terms. If year is not included, all years will be returned. If semester is not included, all semesters that year will be returned. If semester is given, but year is not, return all years and all semesters.",
+    description="Information for all execs from all exec terms"
 )
 async def all_officers(
     request: Request,
     db_session: database.DBSession,
-    view_only_filled_in: bool = True,
+    # Officer terms for officers which have not yet started their term yet are considered private,
+    # and may only be accessed by that officer and executives. All other officer terms are public.
+    include_future_terms: bool = False,
 ):
-    async def has_access(db_session: database.DBSession, request: Request) -> bool:
-        # determine if user has access to this private data
-        session_id = request.cookies.get("session_id", None)
-        if session_id is None:
-            return False
+    _, computing_id, has_private_access = await has_officer_private_info_access(request, db_session)
+    if include_future_terms:
+        is_website_admin = (computing_id is not None) and (await WebsiteAdmin.has_permission(db_session, computing_id))
+        if not is_website_admin:
+            raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
-        computing_id = await auth.crud.get_computing_id(db_session, session_id)
-        if computing_id is None:
-            return False
-        else:
-            has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
-            is_website_admin = await WebsiteAdmin.has_permission(db_session, computing_id)
-
-            if not view_only_filled_in and (session_id is None or not is_website_admin):
-                raise HTTPException(status_code=401, detail="must have private access to view not filled in terms")
-
-            return has_private_access
-
-    has_private_access = await has_access(db_session, request)
-
-    all_officer_data = await officers.crud.all_officer_terms(db_session, has_private_access, view_only_filled_in)
-    all_officer_data = [officer_data.serializable_dict() for officer_data in all_officer_data]
-    return JSONResponse(all_officer_data)
+    all_officers = await officers.crud.all_officers(db_session, has_private_access, include_future_terms)
+    return JSONResponse([
+        officer_data.serializable_dict()
+        for officer_data in all_officers
+    ])
 
 @router.get(
     "/terms/{computing_id}",
-    description="Get term info for an executive. Private info will be provided if you have permissions.",
+    description="""
+        Get term info for an executive. All term info is public for all past or active terms.
+        Future terms can only be accessed by website admins.
+    """,
 )
 async def get_officer_terms(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
-    # the maximum number of terms to return, in chronological order
-    max_terms: None | int = 1,
-    # TODO: implement the following
-    # view_only_filled_in: bool = True,
+    include_future_terms: bool = False
 ):
+    if include_future_terms:
+        _, session_computing_id = await logged_in_or_raise(request, db_session)
+        if computing_id != session_computing_id:
+            await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
+
     # all term info is public, so anyone can get any of it
-    officer_terms = await officers.crud.officer_terms(db_session, computing_id, max_terms, hide_filled_in=True)
-    return JSONResponse([term.serializable_dict() for term in officer_terms])
+    officer_terms = await officers.crud.get_officer_terms(
+        db_session,
+        computing_id,
+        include_future_terms
+    )
+    return JSONResponse([
+        term.serializable_dict() for term in officer_terms
+    ])
+
+@router.get(
+    "/info/{computing_id}",
+    description="Get officer info for the current user, if they've ever been an exec. Only admins can get info about another user.",
+)
+async def get_officer_info(
+    request: Request,
+    db_session: database.DBSession,
+    computing_id: str,
+):
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
+    if computing_id != session_computing_id:
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="must have website admin permissions to get officer info about another user"
+        )
+
+    officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
+    return JSONResponse(officer_info.serializable_dict())
 
 @router.post(
-    "/new_term",
-    description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Updates the system with a new officer, and enables the user to login to the system to input their information.",
+    "/term",
+    description="""
+        Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA.
+        Updates the system with a new officer, and enables the user to login to the system to input their information.
+    """,
 )
 async def new_officer_term(
     request: Request,
     db_session: database.DBSession,
-    computing_id: str = Body(), # request body
-    position: str = Body(),
-    # dates must have no seconds/hours
-    start_date: date = Body(), # noqa: B008
+    officer_info_list: list[InitialOfficerInfo] = Body(), # noqa: B008
 ):
     """
     If the current computing_id is not already an officer, officer_info will be created for them.
     """
-    if len(computing_id) > COMPUTING_ID_MAX:
-        raise HTTPException(status_code=400, detail=f"computing_id={computing_id} is too large")
-    elif position not in OfficerPosition.position_list():
-        raise HTTPException(status_code=400, detail=f"invalid position={position}")
-    elif not is_iso_format(start_date):
-        raise HTTPException(status_code=400, detail=f"start_date={start_date} must be a valid iso date")
+    for officer_info in officer_info_list:
+        officer_info.valid_or_raise()
 
-    WebsiteAdmin.validate_request(db_session, request)
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
+    await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
 
-    officers.crud.create_new_officer_info(db_session, OfficerInfoData(
-        computing_id = computing_id,
-    ))
-    success = officers.crud.create_new_officer_term(db_session, OfficerTermData(
-        computing_id = computing_id,
-        position = position,
-        start_date = start_date,
-    ))
-    if not success:
-        raise HTTPException(status_code=400, detail="Officer term already exists, no changes made")
+    for officer_info in officer_info_list:
+        # if user with officer_info.computing_id has never logged into the website before,
+        # a site_user tuple will be created for them.
+        await officers.crud.create_new_officer_info(db_session, OfficerInfo(
+            computing_id = officer_info.computing_id,
+            # TODO (#71): use sfu api to get legal name from officer_info.computing_id
+            legal_name = "default name",
+            phone_number = None,
+
+            discord_id = None,
+            discord_name = None,
+            discord_nickname = None,
+
+            google_drive_email = None,
+            github_username = None,
+        ))
+        await officers.crud.create_new_officer_term(db_session, OfficerTerm(
+            computing_id = officer_info.computing_id,
+            position = officer_info.position,
+            start_date = officer_info.start_date,
+        ))
 
     await db_session.commit()
     return PlainTextResponse("ok")
 
-@router.post(
-    "/update_info",
-    description=(
-        "After elections, officer computing ids are input into our system. "
-        "If you have been elected as a new officer, you may authenticate with SFU CAS, "
-        "then input your information & the valid token for us. Admins may update this info."
-    ),
+@router.patch(
+    "/info/{computing_id}",
+    description="""
+        After elections, officer computing ids are input into our system.
+        If you have been elected as a new officer, you may authenticate with SFU CAS,
+        then input your information & the valid token for us. Admins may update this info.
+    """
 )
 async def update_info(
     request: Request,
     db_session: database.DBSession,
-    officer_info: OfficerInfoData = Body(), # noqa: B008
+    computing_id: str,
+    officer_info_upload: OfficerInfoUpload = Body() # noqa: B008
 ):
-    http_exception = officer_info.validate()
-    if http_exception is not None:
-        raise http_exception
+    officer_info_upload.valid_or_raise()
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
 
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="must be logged in")
+    if computing_id != session_computing_id:
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="must have website admin permissions to update another user"
+        )
 
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if (
-        officer_info.computing_id != session_computing_id
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
-    ):
-        # the current user can only input the info for another user if they have permissions
-        raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
+    old_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
+    validation_failures, corrected_officer_info = await officer_info_upload.validate(computing_id, old_officer_info)
 
-    # TODO: log all important changes just to a .log file
+    # TODO (#27): log all important changes just to a .log file & persist them for a few years
 
-    success = await officers.crud.update_officer_info(db_session, officer_info)
+    success = await officers.crud.update_officer_info(db_session, corrected_officer_info)
     if not success:
         raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
 
     await db_session.commit()
-    return PlainTextResponse("ok")
 
-@router.post(
-    "/update_term",
+    updated_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
+    return JSONResponse({
+        "officer_info": updated_officer_info.serializable_dict(),
+        "validation_failures": validation_failures,
+    })
+
+@router.patch(
+    "/term/{term_id}",
+    description=""
 )
 async def update_term(
     request: Request,
     db_session: database.DBSession,
-    officer_term: OfficerTermData = Body(), # noqa: B008
+    term_id: int,
+    officer_term_upload: OfficerTermUpload = Body(), # noqa: B008
 ):
-    http_exception = officer_term.validate()
-    if http_exception is not None:
-        raise http_exception
+    """
+    A website admin may change the position & term length however they wish.
+    """
+    officer_term_upload.valid_or_raise()
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
 
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="must be logged in")
+    old_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
+    if old_officer_term.computing_id != session_computing_id:
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="must have website admin permissions to update another user"
+        )
+    elif utils.is_past_term(old_officer_term):
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="only website admins can update past terms"
+        )
 
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
     if (
-        officer_term.computing_id != session_computing_id
-        and not await WebsiteAdmin.has_permission(db_session, session_computing_id)
+        officer_term_upload.computing_id != old_officer_term.computing_id
+        or officer_term_upload.position != old_officer_term.position
+        or officer_term_upload.start_date != old_officer_term.start_date
+        or officer_term_upload.end_date != old_officer_term.end_date
     ):
-        # the current user can only input the info for another user if they have permissions
-        raise HTTPException(status_code=401, detail="must have website admin permissions to update another user")
+        await WebsiteAdmin.has_permission_or_raise(
+            db_session, session_computing_id,
+            errmsg="only admins can write new versions of position, start_date, and end_date"
+        )
 
-    # TODO: log all important changes just to a .log file
-
-    success = await officers.crud.update_officer_term(db_session, officer_term)
+    # TODO (#27): log all important changes to a .log file
+    success = await officers.crud.update_officer_term(
+        db_session,
+        officer_term_upload.to_officer_term(term_id)
+    )
     if not success:
-        raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create the associated officer term")
+        raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create it first")
 
     await db_session.commit()
-    return PlainTextResponse("ok")
 
+    new_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
+    return JSONResponse({
+        "officer_term": new_officer_term.serializable_dict(),
+        # none for now, but may be added if frontend requests
+        "validation_failures": [],
+    })
 
-"""
-# TODO: test this error later
-@router.get("/please_error", description="Raises an error & should send an email to the sysadmin")
-async def raise_error():
-    raise ValueError("This is an error, you're welcome")
-
-@router.get(
-    "/my_info",
-    description="Get info about whether you are still an executive or not / what your position is.",
+@router.delete(
+    "/term/{term_id}",
+    description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!",
 )
-async def my_info():
-    return {}
+async def remove_officer(
+    request: Request,
+    db_session: database.DBSession,
+    term_id: int,
+):
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
+    await WebsiteAdmin.has_permission_or_raise(
+        db_session, session_computing_id,
+        errmsg="must have website admin permissions to remove a term"
+    )
 
-@router.post(
-    "/remove",
-    description="Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA. Removes the officer from the system entirely. BE CAREFUL WITH THIS OPTION aaaaaaaaaaaaaaaaaa.",
-)
-async def remove_officer():
-    return {}
-"""
+    deleted_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
+
+    # TODO (#27): log all important changes to a .log file
+
+    # TODO (#100): return whether the deletion succeeded or not
+    await officers.crud.delete_officer_term_by_id(db_session, term_id)
+    await db_session.commit()
+
+    return JSONResponse({
+        "officer_term": deleted_officer_term.serializable_dict(),
+    })

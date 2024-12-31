@@ -1,17 +1,19 @@
 from datetime import datetime
 
+from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
 from database import Base
-from sqlalchemy import Column, DateTime, ForeignKey, String
-from sqlalchemy.orm import relationship
 
 
 class UserSession(Base):
     __tablename__ = "user_session"
 
-    # note: a primary key is required for every database table
     computing_id = Column(
-        String(COMPUTING_ID_LEN), nullable=False, primary_key=True
+        String(COMPUTING_ID_LEN),
+        ForeignKey("site_user.computing_id"),
+        # in psql pkey means non-null
+        primary_key=True,
     )
 
     # time the CAS ticket was issued
@@ -32,11 +34,8 @@ class SiteUser(Base):
     # see: https://stackoverflow.com/questions/22256124/cannot-create-a-database-table-named-user-in-postgresql
     __tablename__ = "site_user"
 
-    # note: a primary key is required for every database table
     computing_id = Column(
         String(COMPUTING_ID_LEN),
-        #ForeignKey("user_session.computing_id"),
-        nullable=False,
         primary_key=True,
     )
 
@@ -45,3 +44,6 @@ class SiteUser(Base):
     first_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
     last_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
 
+    # TODO: is this still being used?
+    # optional user information for display purposes
+    profile_picture_url = Column(Text, nullable=True)

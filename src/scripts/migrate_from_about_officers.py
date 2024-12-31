@@ -152,6 +152,8 @@ async def main():
             # use the most up to date officer info
             # --------------------------------
 
+            # TODO: insert None instead of NA for many of the terms?
+
             new_officer_info = OfficerInfo(
                 computing_id = officer["sfu_computing_id"],
                 legal_name = officer["full_name"],

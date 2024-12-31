@@ -1,9 +1,10 @@
 from datetime import datetime
 
-from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
-from database import Base
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
+from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
+from database import Base
 
 # TODO: determine what info will need to be in the spreadsheet, then moved here
 

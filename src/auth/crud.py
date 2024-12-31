@@ -50,7 +50,6 @@ async def create_user_session(
         existing_user = (await db_session.scalars(query)).first()
         if existing_user is None:
             # log this strange case
-            _logger = logging.getLogger(__name__)
             _logger.warning(f"User session {session_id} exists for non-existent user {computing_id}!")
 
             # create a user for this session

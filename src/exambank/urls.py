@@ -1,11 +1,12 @@
 import os
 from typing import Optional
 
+from fastapi import APIRouter, HTTPException, JSONResponse, Request, Response
+
 import auth.crud
 import database
 import exambank.crud
 from exambank.watermark import apply_watermark, create_watermark, raster_pdf
-from fastapi import APIRouter, HTTPException, JSONResponse, Request, Response
 from permission.types import ExamBankAccess
 from utils import path_in_dir
 

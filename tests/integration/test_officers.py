@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 
 import load_test_db
 from auth.crud import create_user_session
+from auth.types import SessionType
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from main import app
 from officers.constants import OfficerPosition
@@ -169,7 +170,7 @@ async def test__endpoints_admin(client, database_setup):
     # login as website admin
     session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
     async with database_setup.session() as db_session:
-        await create_user_session(db_session, session_id, load_test_db.SYSADMIN_COMPUTING_ID)
+        await create_user_session(db_session, session_id, load_test_db.SYSADMIN_COMPUTING_ID, SessionType.CSSS_MEMBER)
 
     client.cookies = { "session_id": session_id }
 

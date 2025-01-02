@@ -44,6 +44,5 @@ class SiteUser(Base):
     first_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
     last_logged_in = Column(DateTime, nullable=False, default=datetime(2024, 6, 16))
 
-    # TODO: is this still being used?
     # optional user information for display purposes
     profile_picture_url = Column(Text, nullable=True)

@@ -5,6 +5,7 @@ class SessionType:
     # see: https://www.sfu.ca/information-systems/services/cas/cas-for-web-applications/
     # for more info on the kinds of members
     FACULTY = "faculty"
+    # TODO: what will happen to the maillists for authentication; are groups part of this?
     CSSS_MEMBER = "csss member" # !cs-students maillist
     STUDENT = "student"
     ALUMNI = "alumni"

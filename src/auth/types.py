@@ -11,6 +11,16 @@ class SessionType:
     ALUMNI = "alumni"
     SFU = "sfu"
 
+    @staticmethod
+    def valid_session_type_list():
+        # values taken from https://www.sfu.ca/information-systems/services/cas/cas-for-web-applications.html
+        return [
+            "faculty",
+            "student",
+            "alumni",
+            "sfu"
+        ]
+
 @dataclass
 class SiteUserData:
     computing_id: str

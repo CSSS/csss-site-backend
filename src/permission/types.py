@@ -51,19 +51,18 @@ class WebsiteAdmin:
         return False
 
     @staticmethod
-    async def validate_request(db_session: database.DBSession, request: Request) -> bool:
+    async def validate_request(db_session: database.DBSession, request: Request):
         """
         Checks if the provided request satisfies these permissions, and raises the neccessary
         exceptions if not
         """
-        # TODO: does this function return bool???
         session_id = request.cookies.get("session_id", None)
         if session_id is None:
             raise HTTPException(status_code=401, detail="must be logged in")
-        else:
-            computing_id = await auth.crud.get_computing_id(db_session, session_id)
-            if not await WebsiteAdmin.has_permission(db_session, computing_id):
-                raise HTTPException(status_code=401, detail="must have website admin permissions")
+
+        computing_id = await auth.crud.get_computing_id(db_session, session_id)
+        if not await WebsiteAdmin.has_permission(db_session, computing_id):
+            raise HTTPException(status_code=401, detail="must have website admin permissions")
 
     @staticmethod
     async def has_permission_or_raise(
@@ -84,11 +83,18 @@ class ExamBankAccess:
         if session_id is None:
             return False
 
-        # TODO: allow CSSS officers to access the exam bank, in addition to faculty
-
         if await auth.crud.get_session_type(db_session, session_id) == SessionType.FACULTY:
            return True
 
         # the only non-faculty who can view exams are website admins
         computing_id = await auth.crud.get_computing_id(db_session, session_id)
         return await WebsiteAdmin.has_permission(db_session, computing_id)
+
+    @staticmethod
+    async def has_permission_or_raise(
+        db_session: database.DBSession,
+        request: Request,
+        errmsg: str = "must have exam bank access permissions"
+    ):
+        if not await ExamBankAccess.has_permission(db_session, request):
+            raise HTTPException(status_code=401, detail=errmsg)

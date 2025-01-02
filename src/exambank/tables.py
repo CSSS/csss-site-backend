@@ -1,4 +1,5 @@
 from datetime import datetime
+from types import ExamKind
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -7,15 +8,6 @@ from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
 from database import Base
 
 # TODO: determine what info will need to be in the spreadsheet, then moved here
-
-# TODO: move this to types.py
-class ExamKind:
-    FINAL = "final"
-    MIDTERM = "midterm"
-    QUIZ = "quiz"
-    ASSIGNMENT = "assignment"
-    NOTES = "notes"
-    MISC = "misc"
 
 class ExamMetadata(Base):
     __tablename__ = "exam_metadata"
@@ -41,16 +33,16 @@ class ExamMetadata(Base):
 class Professor(Base):
     __tablename__ = "professor"
 
-    professor_id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(64), nullable=False)
-    info_url = Column(String(128), nullable=False)
-
     computing_id = Column(
         String(COMPUTING_ID_LEN),
+        ForeignKey("user_session.computing_id"),
+        primary_key=True,
         # Foreign key constriant w/ users table
-        #ForeignKey("user_session.computing_id"),
         nullable=True,
     )
+
+    name = Column(String(64), nullable=False)
+    info_url = Column(String(128), nullable=False)
 
 # TODO: eventually implement a table for courses & course info; hook it in with the rest of the site & coursys api
 

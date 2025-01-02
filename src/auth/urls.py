@@ -47,7 +47,11 @@ async def login_user(
     # verify the ticket is valid
     service = urllib.parse.quote(f"{FRONTEND_ROOT_URL}/api/auth/login?redirect_path={redirect_path}&redirect_fragment={redirect_fragment}")
     service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={ticket}"
-    cas_response = xmltodict.parse(requests.get(service_validate_url).text)
+    cas_response_text = requests.get(service_validate_url).text
+    cas_response = xmltodict.parse(cas_response_text)
+
+    print("CAS RESPONSE ::")
+    print(cas_response_text)
 
     if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
         _logger.info(f"User failed to login, with response {cas_response}")
@@ -65,14 +69,19 @@ async def login_user(
             if cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:maillist"] == "cmpt-students":
                 session_type = SessionType.CSSS_MEMBER
             else:
-                raise HTTPException(status_code=500, details="malformed authentication response; this is an SFU CAS error")
+                raise HTTPException(status_code=500, details="malformed cas:maillist authentication response; this is an SFU CAS error")
         elif "cas:authtype" in cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]:
             # sfu, alumni, faculty, student
             session_type = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:authtype"]
-            if session_type not in SessionType.value_list():
+            if session_type not in SessionType.valid_session_type_list():
                 raise HTTPException(status_code=500, detail=f"unexpected session type from SFU CAS of {session_type}")
+
+            if session_type == "alumni":
+                if "@" not in computing_id:
+                    raise HTTPException(status_code=500, detail=f"invalid alumni computing_id response from CAS AUTH with value {session_type}")
+                computing_id = computing_id.split("@")[0]
         else:
-            raise HTTPException(status_code=500, detail="malformed authentication response; this is an SFU CAS error")
+            raise HTTPException(status_code=500, detail="malformed unknown authentication response; this is an SFU CAS error")
 
         await crud.create_user_session(db_session, session_id, computing_id, session_type)
         await db_session.commit()

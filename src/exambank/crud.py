@@ -10,11 +10,13 @@ class ExamMetadata:
     course_id: str
 
 async def create_exam():
-    # TODO: these are for admins to run manually
+    # for admins to run manually
+    # TODO: implement this later; for now just upload data manually
     pass
 
 async def update_exam():
-    # TODO: these are for admins to run manually
+    # for admins to run manually
+    # TODO: implement this later; for now just upload data manually
     pass
 
 async def all_exams(

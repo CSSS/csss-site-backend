@@ -1,11 +1,10 @@
 import os
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, JSONResponse, Request, Response
 
-import auth.crud
 import database
 import exambank.crud
+from auth.utils import logged_in_or_raise
 from exambank.watermark import apply_watermark, create_watermark, raster_pdf
 from permission.types import ExamBankAccess
 from utils import path_in_dir
@@ -17,7 +16,7 @@ router = APIRouter(
     tags=["exam-bank"],
 )
 
-# TODO: update endpoints to use crud functions
+# TODO: update endpoints to use crud functions -> don't use crud actually; refactor to do that later
 
 @router.get(
     "/list/exams"
@@ -35,17 +34,6 @@ async def all_exams(
     return JSONResponse([exam.serializable_dict() for exam in exam_list])
 
 @router.get(
-    "/list/courses"
-)
-async def all_courses(
-    _request: Request,
-    _db_session: database.DBSession,
-):
-    # TODO: replace this with a table eventually
-    courses = [f.name for f in os.scandir(f"{EXAM_BANK_DIR}") if f.is_dir()]
-    return JSONResponse(courses)
-
-@router.get(
     "/get/{exam_id}"
 )
 async def get_exam(
@@ -53,17 +41,8 @@ async def get_exam(
     db_session: database.DBSession,
     exam_id: int,
 ):
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401)
-
-    computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if computing_id is None:
-        raise HTTPException(status_code=401)
-
-    # TODO: clean this checking into one function & one computing_id check
-    if not await ExamBankAccess.has_permission(request):
-        raise HTTPException(status_code=401, detail="user must have exam bank access permission")
+    _, session_computing_id = await logged_in_or_raise(request, db_session)
+    await ExamBankAccess.has_permission_or_raise(request, errmsg="user must have exam bank access permission")
 
     # number exams with an exam_id pkey
     # TODO: store resource locations in a db table & simply look them up
@@ -77,10 +56,9 @@ async def get_exam(
         raise HTTPException(status_code=500, detail="Found dangerous pdf path, exiting")
 
     # TODO: test this works nicely
-    watermark = create_watermark(computing_id, 20)
+    watermark = create_watermark(session_computing_id, 20)
     watermarked_pdf = apply_watermark(exam_path, watermark)
     image_bytes = raster_pdf(watermarked_pdf)
 
-    headers = { "Content-Disposition": f'inline; filename="{meta.course_id}_{exam_id}_{computing_id}.pdf"' }
+    headers = { "Content-Disposition": f'inline; filename="{meta.course_id}_{exam_id}_{session_computing_id}.pdf"' }
     return Response(content=image_bytes, headers=headers, media_type="application/pdf")
-

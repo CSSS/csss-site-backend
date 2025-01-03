@@ -23,11 +23,8 @@ class UserSession(Base):
         String(SESSION_ID_LEN), nullable=False, unique=True
     )  # the space needed to store 256 bytes in base64
 
-    # TODO: create a migration for this
     # whether a user is faculty, csss-member, student, or just "sfu"
-    session_type = Column(
-        String(SESSION_TYPE_LEN), nullable=False,
-    )
+    session_type = Column(String(SESSION_TYPE_LEN), nullable=False)
 
 class SiteUser(Base):
     # user is a reserved word in postgres

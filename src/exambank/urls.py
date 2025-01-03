@@ -1,6 +1,8 @@
 import os
 
+import sqlalchemy
 from fastapi import APIRouter, HTTPException, JSONResponse, Request, Response
+from tables import Course, ExamMetadata, Professor
 
 import database
 import exambank.crud
@@ -9,6 +11,7 @@ from exambank.watermark import apply_watermark, create_watermark, raster_pdf
 from permission.types import ExamBankAccess
 from utils import path_in_dir
 
+# all exams are stored here, and for the time being must be manually moved here
 EXAM_BANK_DIR = "/opt/csss-site/media/exam-bank"
 
 router = APIRouter(
@@ -19,22 +22,42 @@ router = APIRouter(
 # TODO: update endpoints to use crud functions -> don't use crud actually; refactor to do that later
 
 @router.get(
-    "/list/exams"
+    "/metadata"
 )
-async def all_exams(
+async def exam_metadata(
     request: Request,
     db_session: database.DBSession,
-    course_id_starts_with: str | None,
 ):
+    _, _ = await logged_in_or_raise(request, db_session)
+    await ExamBankAccess.has_permission_or_raise(request, errmsg="user must have exam bank access permission")
+
+    """
     courses = [f.name for f in os.scandir(f"{EXAM_BANK_DIR}") if f.is_dir()]
     if course_id_starts_with is not None:
         courses = [course for course in courses if course.startswith(course_id_starts_with)]
 
     exam_list = exambank.crud.all_exams(db_session, course_id_starts_with)
     return JSONResponse([exam.serializable_dict() for exam in exam_list])
+    """
 
+    # TODO: test that the joins work correctly
+    exams = await db_session.scalar(
+        sqlalchemy
+        .select(ExamMetadata, Professor, Course)
+        .join(Professor)
+        .join(Course, isouter=True) # we want to have null values if the course is not known
+        .order_by(Course.course_number)
+    )
+
+    print(exams)
+
+    # TODO: serialize exams somehow
+    return JSONResponse(exams)
+
+# TODO: implement endpoint to fetch exams
+"""
 @router.get(
-    "/get/{exam_id}"
+    "/exam/{exam_id}"
 )
 async def get_exam(
     request: Request,
@@ -62,3 +85,4 @@ async def get_exam(
 
     headers = { "Content-Disposition": f'inline; filename="{meta.course_id}_{exam_id}_{session_computing_id}.pdf"' }
     return Response(content=image_bytes, headers=headers, media_type="application/pdf")
+"""

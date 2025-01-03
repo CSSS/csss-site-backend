@@ -1,7 +1,7 @@
 from datetime import datetime
 from types import ExamKind
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
@@ -12,37 +12,44 @@ from database import Base
 class ExamMetadata(Base):
     __tablename__ = "exam_metadata"
 
-    exam_id = Column(Integer, primary_key=True, autoincrement=True)
+    # exam_id is the number used to access the exam
+    exam_id = Column(Integer, primary_key=True)
     upload_date = Column(DateTime, nullable=False)
-    # with EXAM_BANK_DIR as the root
-    pdf_path = Column(String(128), nullable=False)
+    exam_pdf_size = Column(Integer, nullable=False) # in bytes
 
-    # formatted f"{faculty} {course_number}"
-    course_id = Column(String(16), nullable=True)
-    primary_author = Column(Integer, nullable=False) # foreign key constraint
-    title = Column(String(64), nullable=True) # Something like "Midterm 2" or "Computational Geometry Final"
-    # TODO: if this gets big, maybe separate it to a different table
+    author_id = Column(String(COMPUTING_ID_LEN), ForeignKey("professor.professor_id"), nullable=False)
+    # whether this is the confirmed author of the exam, or just suspected
+    author_confirmed = Column(Boolean, nullable=False)
+    # true if the professor has given permission for us to use their exam
+    author_permission = Column(Boolean, nullable=False)
+
+    kind = Column(String(24), nullable=False)
+    course_id = Column(String(COMPUTING_ID_LEN), ForeignKey("course.professor_id"), nullable=True)
+    title = Column(String(96), nullable=True) # Something like "Midterm 2" or "Computational Geometry Final"
     description = Column(Text, nullable=True) # For a natural language description of the contents
-    kind = Column(String(16), nullable=False)
 
-    # TODO: on the resulting output table, include xxxx-xx-xx for unknown dates
-    year = Column(Integer, nullable=True)
-    month = Column(Integer, nullable=True)
-    day = Column(Integer, nullable=True)
+    # formatted as xxxx-xx-xx, include x for unknown dates
+    date_string = Column(String(10), nullable=False)
+
+# TODO: eventually hook the following tables in with the rest of the site & coursys api
 
 class Professor(Base):
     __tablename__ = "professor"
 
-    computing_id = Column(
-        String(COMPUTING_ID_LEN),
-        ForeignKey("user_session.computing_id"),
-        primary_key=True,
-        # Foreign key constriant w/ users table
-        nullable=True,
-    )
+    professor_id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(128), nullable=False)
+    info_url = Column(String(128), nullable=False) # A url which provides more information about the professor
 
-    name = Column(String(64), nullable=False)
-    info_url = Column(String(128), nullable=False)
+    # we may not know a professor's computing_id
+    computing_id = Column(String(COMPUTING_ID_LEN), ForeignKey("user_session.computing_id"), nullable=True)
 
-# TODO: eventually implement a table for courses & course info; hook it in with the rest of the site & coursys api
+class Course(Base):
+    __tablename__ = "course"
+
+    course_id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # formatted f"{faculty} {course_number}", ie. CMPT 300
+    course_faculty = Column(String(12), nullable=False)
+    course_number = Column(String(12), nullable=False)
+    course_name = Column(String(96), nullable=False)
 

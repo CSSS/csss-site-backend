@@ -1,5 +1,6 @@
 import re
 from datetime import date, datetime
+from pathlib import Path
 
 from sqlalchemy import Select
 
@@ -33,6 +34,16 @@ def is_active_officer(query: Select) -> Select:
             )
         )
     )
+
+# TODO: test this
+def path_in_dir(path: str, parent_dir: str):
+    """
+    Determine if path is in parent_dir. A useful check for input
+    validation, to avoid leaking secrets
+    """
+    parent = Path(parent_dir).resolve()
+    child = Path(path).resolve()
+    return parent in child.parents
 
 def has_started_term(query: Select) -> bool:
     return query.where(

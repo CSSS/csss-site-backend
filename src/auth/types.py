@@ -1,6 +1,26 @@
 from dataclasses import dataclass
 
 
+class SessionType:
+    # see: https://www.sfu.ca/information-systems/services/cas/cas-for-web-applications/
+    # for more info on the kinds of members
+    FACULTY = "faculty"
+    # TODO: what will happen to the maillists for authentication; are groups part of this?
+    CSSS_MEMBER = "csss member" # !cs-students maillist
+    STUDENT = "student"
+    ALUMNI = "alumni"
+    SFU = "sfu"
+
+    @staticmethod
+    def valid_session_type_list():
+        # values taken from https://www.sfu.ca/information-systems/services/cas/cas-for-web-applications.html
+        return [
+            "faculty",
+            "student",
+            "alumni",
+            "sfu"
+        ]
+
 @dataclass
 class SiteUserData:
     computing_id: str

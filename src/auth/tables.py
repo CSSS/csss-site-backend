@@ -2,7 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 
-from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
+from constants import COMPUTING_ID_LEN, SESSION_ID_LEN, SESSION_TYPE_LEN
 from database import Base
 
 
@@ -23,6 +23,8 @@ class UserSession(Base):
         String(SESSION_ID_LEN), nullable=False, unique=True
     )  # the space needed to store 256 bytes in base64
 
+    # whether a user is faculty, csss-member, student, or just "sfu"
+    session_type = Column(String(SESSION_TYPE_LEN), nullable=False)
 
 class SiteUser(Base):
     # user is a reserved word in postgres

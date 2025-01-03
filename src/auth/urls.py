@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
 import database
 from auth import crud
+from auth.types import SessionType
 from constants import FRONTEND_ROOT_URL
 
 _logger = logging.getLogger(__name__)
@@ -31,7 +32,6 @@ router = APIRouter(
     tags=["authentication"],
 )
 
-
 # NOTE: logging in a second time invaldiates the last session_id
 @router.get(
     "/login",
@@ -47,17 +47,43 @@ async def login_user(
     # verify the ticket is valid
     service = urllib.parse.quote(f"{FRONTEND_ROOT_URL}/api/auth/login?redirect_path={redirect_path}&redirect_fragment={redirect_fragment}")
     service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={ticket}"
-    cas_response = xmltodict.parse(requests.get(service_validate_url).text)
+    cas_response_text = requests.get(service_validate_url).text
+    cas_response = xmltodict.parse(cas_response_text)
+
+    print("CAS RESPONSE ::")
+    print(cas_response_text)
 
     if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
         _logger.info(f"User failed to login, with response {cas_response}")
         raise HTTPException(status_code=401, detail="authentication error, ticket likely invalid")
 
-    else:
+    elif "cas:authenticationSuccess" in cas_response["cas:serviceResponse"]:
         session_id = generate_session_id_b64(256)
         computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
 
-        await crud.create_user_session(db_session, session_id, computing_id)
+        # NOTE: it is the frontend's job to pass the correct authentication reuqest to CAS, otherwise we
+        # will only be able to give a user the "sfu" session_type (least privileged)
+        if "cas:maillist" in cas_response["cas:serviceResponse"]:
+            # maillist
+            # TODO: (ASK SFU IT) can alumni be in the cmpt-students maillist?
+            if cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:maillist"] == "cmpt-students":
+                session_type = SessionType.CSSS_MEMBER
+            else:
+                raise HTTPException(status_code=500, details="malformed cas:maillist authentication response; this is an SFU CAS error")
+        elif "cas:authtype" in cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]:
+            # sfu, alumni, faculty, student
+            session_type = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:authtype"]
+            if session_type not in SessionType.valid_session_type_list():
+                raise HTTPException(status_code=500, detail=f"unexpected session type from SFU CAS of {session_type}")
+
+            if session_type == "alumni":
+                if "@" not in computing_id:
+                    raise HTTPException(status_code=500, detail=f"invalid alumni computing_id response from CAS AUTH with value {session_type}")
+                computing_id = computing_id.split("@")[0]
+        else:
+            raise HTTPException(status_code=500, detail="malformed unknown authentication response; this is an SFU CAS error")
+
+        await crud.create_user_session(db_session, session_id, computing_id, session_type)
         await db_session.commit()
 
         # clean old sessions after sending the response
@@ -69,6 +95,8 @@ async def login_user(
         )  # this overwrites any past, possibly invalid, session_id
         return response
 
+    else:
+        raise HTTPException(status_code=500, detail="malformed authentication response; this is an SFU CAS error")
 
 @router.get(
     "/logout",
@@ -91,7 +119,6 @@ async def logout_user(
     response.delete_cookie(key="session_id")
     return response
 
-
 @router.get(
     "/user",
     description="Get info about the current user. Only accessible by that user",
@@ -112,7 +139,6 @@ async def get_user(
         raise HTTPException(status_code=401, detail="Could not find user with session_id, please log in")
 
     return JSONResponse(user_info.serializable_dict())
-
 
 @router.patch(
     "/user",

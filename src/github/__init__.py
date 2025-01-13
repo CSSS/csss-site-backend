@@ -1,11 +1,12 @@
 # TODO: does this allow importing anything from the module?
 import logging
-
-#from admin.email import send_email
-from officers.constants import OfficerPosition
+import os
 
 from github.internals import add_user_to_team, list_members, list_team_members, list_teams, remove_user_from_team
 from github.types import GithubUserPermissions
+
+#from admin.email import send_email
+from officers.constants import OfficerPosition
 
 # Rules:
 # - all past officers will be members of the github org
@@ -31,6 +32,10 @@ AUTO_GITHUB_TEAMS = [
     for (name, kind) in GITHUB_TEAMS.items()
     if kind == "auto"
 ]
+
+def is_active() -> bool:
+    # if there is no github token, then consider the module inactive; calling functions may fail without warning!
+    return os.environ.get("GITHUB_TOKEN") is not None
 
 def officer_teams(position: str) -> list[str]:
     if position == OfficerPosition.DIRECTOR_OF_ARCHIVES:

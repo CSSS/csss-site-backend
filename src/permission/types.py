@@ -1,13 +1,14 @@
-from datetime import UTC, datetime, timezone
+from datetime import date
 from typing import ClassVar
 
-import auth.crud
+from fastapi import HTTPException
+
 import database
 import elections.crud
 import officers.constants
 import officers.crud
-from data.semesters import current_semester_start, step_semesters
-from fastapi import HTTPException, Request
+import utils
+from data.semesters import step_semesters
 from officers.constants import OfficerPosition
 
 
@@ -19,19 +20,16 @@ class OfficerPrivateInfo:
         A semester is defined in semester_start
         """
 
-        most_recent_exec_term = await officers.crud.most_recent_exec_term(db_session, computing_id)
-        if most_recent_exec_term is None:
-            return False
-        elif most_recent_exec_term.end_date is None:
-            # considered an active exec if no end_date
-            return True
+        term_list = await officers.crud.get_officer_terms(db_session, computing_id, include_future_terms=False)
+        for term in term_list:
+            if utils.is_active_term(term):
+                return True
 
-        current_date = datetime.now(UTC)
-        semester_start = current_semester_start(current_date)
-        NUM_SEMESTERS = 5
-        cutoff_date = step_semesters(semester_start, -NUM_SEMESTERS)
+            NUM_SEMESTERS = 5
+            if date.today() <= step_semesters(term.end_date, NUM_SEMESTERS):
+                return True
 
-        return most_recent_exec_term.end_date > cutoff_date
+        return False
 
 class ElectionOfficer:
     @staticmethod
@@ -60,24 +58,18 @@ class WebsiteAdmin:
     @staticmethod
     async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
         """
-        A website admin has to be one of the following positions, and
+        A website admin has to be an active officer who has one of the above positions
         """
-        position = await officers.crud.current_officer_position(db_session, computing_id)
-        if position is None:
-            return False
-
-        return position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS
+        for position in await officers.crud.current_officer_positions(db_session, computing_id):
+            if position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS:
+                return True
+        return False
 
     @staticmethod
-    async def validate_request(db_session: database.DBSession, request: Request) -> bool:
-        """
-        Checks if the provided request satisfies these permissions, and raises the neccessary
-        exceptions if not
-        """
-        session_id = request.cookies.get("session_id", None)
-        if session_id is None:
-            raise HTTPException(status_code=401, detail="must be logged in")
-
-        computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    async def has_permission_or_raise(
+        db_session: database.DBSession,
+        computing_id: str,
+        errmsg:str = "must have website admin permissions"
+    ) -> bool:
         if not await WebsiteAdmin.has_permission(db_session, computing_id):
-            raise HTTPException(status_code=401, detail="must have website admin permissions")
+            raise HTTPException(status_code=401, detail=errmsg)

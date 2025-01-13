@@ -7,7 +7,7 @@ import github
 import google_api
 import utils
 from database import _db_session
-from officers.crud import all_officer_terms, get_user_by_username, officer_terms
+from officers.crud import all_officers, get_user_by_username
 
 _logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ async def update_google_permissions(db_session):
 
     # TODO: for performance, only include officers with recent end-date (1 yr)
     # but measure performance first
-    for term in await all_officer_terms(db_session):
+    for term in await all_officers(db_session):
         if utils.is_active(term):
             # TODO: if google drive permission is not active, update them
             pass
@@ -31,7 +31,7 @@ async def update_google_permissions(db_session):
 async def update_github_permissions(db_session):
     github_permissions, team_id_map = github.all_permissions()
 
-    for term in await all_officer_terms(db_session):
+    for term in await all_officers(db_session):
         new_teams = (
             # move all active officers to their respective teams
             github.officer_teams(term.position)

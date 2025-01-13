@@ -1,8 +1,8 @@
 # major
-fastapi==0.109.1
+fastapi==0.115.6
 gunicorn==21.2.0
 uvicorn[standard]==0.27.1
-sqlalchemy==2.0.27
+sqlalchemy[asyncio]==2.0.27
 asyncpg==0.29.0
 alembic==1.13.1
 google-api-python-client==2.143.0
@@ -13,9 +13,10 @@ xmltodict==0.13.0 # for parsing responses from sfu it's auth api
 requests==2.31.0
 
 # dev
-ruff
+ruff==0.6.9
 # pre-commit
 
 # test
 pytest
 pytest-asyncio
+httpx

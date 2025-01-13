@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from time import sleep
 
 import requests
-from constants import ACTIVE_GUILD_ID
 from requests import Response
+
+from constants import ACTIVE_GUILD_ID
 
 # ----------------------- #
 # api
@@ -41,6 +42,10 @@ class Channel:
     guild_id: str
     name: str
     permission_overwrites: list[str] | None = None
+
+def is_active() -> bool:
+    # if there is no discord token, then consider the module inactive; calling functions may fail without warning!
+    return os.environ.get("DISCORD_TOKEN") is not None
 
 async def _discord_request(
     url: str,

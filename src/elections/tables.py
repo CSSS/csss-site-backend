@@ -30,7 +30,7 @@ class Election(Base):
     type = Column(String(64), default="general_election")
     date = Column(DateTime, nullable=False)
     end_date = Column(DateTime)
-    websurvey = Column(String(300))
+    survey_link = Column(String(300))
 
 # Each row represents a nominee of a given election
 class Nominee(Base):

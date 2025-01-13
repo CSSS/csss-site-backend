@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from typing import Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -27,7 +28,7 @@ def upgrade() -> None:
     sa.Column("type", sa.String(length=64), nullable=True),
     sa.Column("date", sa.DateTime(), nullable=False),
     sa.Column("end_date", sa.DateTime(), nullable=True),
-    sa.Column("websurvey", sa.String(length=300), nullable=True),
+    sa.Column("survey_link", sa.String(length=300), nullable=True),
     sa.PrimaryKeyConstraint("slug")
     )
     op.create_table("election_nominee",

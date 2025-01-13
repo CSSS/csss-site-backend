@@ -28,7 +28,7 @@ class Election(Base):
     name = Column(String(32), nullable=False)
     officer_id = Column(String(COMPUTING_ID_LEN), nullable=False)
     type = Column(String(64), default="general_election")
-    date = Column(DateTime, nullable=False)
+    start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime)
     survey_link = Column(String(300))
 

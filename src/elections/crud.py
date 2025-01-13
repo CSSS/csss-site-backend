@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import sqlalchemy
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import database
 from elections.tables import Election
@@ -26,7 +27,7 @@ class ElectionParameters:
 
 _logger = logging.getLogger(__name__)
 
-async def get_election(db_session: database.DBSession, election_slug: str) -> Election | None:
+async def get_election(db_session: AsyncSession, election_slug: str) -> Election | None:
     query = (
         sqlalchemy
         .select(Election)
@@ -35,7 +36,7 @@ async def get_election(db_session: database.DBSession, election_slug: str) -> El
     result = await db_session.scalar(query)
     return result
 
-async def create_election(params: ElectionParameters, db_session: database.DBSession) -> None:
+async def create_election(db_session: AsyncSession, params: ElectionParameters) -> None:
     """
     Creates a new election with given parameters.
     Does not validate if an election _already_ exists
@@ -49,7 +50,7 @@ async def create_election(params: ElectionParameters, db_session: database.DBSes
                survey_link=params.survey_link)
     db_session.add(election)
 
-async def delete_election(slug: str, db_session: database.DBSession) -> None:
+async def delete_election(db_session: AsyncSession, slug: str) -> None:
     """
     Deletes a given election by its slug.
     Does not validate if an election exists
@@ -57,7 +58,7 @@ async def delete_election(slug: str, db_session: database.DBSession) -> None:
     query = sqlalchemy.delete(Election).where(Election.slug == slug)
     await db_session.execute(query)
 
-async def update_election(params: ElectionParameters, db_session: database.DBSession) -> None:
+async def update_election(db_session: AsyncSession, params: ElectionParameters) -> None:
     """
     Updates an election with the provided parameters.
     Take care as this will replace values with None if not populated.

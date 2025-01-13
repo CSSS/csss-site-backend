@@ -28,8 +28,8 @@ class Election(Base):
     name = Column(String(32), nullable=False)
     officer_id = Column(String(COMPUTING_ID_LEN), nullable=False)
     type = Column(String(64), default="general_election")
-    start_date = Column(DateTime, nullable=False)
-    end_date = Column(DateTime)
+    start_datetime = Column(DateTime, nullable=False)
+    end_datetime = Column(DateTime)
     survey_link = Column(String(300))
 
 # Each row represents a nominee of a given election

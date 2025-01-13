@@ -20,8 +20,8 @@ class ElectionParameters:
     name: str
     officer_id: str
     type: str
-    date: datetime
-    end_date: datetime
+    start_datetime: datetime
+    end_datetime: datetime
     survey_link: str
 
 
@@ -45,8 +45,8 @@ async def create_election(db_session: AsyncSession, params: ElectionParameters) 
                name=params.name,
                officer_id=params.officer_id,
                type=params.type,
-               date=params.date,
-               end_date=params.end_date,
+               start_datetime=params.start_datetime,
+               end_datetime=params.end_datetime,
                survey_link=params.survey_link)
     db_session.add(election)
 
@@ -68,12 +68,12 @@ async def update_election(db_session: AsyncSession, params: ElectionParameters) 
 
     election = (await db_session.execute(sqlalchemy.select(Election).filter_by(slug=params.slug))).scalar_one()
 
-    if params.date is not None:
-        election.date = params.date
+    if params.start_datetime is not None:
+        election.start_datetime = params.start_datetime
     if params.type is not None:
         election.type = params.type
-    if params.end_date is not None:
-        election.end_date = params.end_date
+    if params.end_datetime is not None:
+        election.end_datetime = params.end_datetime
     if params.survey_link is not None:
         election.survey_link = params.survey_link
 

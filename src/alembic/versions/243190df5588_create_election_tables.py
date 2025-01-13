@@ -25,8 +25,8 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=32), nullable=False),
         sa.Column("officer_id", sa.String(length=32), nullable=False),
         sa.Column("type", sa.String(length=64), nullable=True, default="general_election"),
-        sa.Column("date", sa.DateTime(), nullable=False),
-        sa.Column("end_date", sa.DateTime(), nullable=True),
+        sa.Column("start_datetime", sa.DateTime(), nullable=False),
+        sa.Column("end_datetime", sa.DateTime(), nullable=True),
         sa.Column("survey_link", sa.String(length=300), nullable=True),
         sa.PrimaryKeyConstraint("slug")
     )

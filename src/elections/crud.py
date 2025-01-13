@@ -11,9 +11,12 @@ from officers.tables import OfficerInfo, OfficerTerm
 _logger = logging.getLogger(__name__)
 
 async def get_election(db_session: database.DBSession, election_slug: str) -> Election | None:
-    query = sqlalchemy.select(Election)
-    query = query.where(Election.slug == election_slug)
-    result = (await db_session.execute(query)).scalar()
+    query = (
+        sqlalchemy
+        .select(Election)
+        .where(Election.slug == election_slug)
+    )
+    result = await db_session.scalar(query)
     db_session.commit()
     return result
 

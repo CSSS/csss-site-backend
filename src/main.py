@@ -1,17 +1,15 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 import auth.urls
 import database
 import elections.urls
 import officers.urls
 import permission.urls
-from fastapi import FastAPI, Request, status
-from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-
 import tests.urls
 
 logging.basicConfig(level=logging.DEBUG)

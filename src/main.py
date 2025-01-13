@@ -21,6 +21,8 @@ app.include_router(auth.urls.router)
 app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
 
+app.include_router(elections.urls.router)
+
 @app.get("/")
 async def read_root():
     return {"message": "Hello! You might be lost, this is actually the sfucsss.org's backend api."}

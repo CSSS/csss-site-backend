@@ -17,6 +17,7 @@ from constants import (
 )
 from database import Base
 
+election_types = ["general_election", "by_election", "council_rep_election"]
 
 # Each row represents an instance of an
 class Election(Base):
@@ -26,7 +27,6 @@ class Election(Base):
     slug = Column(String(32), primary_key=True)
     name = Column(String(32), nullable=False)
     officer_id = Column(String(COMPUTING_ID_LEN), nullable=False)
-    # Can be one of (general_election: General Election, by_election: By-Election, council_rep_election: Council Rep Election)
     type = Column(String(64), default="general_election")
     date = Column(DateTime, nullable=False)
     end_date = Column(DateTime)

@@ -2,8 +2,9 @@ import dataclasses
 import logging
 from datetime import datetime
 
-import database
 import sqlalchemy
+
+import database
 from elections.tables import Election
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
@@ -17,7 +18,6 @@ async def get_election(db_session: database.DBSession, election_slug: str) -> El
         .where(Election.slug == election_slug)
     )
     result = await db_session.scalar(query)
-    db_session.commit()
     return result
 
 async def create_election(params: dict[str, datetime], db_session: database.DBSession) -> None:

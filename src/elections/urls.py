@@ -52,8 +52,8 @@ async def create_election(
     db_session: database.DBSession,
     name: str,
     election_type: str,
-    date: datetime | None = None,
-    end_date: datetime | None = None,
+    start_datetime: datetime | None = None,
+    end_datetime: datetime | None = None,
     survey_link: str | None = None
 ):
     """
@@ -70,8 +70,8 @@ async def create_election(
         )
 
     # Default start time should be now unless specified otherwise
-    if date is None:
-        date = datetime.now()
+    if start_datetime is None:
+        start_datetime = datetime.now()
 
     if election_type not in election_types:
         raise RequestValidationError()
@@ -81,8 +81,8 @@ async def create_election(
         name,
         await auth.crud.get_computing_id(db_session, session_id),
         election_type,
-        date,
-        end_date,
+        start_datetime,
+        end_datetime,
         survey_link
     )
 
@@ -126,8 +126,8 @@ async def update_election(
     slug: str,
     name: str,
     election_type: str,
-    date: datetime | None = None,
-    end_date: datetime | None = None,
+    start_datetime: datetime | None = None,
+    end_datetime: datetime | None = None,
     survey_link: str | None = None
 ):
     session_id = request.cookies.get("session_id", None)
@@ -145,8 +145,8 @@ async def update_election(
             name,
             await auth.crud.get_computing_id(db_session, session_id),
             election_type,
-            date,
-            end_date,
+            start_datetime,
+            end_datetime,
             survey_link
         )
         await elections.crud.update_election(params, db_session)

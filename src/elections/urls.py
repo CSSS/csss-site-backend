@@ -7,6 +7,7 @@ from datetime import datetime
 
 import requests  # TODO: make this async
 import xmltodict
+from crud import ElectionParameters
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from tables import election_types
@@ -53,7 +54,7 @@ async def create_election(
     election_type: str,
     date: datetime | None = None,
     end_date: datetime | None = None,
-    websurvey: str | None = None
+    survey_link: str | None = None
 ):
     """
     aaa
@@ -75,15 +76,15 @@ async def create_election(
     if election_type not in election_types:
         raise RequestValidationError()
 
-    params = {
-        "slug" : _slugify(name),
-        "name": name,
-        "officer_id" : await auth.crud.get_computing_id(db_session, session_id),
-        "type": election_type,
-        "date": date,
-        "end_date": end_date,
-        "websurvey": websurvey
-    }
+    params = ElectionParameters(
+        _slugify(name),
+        name,
+        await auth.crud.get_computing_id(db_session, session_id),
+        election_type,
+        date,
+        end_date,
+        survey_link
+    )
 
     await elections.crud.create_election(params, db_session)
     await db_session.commit()
@@ -127,7 +128,7 @@ async def update_election(
     election_type: str,
     date: datetime | None = None,
     end_date: datetime | None = None,
-    websurvey: str | None = None
+    survey_link: str | None = None
 ):
     session_id = request.cookies.get("session_id", None)
     user_auth = await _validate_user(db_session, session_id)
@@ -139,15 +140,15 @@ async def update_election(
             headers={"WWW-Authenticate": "Basic"},
         )
     if slug is not None:
-        params = {
-            "slug" : slug,
-            "name" : name,
-            "officer_id" : await auth.crud.get_computing_id(db_session, session_id),
-            "type": election_type,
-            "date": date,
-            "end_date": end_date,
-            "websurvey": websurvey
-        }
+        params = ElectionParameters(
+            _slugify(name),
+            name,
+            await auth.crud.get_computing_id(db_session, session_id),
+            election_type,
+            date,
+            end_date,
+            survey_link
+        )
         await elections.crud.update_election(params, db_session)
         await db_session.commit()
 

@@ -33,7 +33,6 @@ async def create_election(params: dict[str, datetime], db_session: database.DBSe
                end_date=params["end_date"],
                websurvey=params["websurvey"])
     db_session.add(election)
-    await db_session.commit()
 
 async def delete_election(slug: str, db_session: database.DBSession) -> None:
     """
@@ -42,7 +41,6 @@ async def delete_election(slug: str, db_session: database.DBSession) -> None:
     """
     query = sqlalchemy.delete(Election).where(Election.slug == slug)
     await db_session.execute(query)
-    await db_session.commit()
 
 async def update_election(params: dict[str, datetime], db_session: database.DBSession) -> None:
     """
@@ -63,9 +61,6 @@ async def update_election(params: dict[str, datetime], db_session: database.DBSe
     if params["websurvey"] is not None:
         election.websurvey = params["websurvey"]
 
-    await db_session.commit()
-
-
-    # query = sqlalchemy.update(Election).where(Election.slug == params["slug"]).values(election)
-    # await db_session.execute(query)
+    query = sqlalchemy.update(Election).where(Election.slug == params["slug"]).values(election)
+    await db_session.execute(query)
 

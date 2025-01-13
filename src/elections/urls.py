@@ -86,6 +86,7 @@ async def create_election(
     }
 
     await elections.crud.create_election(params, db_session)
+    await db_session.commit()
 
     # TODO: create a suitable json response
     return {}
@@ -111,6 +112,7 @@ async def delete_election(
 
     if slug is not None:
         await elections.crud.delete_election(slug, db_session)
+        await db_session.commit()
 
 @router.get(
     "/update_election",
@@ -147,6 +149,7 @@ async def update_election(
             "websurvey": websurvey
         }
         await elections.crud.update_election(params, db_session)
+        await db_session.commit()
 
 
 @router.get(

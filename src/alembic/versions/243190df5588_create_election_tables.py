@@ -37,7 +37,7 @@ def upgrade() -> None:
         sa.Column("instagram", sa.String(length=64), nullable=True),
         sa.Column("email", sa.String(length=64), nullable=True),
         sa.Column("discord", sa.String(length=32), nullable=True),
-        sa.Column("discord_id", sa.String(length=18), nullable=True),
+        sa.Column("discord_id", sa.String(length=32), nullable=True),
         sa.Column("discord_username", sa.String(length=32), nullable=True),
         sa.PrimaryKeyConstraint("computing_id")
     )

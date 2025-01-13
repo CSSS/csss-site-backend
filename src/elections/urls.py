@@ -9,6 +9,7 @@ import requests  # TODO: make this async
 import xmltodict
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
+from tables import election_types
 
 import auth
 import auth.crud
@@ -71,7 +72,7 @@ async def create_election(
     if date is None:
         date = datetime.now()
 
-    if election_type not in [e.value for e in ElectionType]:
+    if election_type not in election_types:
         raise RequestValidationError()
 
     params = {

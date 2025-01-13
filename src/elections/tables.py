@@ -1,12 +1,5 @@
 from datetime import datetime
 
-from constants import (
-    COMPUTING_ID_LEN,
-    DISCORD_ID_LEN,
-    DISCORD_NAME_LEN,
-    DISCORD_NICKNAME_LEN,
-)
-from database import Base
 from sqlalchemy import (
     Column,
     DateTime,
@@ -15,6 +8,14 @@ from sqlalchemy import (
     String,
     Text,
 )
+
+from constants import (
+    COMPUTING_ID_LEN,
+    DISCORD_ID_LEN,
+    DISCORD_NAME_LEN,
+    DISCORD_NICKNAME_LEN,
+)
+from database import Base
 
 
 # Each row represents an instance of an

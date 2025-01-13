@@ -4,17 +4,17 @@ import os
 import re
 import urllib.parse
 from datetime import datetime
-from enum import Enum
+
+import requests  # TODO: make this async
+import xmltodict
+from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 
 import auth
 import auth.crud
 import database
 import elections
-import requests  # TODO: make this async
-import xmltodict
 from constants import root_ip_address
-from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request, status
-from fastapi.exceptions import RequestValidationError
 from permission import types
 
 _logger = logging.getLogger(__name__)
@@ -23,11 +23,6 @@ router = APIRouter(
     prefix="/elections",
     tags=["elections"],
 )
-
-class ElectionType(Enum):
-    GENERAL_ELECTION = "general_election"
-    BY_ELECTION = "by_election"
-    COUNCIL_REP_ELECTION = "council_rep_election"
 
 def _slugify(
         text: str

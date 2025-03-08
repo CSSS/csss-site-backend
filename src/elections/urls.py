@@ -1,14 +1,9 @@
-import base64
 import logging
-import os
 import re
-import urllib.parse
 from datetime import datetime
 
-import requests  # TODO: make this async
-import xmltodict
 from crud import ElectionParameters
-from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from tables import election_types
 
@@ -17,7 +12,7 @@ import auth.crud
 import database
 import elections
 from constants import root_ip_address
-from permission import types
+from permission.types import ElectionOfficer
 
 _logger = logging.getLogger(__name__)
 
@@ -27,7 +22,7 @@ router = APIRouter(
 )
 
 def _slugify(
-        text: str
+    text: str
 ) -> str:
     """
     Creates a unique slug based on text passed in. Assumes non-unicode text.
@@ -35,13 +30,19 @@ def _slugify(
     return re.sub(r"[\W_]+", "-", text)
 
 async def _validate_user(
-        db_session: database.DBSession,
-        session_id: str
-) -> dict:
+    request: Request,
+    db_session: database.DBSession,
+) -> tuple[bool, str, str]:
+    session_id = request.cookies.get("session_id", None)
+    if session_id is None:
+        return False, None, None
+
     computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    # Assuming now user is validated
-    result = await types.ElectionOfficer.has_permission(db_session, computing_id)
-    return result
+    if computing_id is None:
+        return False, None, None
+
+    has_permission = await ElectionOfficer.has_permission(db_session, computing_id)
+    return has_permission, session_id, computing_id
 
 @router.get(
     "/create_election",
@@ -59,9 +60,11 @@ async def create_election(
     """
     aaa
     """
-    session_id = request.cookies.get("session_id", None)
-    user_auth = await _validate_user(db_session, session_id)
-    if user_auth is False:
+    if election_type not in election_types:
+        raise RequestValidationError()
+
+    is_valid_user, session_id, _ = await _validate_user(request, db_session)
+    if not is_valid_user:
         # let's workshop how we actually wanna handle this
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -72,9 +75,6 @@ async def create_election(
     # Default start time should be now unless specified otherwise
     if start_datetime is None:
         start_datetime = datetime.now()
-
-    if election_type not in election_types:
-        raise RequestValidationError()
 
     params = ElectionParameters(
         _slugify(name),
@@ -93,17 +93,16 @@ async def create_election(
     return {}
 
 @router.get(
-        "/delete_election",
-        description="Deletes an election from the database"
+    "/delete_election",
+    description="Deletes an election from the database"
 )
 async def delete_election(
     request: Request,
     db_session: database.DBSession,
     slug: str
 ):
-    session_id = request.cookies.get("session_id", None)
-    user_auth = await _validate_user(db_session, session_id)
-    if user_auth is False:
+    is_valid_user, _, _ = await _validate_user(request, db_session)
+    if not is_valid_user:
         # let's workshop how we actually wanna handle this
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -130,16 +129,15 @@ async def update_election(
     end_datetime: datetime | None = None,
     survey_link: str | None = None
 ):
-    session_id = request.cookies.get("session_id", None)
-    user_auth = await _validate_user(db_session, session_id)
-    if user_auth is False:
+    is_valid_user, session_id, _ = await _validate_user(request, db_session)
+    if not is_valid_user:
         # let's workshop how we actually wanna handle this
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="You do not have permission to access this resource",
             headers={"WWW-Authenticate": "Basic"},
         )
-    if slug is not None:
+    elif slug is not None:
         params = ElectionParameters(
             _slugify(name),
             name,
@@ -151,7 +149,6 @@ async def update_election(
         )
         await elections.crud.update_election(params, db_session)
         await db_session.commit()
-
 
 @router.get(
     "/test"

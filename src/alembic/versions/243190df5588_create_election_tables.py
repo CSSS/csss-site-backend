@@ -20,7 +20,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.create_table("election",
+    op.create_table(
+        "election",
         sa.Column("slug", sa.String(length=32), nullable=False),
         sa.Column("name", sa.String(length=32), nullable=False),
         sa.Column("officer_id", sa.String(length=32), nullable=False),
@@ -30,7 +31,8 @@ def upgrade() -> None:
         sa.Column("survey_link", sa.String(length=300), nullable=True),
         sa.PrimaryKeyConstraint("slug")
     )
-    op.create_table("election_nominee",
+    op.create_table(
+        "election_nominee",
         sa.Column("computing_id", sa.String(length=32), nullable=False),
         sa.Column("full_name", sa.String(length=64), nullable=False),
         sa.Column("facebook", sa.String(length=64), nullable=True),
@@ -41,13 +43,14 @@ def upgrade() -> None:
         sa.Column("discord_username", sa.String(length=32), nullable=True),
         sa.PrimaryKeyConstraint("computing_id")
     )
-    op.create_table("nominee_application",
+    op.create_table(
+        "nominee_application",
         sa.Column("computing_id", sa.String(length=32), nullable=False),
         sa.Column("nominee_election", sa.String(length=32), nullable=False),
         sa.Column("speech", sa.Text(), nullable=True),
         sa.Column("position", sa.String(length=64), nullable=False),
-        sa.ForeignKeyConstraint(["computing_id"], ["election_nominee.computing_id"], ),
-        sa.ForeignKeyConstraint(["nominee_election"], ["election.slug"], ),
+        sa.ForeignKeyConstraint(["computing_id"], ["election_nominee.computing_id"]),
+        sa.ForeignKeyConstraint(["nominee_election"], ["election.slug"]),
         sa.PrimaryKeyConstraint("computing_id", "nominee_election")
     )
 

@@ -17,7 +17,6 @@ from database import Base
 
 election_types = ["general_election", "by_election", "council_rep_election"]
 
-# Each row represents an instance of an
 class Election(Base):
     __tablename__ = "election"
 

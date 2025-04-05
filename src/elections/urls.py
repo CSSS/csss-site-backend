@@ -120,8 +120,8 @@ async def delete_election(
         await elections.crud.delete_election(slug, db_session)
         await db_session.commit()
 
-@router.get(
-    "/update_election",
+@router.patch(
+    "/election/{slug:str}",
     description="""Updates an election in the database.
                    Note that this does not allow you to change the _name_ of an election as this would generate a new slug."""
 )

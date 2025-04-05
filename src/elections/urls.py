@@ -63,7 +63,8 @@ async def create_election(
     if election_type not in election_types:
         raise RequestValidationError()
 
-    is_valid_user, session_id, _ = await _validate_user(request, db_session)
+    # TODO: session_id -> _ ?
+    is_valid_user, session_id, computing_id = await _validate_user(request, db_session)
     if not is_valid_user:
         # let's workshop how we actually wanna handle this
         raise HTTPException(
@@ -72,6 +73,11 @@ async def create_election(
             headers={"WWW-Authenticate": "Basic"},
         )
 
+    # don't overwrite a previous election
+    if crud.find_election(_slugify(name)) is not None:
+        # TODO: decide on an error for this to be
+        raise InvalidRequestError()
+
     # Default start time should be now unless specified otherwise
     if start_datetime is None:
         start_datetime = datetime.now()
@@ -79,7 +85,7 @@ async def create_election(
     params = ElectionParameters(
         _slugify(name),
         name,
-        await auth.crud.get_computing_id(db_session, session_id),
+        computing_id,
         election_type,
         start_datetime,
         end_datetime,
@@ -89,8 +95,8 @@ async def create_election(
     await elections.crud.create_election(params, db_session)
     await db_session.commit()
 
-    # TODO: create a suitable json response
-    return {}
+    # TODO: return the election as json
+    return {"": "succs"}
 
 @router.get(
     "/delete_election",

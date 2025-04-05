@@ -64,12 +64,11 @@ async def update_election(db_session: AsyncSession, params: ElectionParameters) 
     Does not validate if an election _already_ exists
     """
 
-    election = (await db_session.execute(
+    election = await db_session.scalar(
         sqlalchemy
         .select(Election)
-        # TODO: what is filter_by?
-        .filter_by(slug=params.slug)
-    )).scalar_one()
+        .where(slug=params.slug)
+    )
 
     if params.start_datetime is not None:
         election.start_datetime = params.start_datetime

@@ -10,7 +10,6 @@ import database
 import elections.urls
 import officers.urls
 import permission.urls
-import tests.urls
 
 logging.basicConfig(level=logging.DEBUG)
 database.setup_database()

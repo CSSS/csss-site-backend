@@ -44,8 +44,8 @@ async def _validate_user(
     has_permission = await ElectionOfficer.has_permission(db_session, computing_id)
     return has_permission, session_id, computing_id
 
-@router.get(
-    "/create_election",
+@router.post(
+    "/election/{name:str}",
     description="Creates an election and places it in the database",
 )
 async def create_election(

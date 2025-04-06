@@ -37,11 +37,16 @@ class ElectionOfficer:
         """
         An current elections officer has access to all elections, prior elections officers have no access.
         """
-        officer_terms = await officers.crud.current_executive_team(db_session, True)
-        current_election_officer = officer_terms.get(officers.constants.OfficerPosition.ElectionsOfficer.value)[0]
+        officer_terms = await officers.crud.current_officers(db_session, True)
+        current_election_officer = officer_terms.get(
+            officers.constants.OfficerPosition.ELECTIONS_OFFICER
+        )[0]
         if current_election_officer is not None:
             # no need to verify if position is election officer, we do so above
-            if current_election_officer.private_data.computing_id == computing_id and current_election_officer.is_current_officer is True:
+            if (
+                current_election_officer.private_data.computing_id == computing_id
+                and current_election_officer.is_current_officer
+            ):
                 return True
 
         return False

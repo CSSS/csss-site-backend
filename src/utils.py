@@ -68,3 +68,4 @@ def is_valid_phone_number(phone_number: str) -> bool:
 
 def is_valid_email(email: str):
     return re.match(r"^[^@]+@[^@]+\.[a-zA-Z]*$", email)
+

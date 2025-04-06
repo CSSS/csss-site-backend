@@ -23,11 +23,35 @@ class Election(Base):
     # Slugs are unique identifiers
     slug = Column(String(32), primary_key=True)
     name = Column(String(32), nullable=False)
-    officer_id = Column(String(COMPUTING_ID_LEN), nullable=False)
     type = Column(String(64), default="general_election")
-    start_datetime = Column(DateTime, nullable=False)
-    end_datetime = Column(DateTime)
+    datetime_start_nominations = Column(DateTime, nullable=False)
+    datetime_start_voting = Column(DateTime, nullable=False)
+    datetime_end_voting = Column(DateTime, nullable=False)
     survey_link = Column(String(300))
+
+    def serializable_dict(self) -> dict:
+        return {
+            "slug": self.slug,
+            "name": self.name,
+            "type": self.type,
+
+            "datetime_start_nominations": self.datetime_start_nominations.isoformat(),
+            "datetime_start_voting": self.datetime_start_voting.isoformat(),
+            "datetime_end_voting": self.datetime_end_voting.isoformat(),
+
+            "survey_link": self.survey_link,
+        }
+
+    def public_details(self) -> dict:
+        return {
+            "slug": self.slug,
+            "name": self.name,
+            "type": self.type,
+
+            "datetime_start_nominations": self.datetime_start_nominations.isoformat(),
+            "datetime_start_voting": self.datetime_start_voting.isoformat(),
+            "datetime_end_voting": self.datetime_end_voting.isoformat(),
+        }
 
 # Each row represents a nominee of a given election
 class Nominee(Base):

@@ -10,6 +10,7 @@ import utils
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
+from utils.urls import logged_in_or_raise
 
 _logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ router = APIRouter(
 # ---------------------------------------- #
 # checks
 
-async def has_officer_private_info_access(
+async def _has_officer_private_info_access(
     request: Request,
     db_session: database.DBSession
 ) -> tuple[None | str, None | str, bool]:
@@ -37,21 +38,6 @@ async def has_officer_private_info_access(
     has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
     return session_id, computing_id, has_private_access
 
-async def logged_in_or_raise(
-    request: Request,
-    db_session: database.DBSession
-) -> tuple[str, str]:
-    """gets the user's computing_id, or raises an exception if the current request is not logged in"""
-    session_id = request.cookies.get("session_id", None)
-    if session_id is None:
-        raise HTTPException(status_code=401)
-
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
-    if session_computing_id is None:
-        raise HTTPException(status_code=401)
-
-    return session_id, session_computing_id
-
 # ---------------------------------------- #
 # endpoints
 
@@ -64,7 +50,7 @@ async def current_officers(
     request: Request,
     db_session: database.DBSession,
 ):
-    _, _, has_private_access = await has_officer_private_info_access(request, db_session)
+    _, _, has_private_access = await _has_officer_private_info_access(request, db_session)
     current_officers = await officers.crud.current_officers(db_session, has_private_access)
     return JSONResponse({
         position: [
@@ -85,7 +71,7 @@ async def all_officers(
     # and may only be accessed by that officer and executives. All other officer terms are public.
     include_future_terms: bool = False,
 ):
-    _, computing_id, has_private_access = await has_officer_private_info_access(request, db_session)
+    _, computing_id, has_private_access = await _has_officer_private_info_access(request, db_session)
     if include_future_terms:
         is_website_admin = (computing_id is not None) and (await WebsiteAdmin.has_permission(db_session, computing_id))
         if not is_website_admin:

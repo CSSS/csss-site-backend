@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -14,7 +15,20 @@ import permission.urls
 logging.basicConfig(level=logging.DEBUG)
 database.setup_database()
 
-app = FastAPI(lifespan=database.lifespan, title="CSSS Site Backend", root_path="/api")
+_login_link = (
+    "https://cas.sfu.ca/cas/login?service=" + (
+        "http%3A%2F%2Flocalhost%3A8080"
+        if os.environ.get("LOCAL") == "true"
+        else "https%3A%2F%2Fnew.sfucsss.org"
+    ) + "%2Fapi%2Fauth%2Flogin%3Fredirect_path%3D%2Fapi%2Fapi%2Fdocs%2F%26redirect_fragment%3D"
+)
+
+app = FastAPI(
+    lifespan=database.lifespan,
+    title="CSSS Site Backend",
+    description=f'To login, please click <a href="{_login_link}">here</a><br><br>To logout from CAS click <a href="https://cas.sfu.ca/cas/logout">here</a>',
+    root_path="/api"
+)
 
 app.include_router(auth.urls.router)
 app.include_router(elections.urls.router)

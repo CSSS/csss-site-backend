@@ -40,14 +40,14 @@ class ElectionOfficer:
         officer_terms = await officers.crud.current_officers(db_session, True)
         current_election_officer = officer_terms.get(
             officers.constants.OfficerPosition.ELECTIONS_OFFICER
-        )[0]
+        )
         if current_election_officer is not None:
-            # no need to verify if position is election officer, we do so above
-            if (
-                current_election_officer.private_data.computing_id == computing_id
-                and current_election_officer.is_current_officer
-            ):
-                return True
+            for election_officer in current_election_officer[1]:
+                if (
+                    election_officer.private_data.computing_id == computing_id
+                    and election_officer.is_current_officer
+                ):
+                    return True
 
         return False
 

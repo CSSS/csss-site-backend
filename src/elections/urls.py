@@ -21,7 +21,7 @@ router = APIRouter(
 
 def _slugify(text: str) -> str:
     """Creates a unique slug based on text passed in. Assumes non-unicode text."""
-    return re.sub(r"[\W_]+", "-", text.replace("/", "").replace("&", ""))
+    return re.sub(r"[\W_]+", "-", text.strip().replace("/", "").replace("&", ""))
 
 async def _validate_user(
     request: Request,
@@ -80,7 +80,10 @@ async def create_election(
     survey_link: str | None,
 ):
     if election_type not in election_types:
-        raise RequestValidationError()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"unknown election type {election_type}",
+        )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if not is_valid_user:
@@ -90,12 +93,12 @@ async def create_election(
             # TODO: is this header actually required?
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif len(name) <= elections.tables.MAX_ELECTION_NAME:
+    elif len(name) > elections.tables.MAX_ELECTION_NAME:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election name {name} is too long",
         )
-    elif len(_slugify(name)) <= elections.tables.MAX_SLUG_NAME:
+    elif len(_slugify(name)) > elections.tables.MAX_ELECTION_SLUG:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election slug {_slugify(name)} is too long",
@@ -115,9 +118,8 @@ async def create_election(
             detail="dates must be in order from earliest to latest",
         )
 
-    # TODO: force dates to be in order; here & on the update election endpoint
-
     await elections.crud.create_election(
+        db_session,
         Election(
             slug = _slugify(name),
             name = name,
@@ -126,8 +128,7 @@ async def create_election(
             datetime_start_voting = datetime_start_voting,
             datetime_end_voting = datetime_end_voting,
             survey_link = survey_link
-        ),
-        db_session
+        )
     )
     await db_session.commit()
 
@@ -211,11 +212,11 @@ async def delete_election(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    await elections.crud.delete_election(_slugify(name), db_session)
+    await elections.crud.delete_election(db_session, _slugify(name))
     await db_session.commit()
 
     old_election = await elections.crud.get_election(db_session, _slugify(name))
-    return JSONResponse({"exists": old_election is None})
+    return JSONResponse({"exists": old_election is not None})
 
 # registration ------------------------------------------------------------- #
 

@@ -17,12 +17,15 @@ from database import Base
 
 election_types = ["general_election", "by_election", "council_rep_election"]
 
+MAX_ELECTION_NAME = 64
+MAX_ELECTION_SLUG = 64
+
 class Election(Base):
     __tablename__ = "election"
 
     # Slugs are unique identifiers
-    slug = Column(String(32), primary_key=True)
-    name = Column(String(32), nullable=False)
+    slug = Column(String(MAX_ELECTION_SLUG), primary_key=True)
+    name = Column(String(MAX_ELECTION_NAME), nullable=False)
     type = Column(String(64), default="general_election")
     datetime_start_nominations = Column(DateTime, nullable=False)
     datetime_start_voting = Column(DateTime, nullable=False)
@@ -53,6 +56,19 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
         }
 
+    def to_update_dict(self) -> dict:
+        return {
+            "slug": self.slug,
+            "name": self.name,
+            "type": self.type,
+
+            "datetime_start_nominations": self.datetime_start_nominations,
+            "datetime_start_voting": self.datetime_start_voting,
+            "datetime_end_voting": self.datetime_end_voting,
+
+            "survey_link": self.survey_link,
+        }
+
 # Each row represents a nominee of a given election
 class Nominee(Base):
     __tablename__ = "election_nominee"
@@ -60,8 +76,8 @@ class Nominee(Base):
     # Previously named sfuid
     computing_id = Column(String(COMPUTING_ID_LEN), primary_key=True)
     full_name = Column(String(64), nullable=False)
-    facebook = Column(String(64))
-    instagram = Column(String(64))
+    facebook = Column(String(128))
+    instagram = Column(String(128))
     email = Column(String(64))
     discord = Column(String(DISCORD_NAME_LEN))
     discord_id = Column(String(DISCORD_ID_LEN))

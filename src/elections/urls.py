@@ -10,7 +10,7 @@ import database
 import elections
 from elections.tables import Election, election_types
 from permission.types import ElectionOfficer, WebsiteAdmin
-from utils.urls import logged_in_or_raise
+from utils.urls import is_logged_in
 
 _logger = logging.getLogger(__name__)
 
@@ -21,19 +21,49 @@ router = APIRouter(
 
 def _slugify(text: str) -> str:
     """Creates a unique slug based on text passed in. Assumes non-unicode text."""
-    return re.sub(r"[\W_]+", "-", text)
+    return re.sub(r"[\W_]+", "-", text.replace("/", "").replace("&", ""))
 
 async def _validate_user(
     request: Request,
     db_session: database.DBSession,
 ) -> tuple[bool, str, str]:
-    session_id, computing_id = logged_in_or_raise(request, db_session)
+    logged_in, session_id, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        return False, None, None
+
     has_permission = await ElectionOfficer.has_permission(db_session, computing_id)
     if not has_permission:
         has_permission = await WebsiteAdmin.has_permission(db_session, computing_id)
+
     return has_permission, session_id, computing_id
 
 # elections ------------------------------------------------------------- #
+
+@router.get(
+    "/by_name/{name:str}",
+    description="Retrieves the election data for an election by name"
+)
+async def get_election(
+    request: Request,
+    db_session: database.DBSession,
+    name: str,
+):
+    election = await elections.crud.get_election(db_session, _slugify(name))
+    if election is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election with slug {_slugify(name)} does not exist"
+        )
+    elif datetime.now() >= election.datetime_start_voting:
+        # after the voting period starts, all election data becomes public
+        return JSONResponse(election.serializable_dict())
+
+    is_valid_user, _, _ = await _validate_user(request, db_session)
+    return JSONResponse(
+        election.serializable_dict()
+        if is_valid_user
+        else election.public_details()
+    )
 
 @router.post(
     "/by_name/{name:str}",
@@ -60,59 +90,57 @@ async def create_election(
             # TODO: is this header actually required?
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif elections.crud.get_election(db_session, _slugify(name)) is not None:
+    elif len(name) <= elections.tables.MAX_ELECTION_NAME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election name {name} is too long",
+        )
+    elif len(_slugify(name)) <= elections.tables.MAX_SLUG_NAME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election slug {_slugify(name)} is too long",
+        )
+    elif await elections.crud.get_election(db_session, _slugify(name)) is not None:
         # don't overwrite a previous election
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="would overwrite previous election",
         )
+    elif not (
+        (datetime_start_nominations <= datetime_start_voting)
+        and (datetime_start_voting <= datetime_end_voting)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="dates must be in order from earliest to latest",
+        )
+
+    # TODO: force dates to be in order; here & on the update election endpoint
 
     await elections.crud.create_election(
         Election(
-            _slugify(name),
-            name,
-            election_type,
-            datetime_start_nominations,
-            datetime_start_voting,
-            datetime_end_voting,
-            survey_link
+            slug = _slugify(name),
+            name = name,
+            type = election_type,
+            datetime_start_nominations = datetime_start_nominations,
+            datetime_start_voting = datetime_start_voting,
+            datetime_end_voting = datetime_end_voting,
+            survey_link = survey_link
         ),
         db_session
     )
     await db_session.commit()
 
-    election = elections.crud.get_election(db_session, _slugify(name))
+    election = await elections.crud.get_election(db_session, _slugify(name))
     return JSONResponse(election.serializable_dict())
-
-@router.delete(
-    "/by_name/{name:str}",
-    description="Deletes an election from the database. Returns whether the election exists after deletion."
-)
-async def delete_election(
-    request: Request,
-    db_session: database.DBSession,
-    name: str
-):
-    is_valid_user, _, _ = await _validate_user(request, db_session)
-    if not is_valid_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must have election officer permission",
-            # TODO: is this header actually required?
-            headers={"WWW-Authenticate": "Basic"},
-        )
-
-    await elections.crud.delete_election(_slugify(name), db_session)
-    await db_session.commit()
-
-    old_election = elections.crud.get_election(db_session, _slugify(name))
-    return JSONResponse({"exists": old_election is None})
 
 @router.patch(
     "/by_name/{name:str}",
     description="""
         Updates an election in the database.
-        Note that this don't let you to change the name of an election as it would generate a new slug!
+
+        Note that this doesn't let you change the name of an election, unless the new
+        name produces the same slug.
 
         Returns election json on success.
     """
@@ -135,15 +163,23 @@ async def update_election(
             detail="must have election officer or admin permission",
             headers={"WWW-Authenticate": "Basic"},
         )
+    elif not (
+        (datetime_start_nominations <= datetime_start_voting)
+        and (datetime_start_voting <= datetime_end_voting)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="dates must be in order from earliest to latest",
+        )
 
     new_election = Election(
-        _slugify(name),
-        name,
-        election_type,
-        datetime_start_nominations,
-        datetime_start_voting,
-        datetime_end_voting,
-        survey_link
+        slug = _slugify(name),
+        name = name,
+        type = election_type,
+        datetime_start_nominations = datetime_start_nominations,
+        datetime_start_voting = datetime_start_voting,
+        datetime_end_voting = datetime_end_voting,
+        survey_link = survey_link
     )
     success = await elections.crud.update_election(db_session, new_election)
     if not success:
@@ -154,31 +190,32 @@ async def update_election(
     else:
         await db_session.commit()
 
-        election = elections.crud.get_election(db_session, _slugify(name))
+        election = await elections.crud.get_election(db_session, _slugify(name))
         return JSONResponse(election.serializable_dict())
 
-@router.get(
+@router.delete(
     "/by_name/{name:str}",
-    description="Retrieves the election data for an election by name"
+    description="Deletes an election from the database. Returns whether the election exists after deletion."
 )
-async def get_election(
+async def delete_election(
     request: Request,
     db_session: database.DBSession,
-    name: str,
+    name: str
 ):
-    election = elections.crud.get_election(db_session, _slugify(name))
-    if election is None:
+    is_valid_user, _, _ = await _validate_user(request, db_session)
+    if not is_valid_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {_slugify(name)} does not exist"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must have election officer permission",
+            # TODO: is this header actually required?
+            headers={"WWW-Authenticate": "Basic"},
         )
 
-    is_valid_user, _, _ = await _validate_user(request, db_session)
-    return JSONResponse(
-        election.serializable_dict()
-        if is_valid_user
-        else election.public_details()
-    )
+    await elections.crud.delete_election(_slugify(name), db_session)
+    await db_session.commit()
+
+    old_election = await elections.crud.get_election(db_session, _slugify(name))
+    return JSONResponse({"exists": old_election is None})
 
 # registration ------------------------------------------------------------- #
 

@@ -46,6 +46,6 @@ async def update_election(db_session: AsyncSession, new_election: Election) -> b
             sqlalchemy
             .update(Election)
             .where(Election.slug == target_slug)
-            .values(new_election)
+            .values(new_election.to_update_dict())
         )
         return True

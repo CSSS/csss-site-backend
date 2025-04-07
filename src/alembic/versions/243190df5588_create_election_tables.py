@@ -22,8 +22,8 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "election",
-        sa.Column("slug", sa.String(length=32), nullable=False),
-        sa.Column("name", sa.String(length=32), nullable=False),
+        sa.Column("slug", sa.String(length=64), nullable=False),
+        sa.Column("name", sa.String(length=64), nullable=False),
         sa.Column("type", sa.String(length=64), default="general_election"),
         sa.Column("datetime_start_nominations", sa.DateTime(), nullable=False),
         sa.Column("datetime_start_voting", sa.DateTime(), nullable=False),
@@ -35,8 +35,8 @@ def upgrade() -> None:
         "election_nominee",
         sa.Column("computing_id", sa.String(length=32), nullable=False),
         sa.Column("full_name", sa.String(length=64), nullable=False),
-        sa.Column("facebook", sa.String(length=64), nullable=True),
-        sa.Column("instagram", sa.String(length=64), nullable=True),
+        sa.Column("facebook", sa.String(length=128), nullable=True),
+        sa.Column("instagram", sa.String(length=128), nullable=True),
         sa.Column("email", sa.String(length=64), nullable=True),
         sa.Column("discord", sa.String(length=32), nullable=True),
         sa.Column("discord_id", sa.String(length=32), nullable=True),

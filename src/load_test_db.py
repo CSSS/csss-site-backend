@@ -3,13 +3,17 @@
 # python load_test_db.py
 
 import asyncio
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# NOTE: make sure you import from a file in your module which (at least) indirectly contains those
+# tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
+from elections.crud import create_election, update_election
+from elections.tables import Election
 from officers.constants import OfficerPosition
 from officers.crud import create_new_officer_info, create_new_officer_term, update_officer_info, update_officer_term
 from officers.tables import OfficerInfo, OfficerTerm
@@ -56,6 +60,9 @@ async def reset_db(engine):
             print("Uh oh, failed to create any tables...")
         else:
             print(f"new tables: {table_list}")
+
+# ----------------------------------------------------------------- #
+# load db with test data
 
 async def load_test_auth_data(db_session: AsyncSession):
     await create_user_session(db_session, "temp_id_314", "abc314")
@@ -282,12 +289,64 @@ async def load_sysadmin(db_session: AsyncSession):
     ))
     await db_session.commit()
 
+async def load_test_elections_data(db_session: AsyncSession):
+    print("loading elections data...")
+    await create_election(db_session, Election(
+        slug="test-election-1",
+        name="test election    1",
+        type="general_election",
+        datetime_start_nominations=datetime.now() - timedelta(days=400),
+        datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
+        datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
+        survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
+    ))
+    await update_election(db_session, Election(
+        slug="test-election-1",
+        name="test election    1",
+        type="general_election",
+        datetime_start_nominations=datetime.now() - timedelta(days=400),
+        datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
+        datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
+        survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
+    ))
+    await create_election(db_session, Election(
+        slug="test-election-2",
+        name="test election 2",
+        type="by_election",
+        datetime_start_nominations=datetime.now() - timedelta(days=300),
+        datetime_start_voting=datetime.now() - timedelta(days=295, hours=4),
+        datetime_end_voting=datetime.now() - timedelta(days=290, hours=8),
+        survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5 (oh yeah)"
+    ))
+    await create_election(db_session, Election(
+        slug="my-cr-election-3",
+        name="my cr election 3",
+        type="council_rep_election",
+        datetime_start_nominations=datetime.now() - timedelta(days=5),
+        datetime_start_voting=datetime.now() - timedelta(days=1, hours=4),
+        datetime_end_voting=datetime.now() + timedelta(days=5, hours=8),
+        survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
+    ))
+    await create_election(db_session, Election(
+        slug="THE-SUPER-GENERAL-ELECTION-friends",
+        name="THE SUPER GENERAL ELECTION & friends",
+        type="general_election",
+        datetime_start_nominations=datetime.now() + timedelta(days=5),
+        datetime_start_voting=datetime.now() + timedelta(days=10, hours=4),
+        datetime_end_voting=datetime.now() + timedelta(days=15, hours=8),
+        survey_link=None
+    ))
+    await db_session.commit()
+
+# ----------------------------------------------------------------- #
+
 async def async_main(sessionmanager):
     await reset_db(sessionmanager._engine)
     async with sessionmanager.session() as db_session:
         await load_test_auth_data(db_session)
         await load_test_officers_data(db_session)
         await load_sysadmin(db_session)
+        await load_test_elections_data(db_session)
 
 if __name__ == "__main__":
     response = input(f"This will reset the {SQLALCHEMY_TEST_DATABASE_URL} database, are you okay with this? (y/N): ")

@@ -4,6 +4,8 @@ from typing import ClassVar
 from fastapi import HTTPException
 
 import database
+import elections.crud
+import officers.constants
 import officers.crud
 import utils
 from data.semesters import step_semesters
@@ -26,6 +28,26 @@ class OfficerPrivateInfo:
             NUM_SEMESTERS = 5
             if date.today() <= step_semesters(term.end_date, NUM_SEMESTERS):
                 return True
+
+        return False
+
+class ElectionOfficer:
+    @staticmethod
+    async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
+        """
+        An current elections officer has access to all elections, prior elections officers have no access.
+        """
+        officer_terms = await officers.crud.current_officers(db_session, True)
+        current_election_officer = officer_terms.get(
+            officers.constants.OfficerPosition.ELECTIONS_OFFICER
+        )
+        if current_election_officer is not None:
+            for election_officer in current_election_officer[1]:
+                if (
+                    election_officer.private_data.computing_id == computing_id
+                    and election_officer.is_current_officer
+                ):
+                    return True
 
         return False
 

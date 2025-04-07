@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 import auth.tables
 import blog.tables
 import database
+import elections.tables
 import officers.tables
 from alembic import context
 

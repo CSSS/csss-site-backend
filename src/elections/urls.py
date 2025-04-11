@@ -251,6 +251,8 @@ async def update_election(
             detail=f"election with slug {_slugify(name)} does not exist",
         )
 
+    # NOTE: If you update avaliable positions, people will still *technically* be able to update their
+    # registrations, however they will not be returned in the results.
     await elections.crud.update_election(
         db_session,
         Election(
@@ -312,7 +314,7 @@ async def get_election_registrations(
         )
 
     election_slug = _slugify(election_name)
-    if await get_election(db_session, election_slug) is None:
+    if await elections.crud.get_election(db_session, election_slug) is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {election_slug} does not exist"
@@ -351,11 +353,25 @@ async def register_in_election(
             detail=f"invalid position {position}"
         )
 
+    current_time = datetime.now()
     election_slug = _slugify(election_name)
-    if await get_election(db_session, election_slug) is None:
+    election = await elections.crud.get_election(db_session, election_slug)
+    if election is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {election_slug} does not exist"
+        )
+    elif position not in election.avaliable_positions.split(","):
+        # NOTE: We only restrict creating a registration for a position that doesn't exist,
+        # not updating or deleting one
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{position} is not avaliable to register for in this election"
+        )
+    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="registrations can only be made during the nomination period"
         )
     elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is not None:
         raise HTTPException(
@@ -396,11 +412,18 @@ async def update_registration(
             detail=f"invalid position {position}"
         )
 
+    current_time = datetime.now()
     election_slug = _slugify(election_name)
-    if await get_election(db_session, election_slug) is None:
+    election = await elections.crud.get_election(db_session, election_slug)
+    if election is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {election_slug} does not exist"
+        )
+    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="speeches can only be updated during the nomination period"
         )
     elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is None:
         raise HTTPException(
@@ -437,11 +460,18 @@ async def delete_registration(
             detail=f"invalid position {position}"
         )
 
+    current_time = datetime.now()
     election_slug = _slugify(election_name)
-    if await get_election(db_session, election_slug) is None:
+    election = await elections.crud.get_election(db_session, election_slug)
+    if election is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {election_slug} does not exist"
+        )
+    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="registration can only be revoked during the nomination period"
         )
     elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is None:
         raise HTTPException(

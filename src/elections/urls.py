@@ -257,7 +257,7 @@ async def delete_election(
     "/register/{election_name:str}",
     description="get your election registration(s)"
 )
-async def get_election_registration(
+async def get_election_registrations(
     request: Request,
     db_session: database.DBSession,
     election_name: str
@@ -289,18 +289,24 @@ async def get_election_registration(
 
 @router.post(
     "/register/{election_name:str}",
-    description="register for the election, but doesn't set any speeches or positions."
+    description="register for a specific position in this election, but doesn't set a speech"
 )
 async def register_in_election(
     request: Request,
     db_session: database.DBSession,
-    election_name: str
+    election_name: str,
+    position: str
 ):
     logged_in, _, computing_id = await is_logged_in(request, db_session)
     if not logged_in:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must be logged in to register in election"
+        )
+    elif position not in OfficerPosition.position_list():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"invalid position {position}"
         )
 
     election_slug = _slugify(election_name)
@@ -321,20 +327,20 @@ async def register_in_election(
     await elections.crud.add_registration(db_session, NomineeApplication(
         computing_id=computing_id,
         nominee_election=election_slug,
-        speech=None,
-        position=None,
+        position=position,
+        speech=None
     ))
 
 @router.patch(
     "/register/{election_name:str}",
-    description="update your registration for an election"
+    description="update your speech for a specific position for an election"
 )
 async def update_registration(
     request: Request,
     db_session: database.DBSession,
     election_name: str,
-    speech: str | None,
     position: str,
+    speech: str | None,
 ):
     logged_in, _, computing_id = await is_logged_in(request, db_session)
     if not logged_in:
@@ -344,7 +350,7 @@ async def update_registration(
         )
     elif position not in OfficerPosition.position_list():
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"invalid position {position}"
         )
 
@@ -363,24 +369,30 @@ async def update_registration(
     await elections.crud.update_registration(db_session, NomineeApplication(
         computing_id=computing_id,
         nominee_election=election_slug,
-        speech=speech,
         position=position,
+        speech=speech
     ))
 
 @router.delete(
     "/register/{election_name:str}",
-    description="revoke your registration in the election"
+    description="revoke your registration for a specific position in this election"
 )
 async def delete_registration(
     request: Request,
     db_session: database.DBSession,
-    election_name: str
+    election_name: str,
+    position: str,
 ):
     logged_in, _, computing_id = await is_logged_in(request, db_session)
     if not logged_in:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must be logged in to delete election registeration"
+        )
+    elif position not in OfficerPosition.position_list():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"invalid position {position}"
         )
 
     election_slug = _slugify(election_name)
@@ -395,4 +407,4 @@ async def delete_registration(
             detail="you are not yet registered in this election"
         )
 
-    await elections.crud.delete_registration(db_session, computing_id, election_slug)
+    await elections.crud.delete_registration(db_session, computing_id, election_slug, position)

@@ -109,17 +109,29 @@ class NomineeApplication(Base):
     # TODO: add index for nominee_election?
     computing_id = Column(ForeignKey("election_nominee.computing_id"), primary_key=True)
     nominee_election = Column(ForeignKey("election.slug"), primary_key=True)
+    position = Column(String(64), primary_key=True)
+
     speech = Column(Text)
-    position = Column(String(64))
 
     __table_args__ = (
-        PrimaryKeyConstraint(computing_id, nominee_election),
+        PrimaryKeyConstraint(computing_id, nominee_election, position),
     )
 
     def serializable_dict(self) -> dict:
         return {
             "computing_id": self.computing_id,
             "nominee_election": self.nominee_election,
-            "speech": self.speech,
             "position": self.position,
+
+            "speech": self.speech,
         }
+
+    def to_update_dict(self) -> dict:
+        return {
+            "computing_id": self.computing_id,
+            "nominee_election": self.nominee_election,
+            "position": self.position,
+
+            "speech": self.speech,
+        }
+

@@ -34,6 +34,7 @@ async def update_election(db_session: AsyncSession, new_election: Election) -> b
     You attempting to change the name or slug will fail. Instead, you must create a new election.
     """
     target_slug = new_election.slug
+    # TODO: does this check need to be performed?
     target_election = await get_election(db_session, target_slug)
 
     if target_election is None:
@@ -58,29 +59,48 @@ async def delete_election(db_session: AsyncSession, slug: str) -> None:
         .where(Election.slug == slug)
     )
 
+# TODO: switch to only using one of application or registration
 async def get_all_registrations(
     db_session: AsyncSession,
     computing_id: str,
     election_slug: str
 ) -> list[NomineeApplication] | None:
-    raise NotImplementedError("todo")
+    registrations = (await db_session.scalars(
+        sqlalchemy
+        .select(NomineeApplication)
+        .where(
+            NomineeApplication.computing_id == computing_id
+            and NomineeApplication.election_slug == election_slug
+        )
+    )).all()
+    return registrations
 
 async def add_registration(
     db_session: AsyncSession,
     initial_application: NomineeApplication
-) -> NomineeApplication:
-    raise NotImplementedError("todo")
+):
+    db_session.add(initial_application)
 
 async def update_registration(
     db_session: AsyncSession,
     initial_application: NomineeApplication
-) -> NomineeApplication:
-    raise NotImplementedError("todo")
+):
+    await db_session.execute(
+        sqlalchemy
+        .update(NomineeApplication)
+        .where(
+            NomineeApplication.computing_id == initial_application.computing_id
+            and NomineeApplication.nominee_election == initial_application.nominee_election
+            and NomineeApplication.position == initial_application.position
+        )
+        .values(initial_application.to_update_dict())
+    )
 
 async def delete_registration(
     db_session: AsyncSession,
     computing_id: str,
-    election_slug: str
+    election_slug: str,
+    position: str
 ):
     await db_session.execute(
         sqlalchemy
@@ -88,5 +108,6 @@ async def delete_registration(
         .where(
             NomineeApplication.computing_id == computing_id
             and NomineeApplication.nominee_election == election_slug
+            and NomineeApplication.position == position
         )
     )

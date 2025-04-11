@@ -47,11 +47,11 @@ def upgrade() -> None:
         "election_nominee_application",
         sa.Column("computing_id", sa.String(length=32), nullable=False),
         sa.Column("nominee_election", sa.String(length=64), nullable=False),
+        sa.Column("position", sa.String(length=64), nullable=False),
         sa.Column("speech", sa.Text(), nullable=True),
-        sa.Column("position", sa.String(length=64), nullable=True),
         sa.ForeignKeyConstraint(["computing_id"], ["election_nominee.computing_id"]),
         sa.ForeignKeyConstraint(["nominee_election"], ["election.slug"]),
-        sa.PrimaryKeyConstraint("computing_id", "nominee_election")
+        sa.PrimaryKeyConstraint("computing_id", "nominee_election", "position")
     )
 
 

@@ -40,31 +40,57 @@ async def _validate_user(
 # elections ------------------------------------------------------------- #
 
 @router.get(
+    "/list",
+    description="Returns a list of all elections & their status"
+)
+async def list_elections(
+    _: Request,
+    db_session: database.DBSession,
+):
+    election_list = await elections.crud.get_all_elections(db_session)
+    if election_list is None or len(election_list) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="no elections found"
+        )
+
+    current_time = datetime.now()
+    election_metadata_list = [
+        election.public_details(current_time)
+        for election in election_list
+    ]
+
+    return JSONResponse(election_metadata_list)
+
+@router.get(
     "/by_name/{name:str}",
-    description="Retrieves the election data for an election by name"
+    description="Retrieves the election data for an election by name. Returns private details when the time is allowed."
 )
 async def get_election(
     request: Request,
     db_session: database.DBSession,
     name: str,
 ):
+    current_time = datetime.now()
+
     election = await elections.crud.get_election(db_session, _slugify(name))
     if election is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {_slugify(name)} does not exist"
         )
-    elif datetime.now() >= election.datetime_start_voting:
+    elif current_time >= election.datetime_start_voting:
         # after the voting period starts, all election data becomes public
-        return JSONResponse(election.serializable_dict())
+        return JSONResponse(election.private_details(current_time))
 
     # TODO: include nominees and speeches
     # TODO: ignore any empty mappings
+
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if is_valid_user:
-        election_json = election.serializable_dict()
+        election_json = election.private_details(current_time)
     else:
-        election_json = election.public_details()
+        election_json = election.public_details(current_time)
 
     return JSONResponse(election_json)
 
@@ -82,6 +108,8 @@ async def create_election(
     datetime_end_voting: datetime,
     survey_link: str | None,
 ):
+    current_time = datetime.now()
+
     if election_type not in election_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -136,7 +164,7 @@ async def create_election(
     await db_session.commit()
 
     election = await elections.crud.get_election(db_session, _slugify(name))
-    return JSONResponse(election.serializable_dict())
+    return JSONResponse(election.private_details(current_time))
 
 @router.patch(
     "/by_name/{name:str}",
@@ -159,6 +187,8 @@ async def update_election(
     datetime_end_voting: datetime,
     survey_link: str | None,
 ):
+    current_time = datetime.now()
+
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if not is_valid_user:
         # let's workshop how we actually wanna handle this
@@ -195,7 +225,7 @@ async def update_election(
         await db_session.commit()
 
         election = await elections.crud.get_election(db_session, _slugify(name))
-        return JSONResponse(election.serializable_dict())
+        return JSONResponse(election.private_details(current_time))
 
 @router.delete(
     "/by_name/{name:str}",

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import (
     Column,
     DateTime,
@@ -17,6 +19,11 @@ from database import Base
 
 election_types = ["general_election", "by_election", "council_rep_election"]
 
+STATUS_BEFORE_NOMINATIONS = "before_nominations"
+STATUS_NOMINATIONS = "nominations"
+STATUS_VOTING = "voting"
+STATUS_AFTER_VOTING = "after_voting"
+
 MAX_ELECTION_NAME = 64
 MAX_ELECTION_SLUG = 64
 
@@ -32,7 +39,8 @@ class Election(Base):
     datetime_end_voting = Column(DateTime, nullable=False)
     survey_link = Column(String(300))
 
-    def serializable_dict(self) -> dict:
+    def private_details(self, at_time: datetime) -> dict:
+        # is serializable
         return {
             "slug": self.slug,
             "name": self.name,
@@ -42,10 +50,12 @@ class Election(Base):
             "datetime_start_voting": self.datetime_start_voting.isoformat(),
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
+            "status": self.status(at_time),
             "survey_link": self.survey_link,
         }
 
-    def public_details(self) -> dict:
+    def public_details(self, at_time: datetime) -> dict:
+        # is serializable
         return {
             "slug": self.slug,
             "name": self.name,
@@ -54,6 +64,8 @@ class Election(Base):
             "datetime_start_nominations": self.datetime_start_nominations.isoformat(),
             "datetime_start_voting": self.datetime_start_voting.isoformat(),
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
+
+            "status": self.status(at_time),
         }
 
     def to_update_dict(self) -> dict:
@@ -68,6 +80,16 @@ class Election(Base):
 
             "survey_link": self.survey_link,
         }
+
+    def status(self, at_time: datetime) -> str:
+        if at_time <= self.datetime_start_nominations:
+            return STATUS_BEFORE_NOMINATIONS
+        elif at_time <= self.datetime_start_voting:
+            return STATUS_NOMINATIONS
+        elif at_time <= self.datetime_end_voting:
+            return STATUS_VOTING
+        else:
+            return STATUS_AFTER_VOTING
 
 class NomineeInfo(Base):
     __tablename__ = "election_nominee_info"

@@ -7,6 +7,14 @@ from elections.tables import Election, NomineeApplication
 
 _logger = logging.getLogger(__name__)
 
+async def get_all_elections(db_session: AsyncSession) -> list[Election] | None:
+    # TODO: can this return None?
+    election_list = (await db_session.scalars(
+        sqlalchemy
+        .select(Election)
+    )).all()
+    return election_list
+
 async def get_election(db_session: AsyncSession, election_slug: str) -> Election | None:
     return await db_session.scalar(
         sqlalchemy

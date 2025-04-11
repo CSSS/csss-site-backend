@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 import database
 import elections
+import elections.tables
 from elections.tables import Election, NomineeApplication, election_types
 from officers.constants import OfficerPosition
 from permission.types import ElectionOfficer, WebsiteAdmin
@@ -56,7 +57,7 @@ async def list_elections(
 
     current_time = datetime.now()
     election_metadata_list = [
-        election.public_details(current_time)
+        election.public_metadata(current_time)
         for election in election_list
     ]
 
@@ -94,6 +95,45 @@ async def get_election(
 
     return JSONResponse(election_json)
 
+def _raise_if_bad_election_data(
+    name: str,
+    election_type: str,
+    datetime_start_nominations: datetime,
+    datetime_start_voting: datetime,
+    datetime_end_voting: datetime,
+    avaliable_positions: str | None,
+):
+    if election_type not in election_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"unknown election type {election_type}",
+        )
+    elif not (
+        (datetime_start_nominations <= datetime_start_voting)
+        and (datetime_start_voting <= datetime_end_voting)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="dates must be in order from earliest to latest",
+        )
+    elif avaliable_positions is not None:
+        for position in avaliable_positions.split(","):
+            if position not in OfficerPosition.position_list():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"unknown position found in position list {position}",
+                )
+    elif len(name) > elections.tables.MAX_ELECTION_NAME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election name {name} is too long",
+        )
+    elif len(_slugify(name)) > elections.tables.MAX_ELECTION_SLUG:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election slug {_slugify(name)} is too long",
+        )
+
 @router.post(
     "/by_name/{name:str}",
     description="Creates an election and places it in the database. Returns election json on success",
@@ -106,15 +146,19 @@ async def create_election(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
+    # allows None, which assigns it to the default
+    avaliable_positions: str | None,
     survey_link: str | None,
 ):
     current_time = datetime.now()
-
-    if election_type not in election_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"unknown election type {election_type}",
-        )
+    _raise_if_bad_election_data(
+        name,
+        election_type,
+        datetime_start_nominations,
+        datetime_start_voting,
+        datetime_end_voting,
+        avaliable_positions,
+    )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if not is_valid_user:
@@ -124,30 +168,25 @@ async def create_election(
             # TODO: is this header actually required?
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif len(name) > elections.tables.MAX_ELECTION_NAME:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election name {name} is too long",
-        )
-    elif len(_slugify(name)) > elections.tables.MAX_ELECTION_SLUG:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election slug {_slugify(name)} is too long",
-        )
     elif await elections.crud.get_election(db_session, _slugify(name)) is not None:
         # don't overwrite a previous election
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="would overwrite previous election",
         )
-    elif not (
-        (datetime_start_nominations <= datetime_start_voting)
-        and (datetime_start_voting <= datetime_end_voting)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="dates must be in order from earliest to latest",
-        )
+
+    if avaliable_positions is None:
+        if election_type == "general_election":
+            avaliable_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
+        elif election_type == "by_election":
+            avaliable_positions = elections.tables.DEFAULT_POSITIONS_BY_ELECTION
+        elif election_type == "council_rep_election":
+            avaliable_positions = elections.tables.DEFAULT_POSITIONS_COUNCIL_REP_ELECTION
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"invalid election type {election_type} for avaliable positions"
+            )
 
     await elections.crud.create_election(
         db_session,
@@ -158,6 +197,7 @@ async def create_election(
             datetime_start_nominations = datetime_start_nominations,
             datetime_start_voting = datetime_start_voting,
             datetime_end_voting = datetime_end_voting,
+            avaliable_positions = avaliable_positions,
             survey_link = survey_link
         )
     )
@@ -185,47 +225,49 @@ async def update_election(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
+    avaliable_positions: str,
     survey_link: str | None,
 ):
     current_time = datetime.now()
+    _raise_if_bad_election_data(
+        name,
+        election_type,
+        datetime_start_nominations,
+        datetime_start_voting,
+        datetime_end_voting,
+        avaliable_positions,
+    )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if not is_valid_user:
-        # let's workshop how we actually wanna handle this
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must have election officer or admin permission",
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif not (
-        (datetime_start_nominations <= datetime_start_voting)
-        and (datetime_start_voting <= datetime_end_voting)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="dates must be in order from earliest to latest",
-        )
-
-    new_election = Election(
-        slug = _slugify(name),
-        name = name,
-        type = election_type,
-        datetime_start_nominations = datetime_start_nominations,
-        datetime_start_voting = datetime_start_voting,
-        datetime_end_voting = datetime_end_voting,
-        survey_link = survey_link
-    )
-    success = await elections.crud.update_election(db_session, new_election)
-    if not success:
+    elif await elections.crud.get_election(db_session, _slugify(name)) is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {_slugify(name)} does not exist",
         )
-    else:
-        await db_session.commit()
 
-        election = await elections.crud.get_election(db_session, _slugify(name))
-        return JSONResponse(election.private_details(current_time))
+    await elections.crud.update_election(
+        db_session,
+        Election(
+            slug = _slugify(name),
+            name = name,
+            type = election_type,
+            datetime_start_nominations = datetime_start_nominations,
+            datetime_start_voting = datetime_start_voting,
+            datetime_end_voting = datetime_end_voting,
+            avaliable_positions = avaliable_positions,
+            survey_link = survey_link
+        )
+    )
+    await db_session.commit()
+
+    election = await elections.crud.get_election(db_session, _slugify(name))
+    return JSONResponse(election.private_details(current_time))
 
 @router.delete(
     "/by_name/{name:str}",

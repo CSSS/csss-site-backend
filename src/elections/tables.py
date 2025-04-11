@@ -16,8 +16,14 @@ from constants import (
     DISCORD_NICKNAME_LEN,
 )
 from database import Base
+from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS
 
+# If you wish to add more elections & defaults, please see `create_election`
 election_types = ["general_election", "by_election", "council_rep_election"]
+
+DEFAULT_POSITIONS_GENERAL_ELECTION = ",".join(GENERAL_ELECTION_POSITIONS)
+DEFAULT_POSITIONS_BY_ELECTION = ",".join(GENERAL_ELECTION_POSITIONS)
+DEFAULT_POSITIONS_COUNCIL_REP_ELECTION = ",".join(COUNCIL_REP_ELECTION_POSITIONS)
 
 STATUS_BEFORE_NOMINATIONS = "before_nominations"
 STATUS_NOMINATIONS = "nominations"
@@ -37,6 +43,9 @@ class Election(Base):
     datetime_start_nominations = Column(DateTime, nullable=False)
     datetime_start_voting = Column(DateTime, nullable=False)
     datetime_end_voting = Column(DateTime, nullable=False)
+
+    # a csv list of positions which must be elements of OfficerPosition
+    avaliable_positions = Column(Text, nullable=False)
     survey_link = Column(String(300))
 
     def private_details(self, at_time: datetime) -> dict:
@@ -51,10 +60,26 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
             "status": self.status(at_time),
+            "avaliable_positions": self.avaliable_positions,
             "survey_link": self.survey_link,
         }
 
     def public_details(self, at_time: datetime) -> dict:
+        # is serializable
+        return {
+            "slug": self.slug,
+            "name": self.name,
+            "type": self.type,
+
+            "datetime_start_nominations": self.datetime_start_nominations.isoformat(),
+            "datetime_start_voting": self.datetime_start_voting.isoformat(),
+            "datetime_end_voting": self.datetime_end_voting.isoformat(),
+
+            "status": self.status(at_time),
+            "avaliable_positions": self.avaliable_positions,
+        }
+
+    def public_metadata(self, at_time: datetime) -> dict:
         # is serializable
         return {
             "slug": self.slug,
@@ -78,6 +103,7 @@ class Election(Base):
             "datetime_start_voting": self.datetime_start_voting,
             "datetime_end_voting": self.datetime_end_voting,
 
+            "avaliable_positions": self.avaliable_positions,
             "survey_link": self.survey_link,
         }
 

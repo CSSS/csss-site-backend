@@ -22,36 +22,27 @@ async def get_election(db_session: AsyncSession, election_slug: str) -> Election
         .where(Election.slug == election_slug)
     )
 
-async def create_election(db_session: AsyncSession, election: Election) -> None:
+async def create_election(db_session: AsyncSession, election: Election):
     """
     Creates a new election with given parameters.
     Does not validate if an election _already_ exists
     """
     db_session.add(election)
 
-async def update_election(db_session: AsyncSession, new_election: Election) -> bool:
+async def update_election(db_session: AsyncSession, new_election: Election):
     """
-    You attempting to change the name or slug will fail. Instead, you must create a new election.
+    Attempting to change slug will fail. Instead, you must create a new election.
     """
-    target_slug = new_election.slug
-    # TODO: does this check need to be performed?
-    target_election = await get_election(db_session, target_slug)
-
-    if target_election is None:
-        return False
-    else:
-        await db_session.execute(
-            sqlalchemy
-            .update(Election)
-            .where(Election.slug == target_slug)
-            .values(new_election.to_update_dict())
-        )
-        return True
+    await db_session.execute(
+        sqlalchemy
+        .update(Election)
+        .where(Election.slug == new_election.slug)
+        .values(new_election.to_update_dict())
+    )
 
 async def delete_election(db_session: AsyncSession, slug: str) -> None:
     """
-    Deletes a given election by its slug.
-    Does not validate if an election exists
+    Deletes a given election by its slug. Does not validate if an election exists
     """
     await db_session.execute(
         sqlalchemy

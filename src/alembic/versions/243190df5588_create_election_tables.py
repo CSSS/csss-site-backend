@@ -28,6 +28,7 @@ def upgrade() -> None:
         sa.Column("datetime_start_nominations", sa.DateTime(), nullable=False),
         sa.Column("datetime_start_voting", sa.DateTime(), nullable=False),
         sa.Column("datetime_end_voting", sa.DateTime(), nullable=False),
+        sa.Column("avaliable_positions", sa.Text(), nullable=False),
         sa.Column("survey_link", sa.String(length=300), nullable=True),
         sa.PrimaryKeyConstraint("slug")
     )

@@ -69,11 +69,9 @@ class Election(Base):
             "survey_link": self.survey_link,
         }
 
-# Each row represents a nominee of a given election
-class Nominee(Base):
-    __tablename__ = "election_nominee"
+class NomineeInfo(Base):
+    __tablename__ = "election_nominee_info"
 
-    # Previously named sfuid
     computing_id = Column(String(COMPUTING_ID_LEN), primary_key=True)
     full_name = Column(String(64), nullable=False)
     facebook = Column(String(128))
@@ -84,13 +82,22 @@ class Nominee(Base):
     discord_username = Column(String(DISCORD_NICKNAME_LEN))
 
 class NomineeApplication(Base):
-    __tablename__ = "nominee_application"
+    __tablename__ = "election_nominee_application"
 
+    # TODO: add index for nominee_election?
     computing_id = Column(ForeignKey("election_nominee.computing_id"), primary_key=True)
     nominee_election = Column(ForeignKey("election.slug"), primary_key=True)
     speech = Column(Text)
-    position = Column(String(64), nullable=False)
+    position = Column(String(64))
 
     __table_args__ = (
         PrimaryKeyConstraint(computing_id, nominee_election),
     )
+
+    def serializable_dict(self) -> dict:
+        return {
+            "computing_id": self.computing_id,
+            "nominee_election": self.nominee_election,
+            "speech": self.speech,
+            "position": self.position,
+        }

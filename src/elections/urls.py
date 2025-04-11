@@ -3,12 +3,12 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 import database
 import elections
-from elections.tables import Election, election_types
+from elections.tables import Election, NomineeApplication, election_types
+from officers.constants import OfficerPosition
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.urls import is_logged_in
 
@@ -58,12 +58,15 @@ async def get_election(
         # after the voting period starts, all election data becomes public
         return JSONResponse(election.serializable_dict())
 
+    # TODO: include nominees and speeches
+    # TODO: ignore any empty mappings
     is_valid_user, _, _ = await _validate_user(request, db_session)
-    return JSONResponse(
-        election.serializable_dict()
-        if is_valid_user
-        else election.public_details()
-    )
+    if is_valid_user:
+        election_json = election.serializable_dict()
+    else:
+        election_json = election.public_details()
+
+    return JSONResponse(election_json)
 
 @router.post(
     "/by_name/{name:str}",
@@ -220,37 +223,146 @@ async def delete_election(
 
 # registration ------------------------------------------------------------- #
 
+@router.get(
+    "/register/{election_name:str}",
+    description="get your election registration(s)"
+)
+async def get_election_registration(
+    request: Request,
+    db_session: database.DBSession,
+    election_name: str
+):
+    logged_in, _, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in to get election registrations"
+        )
+
+    election_slug = _slugify(election_name)
+    if await get_election(db_session, election_slug) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election with slug {election_slug} does not exist"
+        )
+
+    registration_list = await elections.crud.get_all_registrations(db_session, computing_id, election_slug)
+    if registration_list is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="you are already registered in this election"
+        )
+
+    return JSONResponse([
+        item.serializable_dict() for item in registration_list
+    ])
+
 @router.post(
-    "/register/{name:str}",
-    description="allows a user to register for an election"
+    "/register/{election_name:str}",
+    description="register for the election, but doesn't set any speeches or positions."
 )
 async def register_in_election(
     request: Request,
     db_session: database.DBSession,
-    name: str
+    election_name: str
 ):
+    logged_in, _, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in to register in election"
+        )
+
+    election_slug = _slugify(election_name)
+    if await get_election(db_session, election_slug) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election with slug {election_slug} does not exist"
+        )
+    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="you are already registered in this election"
+        )
+
     # TODO: associate specific elections officers with specific elections, then don't
     # allow any elections officer running an election to register for it
-    pass
+
+    await elections.crud.add_registration(db_session, NomineeApplication(
+        computing_id=computing_id,
+        nominee_election=election_slug,
+        speech=None,
+        position=None,
+    ))
 
 @router.patch(
-    "/register/{name:str}",
+    "/register/{election_name:str}",
     description="update your registration for an election"
 )
 async def update_registration(
     request: Request,
     db_session: database.DBSession,
-    name: str
+    election_name: str,
+    speech: str | None,
+    position: str,
 ):
-    pass
+    logged_in, _, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in to update election registration"
+        )
+    elif position not in OfficerPosition.position_list():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"invalid position {position}"
+        )
+
+    election_slug = _slugify(election_name)
+    if await get_election(db_session, election_slug) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election with slug {election_slug} does not exist"
+        )
+    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="you are not yet registered in this election"
+        )
+
+    await elections.crud.update_registration(db_session, NomineeApplication(
+        computing_id=computing_id,
+        nominee_election=election_slug,
+        speech=speech,
+        position=position,
+    ))
 
 @router.delete(
-    "/register/{name:str}",
+    "/register/{election_name:str}",
     description="revoke your registration in the election"
 )
 async def delete_registration(
     request: Request,
     db_session: database.DBSession,
-    name: str
+    election_name: str
 ):
-    pass
+    logged_in, _, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in to delete election registeration"
+        )
+
+    election_slug = _slugify(election_name)
+    if await get_election(db_session, election_slug) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election with slug {election_slug} does not exist"
+        )
+    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="you are not yet registered in this election"
+        )
+
+    await elections.crud.delete_registration(db_session, computing_id, election_slug)

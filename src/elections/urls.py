@@ -65,7 +65,7 @@ async def list_elections(
     return JSONResponse(election_metadata_list)
 
 @router.get(
-    "/by_name/{name:str}",
+    "/by_name/{election_name:str}",
     description="""
     Retrieves the election data for an election by name.
     Returns private details when the time is allowed.
@@ -169,7 +169,7 @@ def _raise_if_bad_election_data(
         )
 
 @router.post(
-    "/by_name/{name:str}",
+    "/by_name/{election_name:str}",
     description="Creates an election and places it in the database. Returns election json on success",
 )
 async def create_election(
@@ -241,7 +241,7 @@ async def create_election(
     return JSONResponse(election.private_details(current_time))
 
 @router.patch(
-    "/by_name/{name:str}",
+    "/by_name/{election_name:str}",
     description="""
         Updates an election in the database.
 
@@ -306,7 +306,7 @@ async def update_election(
     return JSONResponse(election.private_details(current_time))
 
 @router.delete(
-    "/by_name/{name:str}",
+    "/by_name/{election_name:str}",
     description="Deletes an election from the database. Returns whether the election exists after deletion."
 )
 async def delete_election(

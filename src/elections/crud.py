@@ -3,7 +3,7 @@ import logging
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from elections.tables import Election, NomineeApplication
+from elections.tables import Election, NomineeApplication, NomineeInfo
 
 _logger = logging.getLogger(__name__)
 
@@ -50,6 +50,8 @@ async def delete_election(db_session: AsyncSession, slug: str) -> None:
         .where(Election.slug == slug)
     )
 
+# ------------------------------------------------------- #
+
 # TODO: switch to only using one of application or registration
 async def get_all_registrations(
     db_session: AsyncSession,
@@ -62,6 +64,19 @@ async def get_all_registrations(
         .where(
             NomineeApplication.computing_id == computing_id
             and NomineeApplication.election_slug == election_slug
+        )
+    )).all()
+    return registrations
+
+async def get_all_registrations_in_election(
+    db_session: AsyncSession,
+    election_slug: str,
+) -> list[NomineeApplication] | None:
+    registrations = (await db_session.scalars(
+        sqlalchemy
+        .select(NomineeApplication)
+        .where(
+            NomineeApplication.election_slug == election_slug
         )
     )).all()
     return registrations
@@ -101,4 +116,33 @@ async def delete_registration(
             and NomineeApplication.nominee_election == election_slug
             and NomineeApplication.position == position
         )
+    )
+
+# ------------------------------------------------------- #
+
+async def get_nominee_info(
+    db_session: AsyncSession,
+    computing_id: str,
+) -> NomineeInfo | None:
+    return await db_session.scalar(
+        sqlalchemy
+        .select(NomineeInfo)
+        .where(NomineeInfo.computing_id == computing_id)
+    )
+
+async def create_nominee_info(
+    db_session: AsyncSession,
+    info: NomineeInfo,
+):
+    db_session.add(info)
+
+async def update_nominee_info(
+    db_session: AsyncSession,
+    info: NomineeInfo,
+):
+    await db_session.execute(
+        sqlalchemy
+        .update(NomineeInfo)
+        .where(NomineeInfo.computing_id == info.computing_id)
+        .values(info.to_update_dict())
     )

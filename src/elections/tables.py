@@ -122,12 +122,38 @@ class NomineeInfo(Base):
 
     computing_id = Column(String(COMPUTING_ID_LEN), primary_key=True)
     full_name = Column(String(64), nullable=False)
-    facebook = Column(String(128))
+    linked_in = Column(String(128))
     instagram = Column(String(128))
     email = Column(String(64))
-    discord = Column(String(DISCORD_NAME_LEN))
-    discord_id = Column(String(DISCORD_ID_LEN))
+    #discord = Column(String(DISCORD_NAME_LEN))
+    #discord_id = Column(String(DISCORD_ID_LEN))
     discord_username = Column(String(DISCORD_NICKNAME_LEN))
+
+    def to_update_dict(self) -> dict:
+        return {
+            "computing_id": self.computing_id,
+            "full_name": self.full_name,
+
+            "linked_in": self.linked_in,
+            "instagram": self.instagram,
+            "email": self.email,
+            "discord_username": self.discord_username,
+        }
+
+    def as_serializable(self) -> dict:
+        # NOTE: this function is currently the same as to_update_dict since the contents
+        # have a different invariant they're upholding, which may cause them to change if a
+        # new property is introduced. For example, dates must be converted into strings
+        # to be serialized, but must not for update dictionaries.
+        return {
+            "computing_id": self.computing_id,
+            "full_name": self.full_name,
+
+            "linked_in": self.linked_in,
+            "instagram": self.instagram,
+            "email": self.email,
+            "discord_username": self.discord_username,
+        }
 
 class NomineeApplication(Base):
     __tablename__ = "election_nominee_application"

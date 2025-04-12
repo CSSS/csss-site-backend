@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 import database
 import elections
 import elections.tables
-from elections.tables import Election, NomineeApplication, election_types
+from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.urls import is_logged_in
@@ -32,6 +32,7 @@ async def _validate_user(
     if not logged_in:
         return False, None, None
 
+    # where valid means elections officer or website admin
     has_permission = await ElectionOfficer.has_permission(db_session, computing_id)
     if not has_permission:
         has_permission = await WebsiteAdmin.has_permission(db_session, computing_id)
@@ -65,7 +66,11 @@ async def list_elections(
 
 @router.get(
     "/by_name/{name:str}",
-    description="Retrieves the election data for an election by name. Returns private details when the time is allowed."
+    description="""
+    Retrieves the election data for an election by name.
+    Returns private details when the time is allowed.
+    If user is an admin or elections officer, returns computing ids for each candidate as well.
+    """
 )
 async def get_election(
     request: Request,
@@ -80,16 +85,45 @@ async def get_election(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {_slugify(name)} does not exist"
         )
-    elif current_time >= election.datetime_start_voting:
-        # after the voting period starts, all election data becomes public
-        return JSONResponse(election.private_details(current_time))
-
-    # TODO: include nominees and speeches
-    # TODO: ignore any empty mappings
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
-    if is_valid_user:
+    if current_time >= election.datetime_start_voting or is_valid_user:
+
         election_json = election.private_details(current_time)
+        all_nominations = elections.crud.get_all_registrations_in_election(db_session, _slugify(name))
+        election_json["candidates"] = []
+
+        avaliable_positions_list = election.avaliable_positions.split(",")
+        for nomination in all_nominations:
+            if nomination.position not in avaliable_positions_list:
+                # ignore any positions that are **no longer** active
+                continue
+
+            # NOTE: if a nominee does not input their legal name, they are not considered a nominee
+            nominee_info = elections.crud.get_nominee_info(db_session, nomination.computing_id)
+            if nominee_info is None:
+                print("unreachable")
+                continue
+
+            candidate_entry = {
+                "position": nomination.position,
+                "full_name": nominee_info.full_name,
+                "linked_in": nominee_info.linked_in,
+                "instagram": nominee_info.instagram,
+                "email": nominee_info.email,
+                "discord_username": nominee_info.discord_username,
+                "speech": (
+                    "No speech provided by this candidate"
+                    if nomination.speech is None
+                    else nomination.speech
+                ),
+            }
+            if is_valid_user:
+                candidate_entry["computing_id"] = nomination.computing_id
+            election_json["candidates"].append(candidate_entry)
+
+        # after the voting period starts, all election data becomes public
+        return JSONResponse()
     else:
         election_json = election.public_details(current_time)
 
@@ -353,6 +387,13 @@ async def register_in_election(
             detail=f"invalid position {position}"
         )
 
+    if await elections.crud.get_nominee_info(db_session, computing_id) is None:
+        # ensure that the user has a nominee info entry before allowing registration to occur.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="must have submitted nominee info before registering"
+        )
+
     current_time = datetime.now()
     election_slug = _slugify(election_name)
     election = await elections.crud.get_election(db_session, election_slug)
@@ -388,6 +429,7 @@ async def register_in_election(
         position=position,
         speech=None
     ))
+    await db_session.commit()
 
 @router.patch(
     "/register/{election_name:str}",
@@ -437,6 +479,7 @@ async def update_registration(
         position=position,
         speech=speech
     ))
+    await db_session.commit()
 
 @router.delete(
     "/register/{election_name:str}",
@@ -480,3 +523,68 @@ async def delete_registration(
         )
 
     await elections.crud.delete_registration(db_session, computing_id, election_slug, position)
+    await db_session.commit()
+
+# nominee info ------------------------------------------------------------- #
+
+@router.get(
+    "/nominee_info",
+    description="Nominee info is always publically tied to elections, so be careful!"
+)
+async def get_nominee_info(
+    request: Request,
+    db_session: database.DBSession,
+):
+    logged_in, _, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in to get your nominee info"
+        )
+
+    nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
+    if nominee_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You don't have any nominee info yet"
+        )
+
+    return JSONResponse(nominee_info.as_serializable())
+
+@router.patch(
+    "/nominee_info",
+    description="Will create or update nominee info. Returns an updated copy of their nominee info."
+)
+async def provide_nominee_info(
+    request: Request,
+    db_session: database.DBSession,
+    full_name: str,
+    linked_in: str | None,
+    instagram: str | None,
+    email: str | None,
+    discord_username: str | None,
+):
+    logged_in, _, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in to update nominee info"
+        )
+
+    pending_nominee_info = NomineeInfo(
+        computing_id = computing_id,
+        full_name = full_name,
+        linked_in = linked_in,
+        instagram = instagram,
+        email = email,
+        discord_username = discord_username,
+    )
+    if await elections.crud.get_nominee_info(db_session, computing_id) is None:
+        await elections.crud.create_nominee_info(db_session, pending_nominee_info)
+    else:
+        await elections.crud.update_nominee_info(db_session, pending_nominee_info)
+
+    await db_session.commit()
+
+    new_nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
+    return JSONResponse(new_nominee_info.as_serializable())

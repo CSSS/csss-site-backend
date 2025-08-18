@@ -159,7 +159,7 @@ class NomineeApplication(Base):
     __tablename__ = "election_nominee_application"
 
     # TODO: add index for nominee_election?
-    computing_id = Column(ForeignKey("election_nominee.computing_id"), primary_key=True)
+    computing_id = Column(ForeignKey("election_nominee_info.computing_id"), primary_key=True)
     nominee_election = Column(ForeignKey("election.slug"), primary_key=True)
     position = Column(String(64), primary_key=True)
 

@@ -75,22 +75,22 @@ async def list_elections(
 async def get_election(
     request: Request,
     db_session: database.DBSession,
-    name: str,
+    election_name: str,
 ):
     current_time = datetime.now()
 
-    election = await elections.crud.get_election(db_session, _slugify(name))
+    election = await elections.crud.get_election(db_session, _slugify(election_name))
     if election is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {_slugify(name)} does not exist"
+            detail=f"election with slug {_slugify(election_name)} does not exist"
         )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if current_time >= election.datetime_start_voting or is_valid_user:
 
         election_json = election.private_details(current_time)
-        all_nominations = elections.crud.get_all_registrations_in_election(db_session, _slugify(name))
+        all_nominations = await elections.crud.get_all_registrations_in_election(db_session, _slugify(election_name))
         election_json["candidates"] = []
 
         avaliable_positions_list = election.avaliable_positions.split(",")
@@ -100,7 +100,7 @@ async def get_election(
                 continue
 
             # NOTE: if a nominee does not input their legal name, they are not considered a nominee
-            nominee_info = elections.crud.get_nominee_info(db_session, nomination.computing_id)
+            nominee_info = await elections.crud.get_nominee_info(db_session, nomination.computing_id)
             if nominee_info is None:
                 print("unreachable")
                 continue
@@ -123,7 +123,7 @@ async def get_election(
             election_json["candidates"].append(candidate_entry)
 
         # after the voting period starts, all election data becomes public
-        return JSONResponse()
+        return JSONResponse(election_json)
     else:
         election_json = election.public_details(current_time)
 
@@ -175,7 +175,7 @@ def _raise_if_bad_election_data(
 async def create_election(
     request: Request,
     db_session: database.DBSession,
-    name: str,
+    election_name: str,
     election_type: str,
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
@@ -186,7 +186,7 @@ async def create_election(
 ):
     current_time = datetime.now()
     _raise_if_bad_election_data(
-        name,
+        election_name,
         election_type,
         datetime_start_nominations,
         datetime_start_voting,
@@ -202,7 +202,7 @@ async def create_election(
             # TODO: is this header actually required?
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif await elections.crud.get_election(db_session, _slugify(name)) is not None:
+    elif await elections.crud.get_election(db_session, _slugify(election_name)) is not None:
         # don't overwrite a previous election
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -225,8 +225,8 @@ async def create_election(
     await elections.crud.create_election(
         db_session,
         Election(
-            slug = _slugify(name),
-            name = name,
+            slug = _slugify(election_name),
+            name = election_name,
             type = election_type,
             datetime_start_nominations = datetime_start_nominations,
             datetime_start_voting = datetime_start_voting,
@@ -237,7 +237,7 @@ async def create_election(
     )
     await db_session.commit()
 
-    election = await elections.crud.get_election(db_session, _slugify(name))
+    election = await elections.crud.get_election(db_session, _slugify(election_name))
     return JSONResponse(election.private_details(current_time))
 
 @router.patch(
@@ -254,17 +254,17 @@ async def create_election(
 async def update_election(
     request: Request,
     db_session: database.DBSession,
-    name: str,
+    election_name: str,
     election_type: str,
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
     avaliable_positions: str,
-    survey_link: str | None,
+    survey_link: str | None = None,
 ):
     current_time = datetime.now()
     _raise_if_bad_election_data(
-        name,
+        election_name,
         election_type,
         datetime_start_nominations,
         datetime_start_voting,
@@ -279,10 +279,10 @@ async def update_election(
             detail="must have election officer or admin permission",
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif await elections.crud.get_election(db_session, _slugify(name)) is None:
+    elif await elections.crud.get_election(db_session, _slugify(election_name)) is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {_slugify(name)} does not exist",
+            detail=f"election with slug {_slugify(election_name)} does not exist",
         )
 
     # NOTE: If you update avaliable positions, people will still *technically* be able to update their
@@ -290,8 +290,8 @@ async def update_election(
     await elections.crud.update_election(
         db_session,
         Election(
-            slug = _slugify(name),
-            name = name,
+            slug = _slugify(election_name),
+            name = election_name,
             type = election_type,
             datetime_start_nominations = datetime_start_nominations,
             datetime_start_voting = datetime_start_voting,
@@ -302,7 +302,7 @@ async def update_election(
     )
     await db_session.commit()
 
-    election = await elections.crud.get_election(db_session, _slugify(name))
+    election = await elections.crud.get_election(db_session, _slugify(election_name))
     return JSONResponse(election.private_details(current_time))
 
 @router.delete(
@@ -312,7 +312,7 @@ async def update_election(
 async def delete_election(
     request: Request,
     db_session: database.DBSession,
-    name: str
+    election_name: str
 ):
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if not is_valid_user:
@@ -323,10 +323,10 @@ async def delete_election(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    await elections.crud.delete_election(db_session, _slugify(name))
+    await elections.crud.delete_election(db_session, _slugify(election_name))
     await db_session.commit()
 
-    old_election = await elections.crud.get_election(db_session, _slugify(name))
+    old_election = await elections.crud.get_election(db_session, _slugify(election_name))
     return JSONResponse({"exists": old_election is not None})
 
 # registration ------------------------------------------------------------- #
@@ -355,12 +355,15 @@ async def get_election_registrations(
         )
 
     registration_list = await elections.crud.get_all_registrations(db_session, computing_id, election_slug)
+    # if registration_list is None:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="you are already registered in this election"
+    # )
+    
     if registration_list is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="you are already registered in this election"
-        )
-
+        return JSONResponse([])
+   
     return JSONResponse([
         item.serializable_dict() for item in registration_list
     ])
@@ -414,7 +417,7 @@ async def register_in_election(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registrations can only be made during the nomination period"
         )
-    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is not None:
+    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="you are already registered in this election"
@@ -467,7 +470,7 @@ async def update_registration(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="speeches can only be updated during the nomination period"
         )
-    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is None:
+    elif not await elections.crud.get_all_registrations(db_session, computing_id, election_slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="you are not yet registered in this election"
@@ -516,7 +519,7 @@ async def delete_registration(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registration can only be revoked during the nomination period"
         )
-    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug) is None:
+    elif not await elections.crud.get_all_registrations(db_session, computing_id, election_slug):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="you are not yet registered in this election"
@@ -559,10 +562,10 @@ async def provide_nominee_info(
     request: Request,
     db_session: database.DBSession,
     full_name: str,
-    linked_in: str | None,
-    instagram: str | None,
-    email: str | None,
-    discord_username: str | None,
+    linked_in: str | None = None,
+    instagram: str | None = None,
+    email: str | None = None,
+    discord_username: str | None = None,
 ):
     logged_in, _, computing_id = await is_logged_in(request, db_session)
     if not logged_in:
@@ -579,7 +582,7 @@ async def provide_nominee_info(
         email = email,
         discord_username = discord_username,
     )
-    if await elections.crud.get_nominee_info(db_session, computing_id) is None:
+    if not await elections.crud.get_nominee_info(db_session, computing_id):
         await elections.crud.create_nominee_info(db_session, pending_nominee_info)
     else:
         await elections.crud.update_nominee_info(db_session, pending_nominee_info)

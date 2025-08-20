@@ -355,15 +355,8 @@ async def get_election_registrations(
         )
 
     registration_list = await elections.crud.get_all_registrations(db_session, computing_id, election_slug)
-    # if registration_list is None:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail="you are already registered in this election"
-    # )
-    
     if registration_list is None:
         return JSONResponse([])
-   
     return JSONResponse([
         item.serializable_dict() for item in registration_list
     ])

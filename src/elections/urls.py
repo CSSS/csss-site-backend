@@ -184,7 +184,7 @@ async def create_election(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="cannot use that election name",
         )
-        
+
     if avaliable_positions is None:
         if election_type == "general_election":
             avaliable_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
@@ -222,7 +222,7 @@ async def create_election(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="would overwrite previous election",
         )
-        
+
     await elections.crud.create_election(
         db_session,
         Election(
@@ -329,7 +329,7 @@ async def delete_election(
     await elections.crud.delete_election(db_session, slugified_name)
     await db_session.commit()
 
-    old_election = await elections.crud.get_election(db_session, slugified_name) 
+    old_election = await elections.crud.get_election(db_session, slugified_name)
     return JSONResponse({"success": old_election is not None})
 
 # registration ------------------------------------------------------------- #
@@ -350,7 +350,7 @@ async def get_election_registrations(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must be logged in to get election registrations"
         )
-        
+
     if await elections.crud.get_election(db_session, slugified_name) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -583,13 +583,11 @@ async def provide_nominee_info(
     if discord_username is not None:
         updated_data["discord_username"] = discord_username
     print("--------Dict data: ", updated_data)
-    
-    
+
+
     existing_info = await elections.crud.get_nominee_info(db_session, computing_id)
-    print("-----------existing info", existing_info)
     # if not already existing, create it
     if not existing_info:
-        print("--------------nomineey info", new_nominee_info)
         # check if full name is passed
         if "full_name" not in updated_data:
             raise HTTPException(
@@ -604,20 +602,20 @@ async def provide_nominee_info(
     else:
         merged_data = {
             "computing_id": computing_id,
-            'full_name': existing_info.full_name,
-            'linked_in': existing_info.linked_in,
-            'instagram': existing_info.instagram,
-            'email': existing_info.email,
-            'discord_username': existing_info.discord_username,
+            "full_name": existing_info.full_name,
+            "linked_in": existing_info.linked_in,
+            "instagram": existing_info.instagram,
+            "email": existing_info.email,
+            "discord_username": existing_info.discord_username,
         }
-        #  update the dictionary with new data 
+        #  update the dictionary with new data
         merged_data.update(updated_data)
         updated_nominee_info = NomineeInfo(**merged_data)
         await elections.crud.update_nominee_info(db_session, updated_nominee_info)
-        
+
 
     await db_session.commit()
-    
+
 
     nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
     return JSONResponse(nominee_info.as_serializable())

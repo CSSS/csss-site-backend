@@ -219,7 +219,7 @@ async def test_endpoints_admin(client, database_setup):
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
     assert response.status_code == 200
-    
+
     # try creating an invalid election name
     response = await client.post("/elections/list", params={
         "election_type": "by_election",
@@ -229,7 +229,7 @@ async def test_endpoints_admin(client, database_setup):
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
     assert response.status_code == 400
-    
+
 
 
 
@@ -316,6 +316,6 @@ async def test_endpoints_admin(client, database_setup):
         "linked_in": "linkedin.com/not-my-linkedin",
     })
     assert response.status_code == 200
-    
+
     response = await client.get("/elections/nominee/info")
     assert response.status_code == 200

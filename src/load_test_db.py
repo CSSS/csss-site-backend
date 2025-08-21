@@ -332,8 +332,6 @@ async def load_test_elections_data(db_session: AsyncSession):
         linked_in = "linkedin.com/john-doe",
         instagram = "john_doe",
         email = "john_doe@doe.com",
-        #discord = Column(String(DISCORD_NAME_LEN))
-        #discord_id = Column(String(DISCORD_ID_LEN))
         discord_username = "doedoe"
     ))
     await create_nominee_info(db_session, NomineeInfo(
@@ -342,8 +340,6 @@ async def load_test_elections_data(db_session: AsyncSession):
         linked_in = "linkedin.com/john-doe3",
         instagram = "john_doe 3",
         email = "john_do3e@doe.com",
-        #discord = Column(String(DISCORD_NAME_LEN))
-        #discord_id = Column(String(DISCORD_ID_LEN))
         discord_username = "doedoe3"
     ))
     await create_election(db_session, Election(

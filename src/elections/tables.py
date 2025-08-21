@@ -125,8 +125,6 @@ class NomineeInfo(Base):
     linked_in = Column(String(128))
     instagram = Column(String(128))
     email = Column(String(64))
-    #discord = Column(String(DISCORD_NAME_LEN))
-    #discord_id = Column(String(DISCORD_ID_LEN))
     discord_username = Column(String(DISCORD_NICKNAME_LEN))
 
     def to_update_dict(self) -> dict:

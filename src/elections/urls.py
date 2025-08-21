@@ -52,7 +52,7 @@ async def list_elections(
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_INTERNAL_SERVER_ERROR,
             detail="no elections found"
         )
 
@@ -65,7 +65,7 @@ async def list_elections(
     return JSONResponse(election_metadata_list)
 
 @router.get(
-    "/by_name/{election_name:str}",
+    "/{election_name:str}",
     description="""
     Retrieves the election data for an election by name.
     Returns private details when the time is allowed.
@@ -78,19 +78,19 @@ async def get_election(
     election_name: str,
 ):
     current_time = datetime.now()
-
-    election = await elections.crud.get_election(db_session, _slugify(election_name))
+    slugified_name = _slugify(election_name)
+    election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {_slugify(election_name)} does not exist"
+            detail=f"election with slug {slugified_name} does not exist"
         )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if current_time >= election.datetime_start_voting or is_valid_user:
 
         election_json = election.private_details(current_time)
-        all_nominations = await elections.crud.get_all_registrations_in_election(db_session, _slugify(election_name))
+        all_nominations = await elections.crud.get_all_registrations_in_election(db_session, slugified_name)
         election_json["candidates"] = []
 
         avaliable_positions_list = election.avaliable_positions.split(",")
@@ -102,7 +102,6 @@ async def get_election(
             # NOTE: if a nominee does not input their legal name, they are not considered a nominee
             nominee_info = await elections.crud.get_nominee_info(db_session, nomination.computing_id)
             if nominee_info is None:
-                print("unreachable")
                 continue
 
             candidate_entry = {
@@ -157,11 +156,6 @@ def _raise_if_bad_election_data(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"unknown position found in position list {position}",
                 )
-    elif len(name) > elections.tables.MAX_ELECTION_NAME:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election name {name} is too long",
-        )
     elif len(_slugify(name)) > elections.tables.MAX_ELECTION_SLUG:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -169,7 +163,7 @@ def _raise_if_bad_election_data(
         )
 
 @router.post(
-    "/by_name/{election_name:str}",
+    "/{election_name:str}",
     description="Creates an election and places it in the database. Returns election json on success",
 )
 async def create_election(
@@ -181,9 +175,29 @@ async def create_election(
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
     # allows None, which assigns it to the default
-    avaliable_positions: str | None,
-    survey_link: str | None,
+    avaliable_positions: str | None = None,
+    survey_link: str | None = None,
 ):
+    # ensure that election name is not "list" as it will collide with endpoint
+    if election_name == "list":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="cannot use that election name",
+        )
+        
+    if avaliable_positions is None:
+        if election_type == "general_election":
+            avaliable_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
+        elif election_type == "by_election":
+            avaliable_positions = elections.tables.DEFAULT_POSITIONS_BY_ELECTION
+        elif election_type == "council_rep_election":
+            avaliable_positions = elections.tables.DEFAULT_POSITIONS_COUNCIL_REP_ELECTION
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"invalid election type {election_type} for avaliable positions"
+            )
+    slugified_name = _slugify(election_name)
     current_time = datetime.now()
     _raise_if_bad_election_data(
         election_name,
@@ -202,30 +216,17 @@ async def create_election(
             # TODO: is this header actually required?
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif await elections.crud.get_election(db_session, _slugify(election_name)) is not None:
+    elif await elections.crud.get_election(db_session, slugified_name) is not None:
         # don't overwrite a previous election
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="would overwrite previous election",
         )
-
-    if avaliable_positions is None:
-        if election_type == "general_election":
-            avaliable_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
-        elif election_type == "by_election":
-            avaliable_positions = elections.tables.DEFAULT_POSITIONS_BY_ELECTION
-        elif election_type == "council_rep_election":
-            avaliable_positions = elections.tables.DEFAULT_POSITIONS_COUNCIL_REP_ELECTION
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"invalid election type {election_type} for avaliable positions"
-            )
-
+        
     await elections.crud.create_election(
         db_session,
         Election(
-            slug = _slugify(election_name),
+            slug = slugified_name,
             name = election_name,
             type = election_type,
             datetime_start_nominations = datetime_start_nominations,
@@ -237,11 +238,11 @@ async def create_election(
     )
     await db_session.commit()
 
-    election = await elections.crud.get_election(db_session, _slugify(election_name))
+    election = await elections.crud.get_election(db_session, slugified_name)
     return JSONResponse(election.private_details(current_time))
 
 @router.patch(
-    "/by_name/{election_name:str}",
+    "/{election_name:str}",
     description="""
         Updates an election in the database.
 
@@ -262,6 +263,7 @@ async def update_election(
     avaliable_positions: str,
     survey_link: str | None = None,
 ):
+    slugified_name = _slugify(election_name)
     current_time = datetime.now()
     _raise_if_bad_election_data(
         election_name,
@@ -279,10 +281,10 @@ async def update_election(
             detail="must have election officer or admin permission",
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif await elections.crud.get_election(db_session, _slugify(election_name)) is None:
+    elif await elections.crud.get_election(db_session, slugified_name) is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {_slugify(election_name)} does not exist",
+            detail=f"election with slug {slugified_name} does not exist",
         )
 
     # NOTE: If you update avaliable positions, people will still *technically* be able to update their
@@ -290,7 +292,7 @@ async def update_election(
     await elections.crud.update_election(
         db_session,
         Election(
-            slug = _slugify(election_name),
+            slug = slugified_name,
             name = election_name,
             type = election_type,
             datetime_start_nominations = datetime_start_nominations,
@@ -302,11 +304,11 @@ async def update_election(
     )
     await db_session.commit()
 
-    election = await elections.crud.get_election(db_session, _slugify(election_name))
+    election = await elections.crud.get_election(db_session, slugified_name)
     return JSONResponse(election.private_details(current_time))
 
 @router.delete(
-    "/by_name/{election_name:str}",
+    "/{election_name:str}",
     description="Deletes an election from the database. Returns whether the election exists after deletion."
 )
 async def delete_election(
@@ -314,6 +316,7 @@ async def delete_election(
     db_session: database.DBSession,
     election_name: str
 ):
+    slugified_name = _slugify(election_name)
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if not is_valid_user:
         raise HTTPException(
@@ -323,16 +326,16 @@ async def delete_election(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    await elections.crud.delete_election(db_session, _slugify(election_name))
+    await elections.crud.delete_election(db_session, slugified_name)
     await db_session.commit()
 
-    old_election = await elections.crud.get_election(db_session, _slugify(election_name))
-    return JSONResponse({"exists": old_election is not None})
+    old_election = await elections.crud.get_election(db_session, slugified_name) 
+    return JSONResponse({"success": old_election is not None})
 
 # registration ------------------------------------------------------------- #
 
 @router.get(
-    "/register/{election_name:str}",
+    "/registration/{election_name:str}",
     description="get your election registration(s)"
 )
 async def get_election_registrations(
@@ -340,21 +343,21 @@ async def get_election_registrations(
     db_session: database.DBSession,
     election_name: str
 ):
+    slugified_name = _slugify(election_name)
     logged_in, _, computing_id = await is_logged_in(request, db_session)
     if not logged_in:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must be logged in to get election registrations"
         )
-
-    election_slug = _slugify(election_name)
-    if await elections.crud.get_election(db_session, election_slug) is None:
+        
+    if await elections.crud.get_election(db_session, slugified_name) is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {election_slug} does not exist"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"election with slug {slugified_name} does not exist"
         )
 
-    registration_list = await elections.crud.get_all_registrations(db_session, computing_id, election_slug)
+    registration_list = await elections.crud.get_all_registrations(db_session, computing_id, slugified_name)
     if registration_list is None:
         return JSONResponse([])
     return JSONResponse([
@@ -362,7 +365,7 @@ async def get_election_registrations(
     ])
 
 @router.post(
-    "/register/{election_name:str}",
+    "/registration/{election_name:str}",
     description="register for a specific position in this election, but doesn't set a speech"
 )
 async def register_in_election(
@@ -377,11 +380,11 @@ async def register_in_election(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must be logged in to register in election"
         )
-    elif position not in OfficerPosition.position_list():
+    if position not in OfficerPosition.position_list():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"invalid position {position}"
-        )
+    )
 
     if await elections.crud.get_nominee_info(db_session, computing_id) is None:
         # ensure that the user has a nominee info entry before allowing registration to occur.
@@ -391,12 +394,12 @@ async def register_in_election(
         )
 
     current_time = datetime.now()
-    election_slug = _slugify(election_name)
-    election = await elections.crud.get_election(db_session, election_slug)
+    slugified_name = _slugify(election_name)
+    election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {election_slug} does not exist"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"election with slug {slugified_name} does not exist"
         )
     elif position not in election.avaliable_positions.split(","):
         # NOTE: We only restrict creating a registration for a position that doesn't exist,
@@ -410,7 +413,7 @@ async def register_in_election(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registrations can only be made during the nomination period"
         )
-    elif await elections.crud.get_all_registrations(db_session, computing_id, election_slug):
+    elif await elections.crud.get_all_registrations(db_session, computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="you are already registered in this election"
@@ -421,14 +424,14 @@ async def register_in_election(
 
     await elections.crud.add_registration(db_session, NomineeApplication(
         computing_id=computing_id,
-        nominee_election=election_slug,
+        nominee_election=slugified_name,
         position=position,
         speech=None
     ))
     await db_session.commit()
 
 @router.patch(
-    "/register/{election_name:str}",
+    "/registration/{election_name:str}",
     description="update your speech for a specific position for an election"
 )
 async def update_registration(
@@ -451,34 +454,34 @@ async def update_registration(
         )
 
     current_time = datetime.now()
-    election_slug = _slugify(election_name)
-    election = await elections.crud.get_election(db_session, election_slug)
+    slugified_name = _slugify(election_name)
+    election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {election_slug} does not exist"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"election with slug {slugified_name} does not exist"
         )
     elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="speeches can only be updated during the nomination period"
         )
-    elif not await elections.crud.get_all_registrations(db_session, computing_id, election_slug):
+    elif not await elections.crud.get_all_registrations(db_session, computing_id, slugified_name):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="you are not yet registered in this election"
         )
 
     await elections.crud.update_registration(db_session, NomineeApplication(
         computing_id=computing_id,
-        nominee_election=election_slug,
+        nominee_election=slugified_name,
         position=position,
         speech=speech
     ))
     await db_session.commit()
 
 @router.delete(
-    "/register/{election_name:str}",
+    "/registration/{election_name:str}/{position:str}",
     description="revoke your registration for a specific position in this election"
 )
 async def delete_registration(
@@ -500,31 +503,31 @@ async def delete_registration(
         )
 
     current_time = datetime.now()
-    election_slug = _slugify(election_name)
-    election = await elections.crud.get_election(db_session, election_slug)
+    slugified_name = _slugify(election_name)
+    election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election with slug {election_slug} does not exist"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"election with slug {slugified_name} does not exist"
         )
     elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registration can only be revoked during the nomination period"
         )
-    elif not await elections.crud.get_all_registrations(db_session, computing_id, election_slug):
+    elif not await elections.crud.get_all_registrations(db_session, computing_id, slugified_name):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="you are not yet registered in this election"
         )
 
-    await elections.crud.delete_registration(db_session, computing_id, election_slug, position)
+    await elections.crud.delete_registration(db_session, computing_id, slugified_name, position)
     await db_session.commit()
 
 # nominee info ------------------------------------------------------------- #
 
 @router.get(
-    "/nominee_info",
+    "/nominee/info",
     description="Nominee info is always publically tied to elections, so be careful!"
 )
 async def get_nominee_info(
@@ -547,14 +550,14 @@ async def get_nominee_info(
 
     return JSONResponse(nominee_info.as_serializable())
 
-@router.patch(
-    "/nominee_info",
+@router.put(
+    "/nominee/info",
     description="Will create or update nominee info. Returns an updated copy of their nominee info."
 )
 async def provide_nominee_info(
     request: Request,
     db_session: database.DBSession,
-    full_name: str,
+    full_name: str | None = None,
     linked_in: str | None = None,
     instagram: str | None = None,
     email: str | None = None,
@@ -567,20 +570,54 @@ async def provide_nominee_info(
             detail="must be logged in to update nominee info"
         )
 
-    pending_nominee_info = NomineeInfo(
-        computing_id = computing_id,
-        full_name = full_name,
-        linked_in = linked_in,
-        instagram = instagram,
-        email = email,
-        discord_username = discord_username,
-    )
-    if not await elections.crud.get_nominee_info(db_session, computing_id):
-        await elections.crud.create_nominee_info(db_session, pending_nominee_info)
+    updated_data = {}
+    # Only update fields that were provided
+    if full_name is not None:
+        updated_data["full_name"] = full_name
+    if linked_in is not None:
+       updated_data["linked_in"] = linked_in
+    if instagram is not None:
+        updated_data["instagram"] = instagram
+    if email is not None:
+        updated_data["email"] = email
+    if discord_username is not None:
+        updated_data["discord_username"] = discord_username
+    print("--------Dict data: ", updated_data)
+    
+    
+    existing_info = await elections.crud.get_nominee_info(db_session, computing_id)
+    print("-----------existing info", existing_info)
+    # if not already existing, create it
+    if not existing_info:
+        print("--------------nomineey info", new_nominee_info)
+        # check if full name is passed
+        if "full_name" not in updated_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="full name is required when creating a nominee info"
+            )
+        # unpack dictionary and expand into NomineeInfo class
+        new_nominee_info = NomineeInfo(computing_id=computing_id, **updated_data)
+        # create a new nominee
+        await elections.crud.create_nominee_info(db_session, new_nominee_info)
+    # else just update the partial data
     else:
-        await elections.crud.update_nominee_info(db_session, pending_nominee_info)
+        merged_data = {
+            "computing_id": computing_id,
+            'full_name': existing_info.full_name,
+            'linked_in': existing_info.linked_in,
+            'instagram': existing_info.instagram,
+            'email': existing_info.email,
+            'discord_username': existing_info.discord_username,
+        }
+        #  update the dictionary with new data 
+        merged_data.update(updated_data)
+        updated_nominee_info = NomineeInfo(**merged_data)
+        await elections.crud.update_nominee_info(db_session, updated_nominee_info)
+        
 
     await db_session.commit()
+    
 
-    new_nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
-    return JSONResponse(new_nominee_info.as_serializable())
+    nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
+    return JSONResponse(nominee_info.as_serializable())

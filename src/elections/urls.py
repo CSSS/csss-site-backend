@@ -582,8 +582,6 @@ async def provide_nominee_info(
         updated_data["email"] = email
     if discord_username is not None:
         updated_data["discord_username"] = discord_username
-    print("--------Dict data: ", updated_data)
-
 
     existing_info = await elections.crud.get_nominee_info(db_session, computing_id)
     # if not already existing, create it

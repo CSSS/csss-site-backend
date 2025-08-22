@@ -93,9 +93,9 @@ async def get_election(
         all_nominations = await elections.crud.get_all_registrations_in_election(db_session, slugified_name)
         election_json["candidates"] = []
 
-        avaliable_positions_list = election.available_positions.split(",")
+        available_positions_list = election.available_positions.split(",")
         for nomination in all_nominations:
-            if nomination.position not in avaliable_positions_list:
+            if nomination.position not in available_positions_list:
                 # ignore any positions that are **no longer** active
                 continue
 
@@ -195,7 +195,7 @@ async def create_election(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"invalid election type {election_type} for avaliable positions"
+                detail=f"invalid election type {election_type} for available positions"
             )
     slugified_name = _slugify(election_name)
     current_time = datetime.now()
@@ -287,7 +287,7 @@ async def update_election(
             detail=f"election with slug {slugified_name} does not exist",
         )
 
-    # NOTE: If you update avaliable positions, people will still *technically* be able to update their
+    # NOTE: If you update available positions, people will still *technically* be able to update their
     # registrations, however they will not be returned in the results.
     await elections.crud.update_election(
         db_session,
@@ -406,7 +406,7 @@ async def register_in_election(
         # not updating or deleting one
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{position} is not avaliable to register for in this election"
+            detail=f"{position} is not available to register for in this election"
         )
     elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
         raise HTTPException(
@@ -494,7 +494,7 @@ async def delete_registration(
     if not logged_in:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in to delete election registeration"
+            detail="must be logged in to delete election registration"
         )
     elif position not in OfficerPosition.position_list():
         raise HTTPException(

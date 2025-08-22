@@ -149,11 +149,11 @@ async def test_endpoints(client, database_setup):
     })
     assert response.status_code == 401
 
-    response = await client.patch(f"/elections/registration/{election_name}", params={
-        "position": "president",
-        "speech": "I would like to run for president because I'm the best in Valorant at SFU."
-    })
-    assert response.status_code == 401
+    # response = await client.patch(f"/elections/registration/{election_name}", params={
+    #     "position": "president",
+    #     "speech": "I would like to run for president because I'm the best in Valorant at SFU."
+    # })
+    # assert response.status_code == 401
 
     response = await client.put("/elections/nominee/info", params={
         "full_name": "John Doe VI",
@@ -285,18 +285,18 @@ async def test_endpoints_admin(client, database_setup):
     })
     assert response.status_code == 200
 
-    # update the registration
-    response = await client.patch(f"/elections/registration/{election_name}", params={
-        "position": "president",
-        "speech": "Vote for me as president"
-    })
-    assert response.status_code == 200
+    # # update the registration
+    # response = await client.patch(f"/elections/registration/{election_name}", params={
+    #     "position": "president",
+    #     "speech": "Vote for me as president"
+    # })
+    # assert response.status_code == 200
     # try updating a non-registered election
-    response = await client.patch("/elections/registration/testElection4", params={
-        "position": "president",
-        "speech": "Vote for me as president, I am good at valorant."
-    })
-    assert response.status_code == 404
+    # response = await client.patch("/elections/registration/testElection4", params={
+    #     "position": "president",
+    #     "speech": "Vote for me as president, I am good at valorant."
+    # })
+    # assert response.status_code == 404
 
     # delete an election
     response = await client.delete("/elections/testElection4")

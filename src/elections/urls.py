@@ -611,9 +611,7 @@ async def provide_nominee_info(
         updated_nominee_info = NomineeInfo(**merged_data)
         await elections.crud.update_nominee_info(db_session, updated_nominee_info)
 
-
     await db_session.commit()
-
 
     nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
     return JSONResponse(nominee_info.as_serializable())

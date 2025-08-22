@@ -125,7 +125,7 @@ async def test_endpoints(client, database_setup):
         "datetime_start_nominations": "2025-08-18T09:00:00Z",
         "datetime_start_voting": "2025-09-03T09:00:00Z",
         "datetime_end_voting": "2025-09-18T23:59:59Z",
-        "avaliable_positions": "president",
+        "available_positions": "president",
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
 
     })
@@ -143,7 +143,7 @@ async def test_endpoints(client, database_setup):
         "datetime_start_nominations": "2025-08-18T09:00:00Z",
         "datetime_start_voting": "2025-09-03T09:00:00Z",
         "datetime_end_voting": "2025-09-18T23:59:59Z",
-        "avaliable_positions": "president,treasurer",
+        "available_positions": "president,treasurer",
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
 
     })
@@ -206,7 +206,7 @@ async def test_endpoints_admin(client, database_setup):
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
         "datetime_end_voting": (datetime.now() + timedelta(days=14)).isoformat(),
-        "avaliable_positions": "president,treasurer",
+        "available_positions": "president,treasurer",
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
     assert response.status_code == 200
@@ -280,7 +280,7 @@ async def test_endpoints_admin(client, database_setup):
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
         "datetime_end_voting": (datetime.now() + timedelta(days=14)).isoformat(),
-        "avaliable_positions": "president,vice-president,treasurer",  # update this
+        "available_positions": "president,vice-president,treasurer",  # update this
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
     assert response.status_code == 200

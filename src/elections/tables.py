@@ -45,7 +45,7 @@ class Election(Base):
     datetime_end_voting = Column(DateTime, nullable=False)
 
     # a csv list of positions which must be elements of OfficerPosition
-    avaliable_positions = Column(Text, nullable=False)
+    available_positions = Column(Text, nullable=False)
     survey_link = Column(String(300))
 
     def private_details(self, at_time: datetime) -> dict:
@@ -60,7 +60,7 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
             "status": self.status(at_time),
-            "avaliable_positions": self.avaliable_positions,
+            "available_positions": self.available_positions,
             "survey_link": self.survey_link,
         }
 
@@ -76,7 +76,7 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
             "status": self.status(at_time),
-            "avaliable_positions": self.avaliable_positions,
+            "available_positions": self.available_positions,
         }
 
     def public_metadata(self, at_time: datetime) -> dict:
@@ -103,7 +103,7 @@ class Election(Base):
             "datetime_start_voting": self.datetime_start_voting,
             "datetime_end_voting": self.datetime_end_voting,
 
-            "avaliable_positions": self.avaliable_positions,
+            "available_positions": self.available_positions,
             "survey_link": self.survey_link,
         }
 

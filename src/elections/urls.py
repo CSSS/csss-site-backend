@@ -93,7 +93,7 @@ async def get_election(
         all_nominations = await elections.crud.get_all_registrations_in_election(db_session, slugified_name)
         election_json["candidates"] = []
 
-        avaliable_positions_list = election.avaliable_positions.split(",")
+        avaliable_positions_list = election.available_positions.split(",")
         for nomination in all_nominations:
             if nomination.position not in avaliable_positions_list:
                 # ignore any positions that are **no longer** active
@@ -134,7 +134,7 @@ def _raise_if_bad_election_data(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
-    avaliable_positions: str | None,
+    available_positions: str | None,
 ):
     if election_type not in election_types:
         raise HTTPException(
@@ -149,8 +149,8 @@ def _raise_if_bad_election_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="dates must be in order from earliest to latest",
         )
-    elif avaliable_positions is not None:
-        for position in avaliable_positions.split(","):
+    elif available_positions is not None:
+        for position in available_positions.split(","):
             if position not in OfficerPosition.position_list():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,7 +175,7 @@ async def create_election(
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
     # allows None, which assigns it to the default
-    avaliable_positions: str | None = None,
+    available_positions: str | None = None,
     survey_link: str | None = None,
 ):
     # ensure that election name is not "list" as it will collide with endpoint
@@ -185,13 +185,13 @@ async def create_election(
             detail="cannot use that election name",
         )
 
-    if avaliable_positions is None:
+    if available_positions is None:
         if election_type == "general_election":
-            avaliable_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
+            available_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
         elif election_type == "by_election":
-            avaliable_positions = elections.tables.DEFAULT_POSITIONS_BY_ELECTION
+            available_positions = elections.tables.DEFAULT_POSITIONS_BY_ELECTION
         elif election_type == "council_rep_election":
-            avaliable_positions = elections.tables.DEFAULT_POSITIONS_COUNCIL_REP_ELECTION
+            available_positions = elections.tables.DEFAULT_POSITIONS_COUNCIL_REP_ELECTION
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -205,7 +205,7 @@ async def create_election(
         datetime_start_nominations,
         datetime_start_voting,
         datetime_end_voting,
-        avaliable_positions,
+        available_positions,
     )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
@@ -232,7 +232,7 @@ async def create_election(
             datetime_start_nominations = datetime_start_nominations,
             datetime_start_voting = datetime_start_voting,
             datetime_end_voting = datetime_end_voting,
-            avaliable_positions = avaliable_positions,
+            available_positions = available_positions,
             survey_link = survey_link
         )
     )
@@ -260,7 +260,7 @@ async def update_election(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
-    avaliable_positions: str,
+    available_positions: str,
     survey_link: str | None = None,
 ):
     slugified_name = _slugify(election_name)
@@ -271,7 +271,7 @@ async def update_election(
         datetime_start_nominations,
         datetime_start_voting,
         datetime_end_voting,
-        avaliable_positions,
+        available_positions,
     )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
@@ -298,7 +298,7 @@ async def update_election(
             datetime_start_nominations = datetime_start_nominations,
             datetime_start_voting = datetime_start_voting,
             datetime_end_voting = datetime_end_voting,
-            avaliable_positions = avaliable_positions,
+            available_positions = available_positions,
             survey_link = survey_link
         )
     )
@@ -401,7 +401,7 @@ async def register_in_election(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"election with slug {slugified_name} does not exist"
         )
-    elif position not in election.avaliable_positions.split(","):
+    elif position not in election.available_positions.split(","):
         # NOTE: We only restrict creating a registration for a position that doesn't exist,
         # not updating or deleting one
         raise HTTPException(

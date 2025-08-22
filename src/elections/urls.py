@@ -330,7 +330,7 @@ async def delete_election(
     await db_session.commit()
 
     old_election = await elections.crud.get_election(db_session, slugified_name)
-    return JSONResponse({"success": old_election is not None})
+    return JSONResponse({"success": old_election is None})
 
 # registration ------------------------------------------------------------- #
 

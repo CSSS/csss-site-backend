@@ -12,10 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
-from elections.crud import create_election, update_election
-from elections.tables import Election
+from elections.crud import create_election, create_nominee_info, update_election
+from elections.tables import Election, NomineeInfo
 from officers.constants import OfficerPosition
-from officers.crud import create_new_officer_info, create_new_officer_term, update_officer_info, update_officer_term
+from officers.crud import (
+    create_new_officer_info,
+    create_new_officer_term,
+    update_officer_info,
+    update_officer_term,
+)
 from officers.tables import OfficerInfo, OfficerTerm
 
 
@@ -219,13 +224,13 @@ async def load_test_officers_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
-SYSADMIN_COMPUTING_ID = "gsa92"
+SYSADMIN_COMPUTING_ID = "pkn4"
 async def load_sysadmin(db_session: AsyncSession):
     # put your computing id here for testing purposes
     print(f"loading new sysadmin '{SYSADMIN_COMPUTING_ID}'")
     await create_user_session(db_session, f"temp_id_{SYSADMIN_COMPUTING_ID}", SYSADMIN_COMPUTING_ID)
     await create_new_officer_info(db_session, OfficerInfo(
-        legal_name="Gabe Schulz",
+        legal_name="Puneet North",
         discord_id=None,
         discord_name=None,
         discord_nickname=None,
@@ -298,6 +303,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=400),
         datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
         datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
+        available_positions="president,vice-president",
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await update_election(db_session, Election(
@@ -307,16 +313,34 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=400),
         datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
         datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
+        available_positions="president,vice-president,treasurer",
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await create_election(db_session, Election(
         slug="test-election-2",
         name="test election 2",
         type="by_election",
-        datetime_start_nominations=datetime.now() - timedelta(days=300),
-        datetime_start_voting=datetime.now() - timedelta(days=295, hours=4),
-        datetime_end_voting=datetime.now() - timedelta(days=290, hours=8),
+        datetime_start_nominations=datetime.now() - timedelta(days=1),
+        datetime_start_voting=datetime.now() + timedelta(days=7),
+        datetime_end_voting=datetime.now() + timedelta(days=14),
+        available_positions="president,vice-president,treasurer",
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5 (oh yeah)"
+    ))
+    await create_nominee_info(db_session, NomineeInfo(
+        computing_id = "jdo12",
+        full_name = "John Doe",
+        linked_in = "linkedin.com/john-doe",
+        instagram = "john_doe",
+        email = "john_doe@doe.com",
+        discord_username = "doedoe"
+    ))
+    await create_nominee_info(db_session, NomineeInfo(
+        computing_id = "pkn4",
+        full_name = "Puneet North",
+        linked_in = "linkedin.com/john-doe3",
+        instagram = "john_doe 3",
+        email = "john_do3e@doe.com",
+        discord_username = "doedoe3"
     ))
     await create_election(db_session, Election(
         slug="my-cr-election-3",
@@ -325,6 +349,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=5),
         datetime_start_voting=datetime.now() - timedelta(days=1, hours=4),
         datetime_end_voting=datetime.now() + timedelta(days=5, hours=8),
+        available_positions="president,vice-president,treasurer",
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await create_election(db_session, Election(
@@ -334,6 +359,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() + timedelta(days=5),
         datetime_start_voting=datetime.now() + timedelta(days=10, hours=4),
         datetime_end_voting=datetime.now() + timedelta(days=15, hours=8),
+        available_positions="president,vice-president,treasurer",
         survey_link=None
     ))
     await db_session.commit()

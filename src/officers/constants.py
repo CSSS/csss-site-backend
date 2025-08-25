@@ -175,3 +175,22 @@ _OFFICER_POSITION_LIST = [
     OfficerPosition.WEBMASTER,
     OfficerPosition.SOCIAL_MEDIA_MANAGER,
 ]
+
+GENERAL_ELECTION_POSITIONS = [
+    OfficerPosition.PRESIDENT,
+    OfficerPosition.VICE_PRESIDENT,
+    OfficerPosition.TREASURER,
+
+    OfficerPosition.DIRECTOR_OF_RESOURCES,
+    OfficerPosition.DIRECTOR_OF_EVENTS,
+    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
+    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
+    #OfficerPosition.DIRECTOR_OF_OUTREACH,
+    OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+    OfficerPosition.DIRECTOR_OF_ARCHIVES,
+]
+
+COUNCIL_REP_ELECTION_POSITIONS = [
+    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
+]

@@ -474,11 +474,14 @@ async def update_registration(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"election with slug {slugified_name} does not exist"
         )
-    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
+
+    # self updates can only be done during nomination period. Officer updates can be done whenever
+    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS and is_self_update:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="speeches can only be updated during the nomination period"
         )
+
     elif not await elections.crud.get_all_registrations(db_session, ccid_of_registrant, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

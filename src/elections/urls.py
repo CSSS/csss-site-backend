@@ -10,6 +10,7 @@ import elections
 import elections.tables
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
+from officers.crud import get_active_officer_terms
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.urls import is_logged_in
 
@@ -430,55 +431,67 @@ async def register_in_election(
     ))
     await db_session.commit()
 
-# @router.patch(
-#     "/registration/{election_name:str}",
-#     description="update your speech for a specific position for an election"
-# )
-# async def update_registration(
-#     request: Request,
-#     db_session: database.DBSession,
-#     election_name: str,
-#     position: str,
-#     speech: str | None,
-# ):
-#     logged_in, _, computing_id = await is_logged_in(request, db_session)
-#     if not logged_in:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="must be logged in to update election registration"
-#         )
-#     elif position not in OfficerPosition.position_list():
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail=f"invalid position {position}"
-#         )
+@router.patch(
+    "/registration/{election_name:str}/{ccid_of_registrant}",
+    description="update the application of a specific registrant"
+)
+async def update_registration(
+    request: Request,
+    db_session: database.DBSession,
+    election_name: str,
+    ccid_of_registrant: str,
+    position: str,
+    speech: str | None,
+):
+    # check if logged in
+    logged_in, _, computing_id = await is_logged_in(request, db_session)
+    if not logged_in:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in to update election registration"
+    )
+    # Leave this for now, can remove self_updates if no longer needed.
+    is_self_update = (computing_id == ccid_of_registrant)
+    is_officer = await get_active_officer_terms(db_session, computing_id)
+    # check if the computing_id is of a valid officer or the right applicant
+    if not is_officer and not is_self_update: # returns [] if user is currently not an officer
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="only valid **current** officers or the applicant can update registrations"
+    )
 
-#     current_time = datetime.now()
-#     slugified_name = _slugify(election_name)
-#     election = await elections.crud.get_election(db_session, slugified_name)
-#     if election is None:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"election with slug {slugified_name} does not exist"
-#         )
-#     elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="speeches can only be updated during the nomination period"
-#         )
-#     elif not await elections.crud.get_all_registrations(db_session, computing_id, slugified_name):
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="you are not yet registered in this election"
-#         )
+    if position not in OfficerPosition.position_list():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"invalid position {position}"
+    )
 
-#     await elections.crud.update_registration(db_session, NomineeApplication(
-#         computing_id=computing_id,
-#         nominee_election=slugified_name,
-#         position=position,
-#         speech=speech
-#     ))
-#     await db_session.commit()
+    current_time = datetime.now()
+    slugified_name = _slugify(election_name)
+    election = await elections.crud.get_election(db_session, slugified_name)
+    if election is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"election with slug {slugified_name} does not exist"
+        )
+    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="speeches can only be updated during the nomination period"
+        )
+    elif not await elections.crud.get_all_registrations(db_session, ccid_of_registrant, slugified_name):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="applicant not yet registered in this election"
+        )
+
+    await elections.crud.update_registration(db_session, NomineeApplication(
+        computing_id=ccid_of_registrant,
+        nominee_election=slugified_name,
+        position=position,
+        speech=speech
+    ))
+    await db_session.commit()
 
 @router.delete(
     "/registration/{election_name:str}/{position:str}",

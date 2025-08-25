@@ -42,7 +42,7 @@ else:
         redoc_url=None, # disables ReDoc
         openapi_url=None # disables OpenAPI schema
     )
-    
+
 
 app.include_router(auth.urls.router)
 app.include_router(elections.urls.router)

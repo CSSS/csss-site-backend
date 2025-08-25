@@ -23,12 +23,26 @@ _login_link = (
     ) + "%2Fapi%2Fauth%2Flogin%3Fredirect_path%3D%2Fapi%2Fapi%2Fdocs%2F%26redirect_fragment%3D"
 )
 
-app = FastAPI(
-    lifespan=database.lifespan,
-    title="CSSS Site Backend",
-    description=f'To login, please click <a href="{_login_link}">here</a><br><br>To logout from CAS click <a href="https://cas.sfu.ca/cas/logout">here</a>',
-    root_path="/api"
-)
+# Enable OpenAPI docs only for local development
+if os.environ.get("LOCAL") == "true":
+    app = FastAPI(
+        lifespan=database.lifespan,
+        title="CSSS Site Backend",
+        description=f'To login, please click <a href="{_login_link}">here</a><br><br>To logout from CAS click <a href="https://cas.sfu.ca/cas/logout">here</a>',
+        root_path="/api",
+    )
+# if on production, disable vieweing the docs
+else:
+    app = FastAPI(
+        lifespan=database.lifespan,
+        title="CSSS Site Backend",
+        description=f'To login, please click <a href="{_login_link}">here</a><br><br>To logout from CAS click <a href="https://cas.sfu.ca/cas/logout">here</a>',
+        root_path="/api",
+        docs_url=None,  # disables Swagger UI
+        redoc_url=None, # disables ReDoc
+        openapi_url=None # disables OpenAPI schema
+    )
+    
 
 app.include_router(auth.urls.router)
 app.include_router(elections.urls.router)

@@ -8,7 +8,7 @@ import database
 import elections
 import elections.crud
 import elections.tables
-from elections.models import ElectionModel, NomineeInfoModel
+from elections.models import ElectionModel, NomineeApplicationModel, NomineeInfoModel
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
 from officers.crud import get_active_officer_terms
@@ -347,7 +347,8 @@ async def delete_election(
 
 @router.get(
     "/registration/{election_name:str}",
-    description="get your election registration(s)"
+    description="get your election registration(s)",
+    response_model=list[NomineeApplicationModel]
 )
 async def get_election_registrations(
     request: Request,

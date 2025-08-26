@@ -25,3 +25,9 @@ class NomineeInfoModel(BaseModel):
     instagram: str
     email: str
     discord_username: str
+
+class NomineeApplicationModel(BaseModel):
+    computing_id: str
+    nominee_election: str
+    position: str
+    speech: str

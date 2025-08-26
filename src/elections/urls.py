@@ -11,6 +11,7 @@ import elections.tables
 from elections.models import ElectionModel, NomineeInfoModel
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
+from officers.crud import get_active_officer_terms
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import SuccessFailModel
 from utils.urls import is_logged_in

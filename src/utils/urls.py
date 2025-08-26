@@ -1,6 +1,7 @@
 from fastapi import HTTPException, Request
 
 import auth
+import auth.crud
 import database
 
 # TODO: move other utils into this module
@@ -23,7 +24,7 @@ async def logged_in_or_raise(
 async def is_logged_in(
     request: Request,
     db_session: database.DBSession
-) -> tuple[str | None, str | None]:
+) -> tuple[bool, str | None, str | None]:
     """gets the user's computing_id, or raises an exception if the current request is not logged in"""
     session_id = request.cookies.get("session_id", None)
     if session_id is None:

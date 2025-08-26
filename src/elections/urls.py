@@ -1,4 +1,3 @@
-import logging
 import re
 from datetime import datetime
 
@@ -7,14 +6,12 @@ from fastapi.responses import JSONResponse
 
 import database
 import elections
+import elections.crud
 import elections.tables
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
-from officers.crud import get_active_officer_terms
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.urls import is_logged_in
-
-_logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/elections",
@@ -28,9 +25,9 @@ def _slugify(text: str) -> str:
 async def _validate_user(
     request: Request,
     db_session: database.DBSession,
-) -> tuple[bool, str, str]:
+) -> tuple[bool, str | None, str | None]:
     logged_in, session_id, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
+    if not logged_in or not computing_id:
         return False, None, None
 
     # where valid means elections officer or website admin
@@ -53,7 +50,7 @@ async def list_elections(
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
-            status_code=status.HTTP_404_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="no elections found"
         )
 
@@ -92,6 +89,11 @@ async def get_election(
 
         election_json = election.private_details(current_time)
         all_nominations = await elections.crud.get_all_registrations_in_election(db_session, slugified_name)
+        if not all_nominations:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="no registrations found"
+            )
         election_json["candidates"] = []
 
         available_positions_list = election.available_positions.split(",")

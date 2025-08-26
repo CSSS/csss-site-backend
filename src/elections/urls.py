@@ -1,4 +1,3 @@
-import logging
 import re
 from datetime import datetime
 
@@ -7,14 +6,15 @@ from fastapi.responses import JSONResponse
 
 import database
 import elections
+import elections.crud
 import elections.tables
+from elections.models import ElectionModel, NomineeApplicationModel, NomineeInfoModel
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
 from officers.crud import get_active_officer_terms
 from permission.types import ElectionOfficer, WebsiteAdmin
+from utils.shared_models import SuccessFailModel
 from utils.urls import is_logged_in
-
-_logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/elections",
@@ -28,9 +28,9 @@ def _slugify(text: str) -> str:
 async def _validate_user(
     request: Request,
     db_session: database.DBSession,
-) -> tuple[bool, str, str]:
+) -> tuple[bool, str | None, str | None]:
     logged_in, session_id, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
+    if not logged_in or not computing_id:
         return False, None, None
 
     # where valid means elections officer or website admin
@@ -44,7 +44,8 @@ async def _validate_user(
 
 @router.get(
     "/list",
-    description="Returns a list of all elections & their status"
+    description="Returns a list of all elections & their status",
+    response_model=list[ElectionModel]
 )
 async def list_elections(
     _: Request,
@@ -53,7 +54,7 @@ async def list_elections(
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
-            status_code=status.HTTP_404_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="no elections found"
         )
 
@@ -71,7 +72,8 @@ async def list_elections(
     Retrieves the election data for an election by name.
     Returns private details when the time is allowed.
     If user is an admin or elections officer, returns computing ids for each candidate as well.
-    """
+    """,
+    response_model=ElectionModel
 )
 async def get_election(
     request: Request,
@@ -92,6 +94,11 @@ async def get_election(
 
         election_json = election.private_details(current_time)
         all_nominations = await elections.crud.get_all_registrations_in_election(db_session, slugified_name)
+        if not all_nominations:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="no registrations found"
+            )
         election_json["candidates"] = []
 
         available_positions_list = election.available_positions.split(",")
@@ -166,6 +173,7 @@ def _raise_if_bad_election_data(
 @router.post(
     "/{election_name:str}",
     description="Creates an election and places it in the database. Returns election json on success",
+    response_model=ElectionModel
 )
 async def create_election(
     request: Request,
@@ -251,7 +259,8 @@ async def create_election(
         name produces the same slug.
 
         Returns election json on success.
-    """
+    """,
+    response_model=ElectionModel
 )
 async def update_election(
     request: Request,
@@ -310,7 +319,8 @@ async def update_election(
 
 @router.delete(
     "/{election_name:str}",
-    description="Deletes an election from the database. Returns whether the election exists after deletion."
+    description="Deletes an election from the database. Returns whether the election exists after deletion.",
+    response_model=SuccessFailModel
 )
 async def delete_election(
     request: Request,
@@ -337,7 +347,8 @@ async def delete_election(
 
 @router.get(
     "/registration/{election_name:str}",
-    description="get your election registration(s)"
+    description="get your election registration(s)",
+    response_model=list[NomineeApplicationModel]
 )
 async def get_election_registrations(
     request: Request,
@@ -358,7 +369,7 @@ async def get_election_registrations(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    registration_list = await elections.crud.get_all_registrations(db_session, computing_id, slugified_name)
+    registration_list = await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name)
     if registration_list is None:
         return JSONResponse([])
     return JSONResponse([
@@ -367,7 +378,7 @@ async def get_election_registrations(
 
 @router.post(
     "/registration/{election_name:str}",
-    description="register for a specific position in this election, but doesn't set a speech"
+    description="register for a specific position in this election, but doesn't set a speech",
 )
 async def register_in_election(
     request: Request,
@@ -414,7 +425,7 @@ async def register_in_election(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registrations can only be made during the nomination period"
         )
-    elif await elections.crud.get_all_registrations(db_session, computing_id, slugified_name):
+    elif await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="you are already registered in this election"
@@ -482,7 +493,7 @@ async def update_registration(
             detail="speeches can only be updated during the nomination period"
         )
 
-    elif not await elections.crud.get_all_registrations(db_session, ccid_of_registrant, slugified_name):
+    elif not await elections.crud.get_all_registrations_of_user(db_session, ccid_of_registrant, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="applicant not yet registered in this election"
@@ -531,7 +542,7 @@ async def delete_registration(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registration can only be revoked during the nomination period"
         )
-    elif not await elections.crud.get_all_registrations(db_session, computing_id, slugified_name):
+    elif not await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="you are not yet registered in this election"
@@ -544,7 +555,8 @@ async def delete_registration(
 
 @router.get(
     "/nominee/info",
-    description="Nominee info is always publically tied to elections, so be careful!"
+    description="Nominee info is always publically tied to elections, so be careful!",
+    response_model=NomineeInfoModel
 )
 async def get_nominee_info(
     request: Request,
@@ -568,7 +580,8 @@ async def get_nominee_info(
 
 @router.put(
     "/nominee/info",
-    description="Will create or update nominee info. Returns an updated copy of their nominee info."
+    description="Will create or update nominee info. Returns an updated copy of their nominee info.",
+    response_model=NomineeInfoModel
 )
 async def provide_nominee_info(
     request: Request,

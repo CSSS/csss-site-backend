@@ -1,13 +1,10 @@
-import logging
-
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from elections.tables import Election, NomineeApplication, NomineeInfo
 
-_logger = logging.getLogger(__name__)
 
-async def get_all_elections(db_session: AsyncSession) -> list[Election] | None:
+async def get_all_elections(db_session: AsyncSession) -> list[Election]:
     # TODO: can this return None?
     election_list = (await db_session.scalars(
         sqlalchemy
@@ -53,7 +50,7 @@ async def delete_election(db_session: AsyncSession, slug: str) -> None:
 # ------------------------------------------------------- #
 
 # TODO: switch to only using one of application or registration
-async def get_all_registrations(
+async def get_all_registrations_of_user(
     db_session: AsyncSession,
     computing_id: str,
     election_slug: str

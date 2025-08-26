@@ -50,7 +50,7 @@ async def delete_election(db_session: AsyncSession, slug: str) -> None:
 # ------------------------------------------------------- #
 
 # TODO: switch to only using one of application or registration
-async def get_all_registrations(
+async def get_all_registrations_of_user(
     db_session: AsyncSession,
     computing_id: str,
     election_slug: str

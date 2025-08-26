@@ -8,7 +8,8 @@ from httpx import ASGITransport, AsyncClient
 import load_test_db
 from auth.crud import create_user_session, get_computing_id, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
-from elections.crud import (
+from main import app
+from src.elections.crud import (
     add_registration,
     create_election,
     create_nominee_info,
@@ -16,9 +17,9 @@ from elections.crud import (
     delete_registration,
     # election crud
     get_all_elections,
-    # election registration crud
-    get_all_registrations,
     get_all_registrations_in_election,
+    # election registration crud
+    get_all_registrations_of_user,
     get_election,
     # info crud
     get_nominee_info,
@@ -26,7 +27,6 @@ from elections.crud import (
     update_nominee_info,
     update_registration,
 )
-from main import app
 
 
 @pytest.fixture(scope="session")

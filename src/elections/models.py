@@ -18,3 +18,10 @@ class ElectionModel(BaseModel):
     available_positions: str
     survey_link: str | None
 
+class NomineeInfoModel(BaseModel):
+    computing_id: str
+    full_name: str
+    linked_in: str
+    instagram: str
+    email: str
+    discord_username: str

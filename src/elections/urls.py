@@ -8,10 +8,11 @@ import database
 import elections
 import elections.crud
 import elections.tables
-from elections.models import ElectionModel
+from elections.models import ElectionModel, NomineeInfoModel
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
 from permission.types import ElectionOfficer, WebsiteAdmin
+from utils.shared_models import SuccessFailModel
 from utils.urls import is_logged_in
 
 router = APIRouter(
@@ -375,7 +376,7 @@ async def get_election_registrations(
 
 @router.post(
     "/registration/{election_name:str}",
-    description="register for a specific position in this election, but doesn't set a speech"
+    description="register for a specific position in this election, but doesn't set a speech",
 )
 async def register_in_election(
     request: Request,
@@ -552,7 +553,8 @@ async def delete_registration(
 
 @router.get(
     "/nominee/info",
-    description="Nominee info is always publically tied to elections, so be careful!"
+    description="Nominee info is always publically tied to elections, so be careful!",
+    response_model=NomineeInfoModel
 )
 async def get_nominee_info(
     request: Request,
@@ -576,7 +578,8 @@ async def get_nominee_info(
 
 @router.put(
     "/nominee/info",
-    description="Will create or update nominee info. Returns an updated copy of their nominee info."
+    description="Will create or update nominee info. Returns an updated copy of their nominee info.",
+    response_model=NomineeInfoModel
 )
 async def provide_nominee_info(
     request: Request,

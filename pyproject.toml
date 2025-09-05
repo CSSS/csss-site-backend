@@ -27,3 +27,7 @@ line-ending = "lf"
 [tool.ruff.lint]
 select = ["E", "F", "B", "I", "N", "UP", "A", "PTH", "W", "RUF", "C4", "PIE", "Q", "FLY"] # "ANN"
 ignore = ["E501", "F401", "N806"]
+
+[tool.pyright]
+executionEnvironments = [{ root = "src" }]
+typeCheckingMode = "standard"

@@ -1,9 +1,9 @@
 import logging
-import os
 
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import auth.urls
@@ -11,38 +11,47 @@ import database
 import elections.urls
 import officers.urls
 import permission.urls
+from constants import IS_PROD
 
 logging.basicConfig(level=logging.DEBUG)
 database.setup_database()
 
-_login_link = (
-    "https://cas.sfu.ca/cas/login?service=" + (
-        "http%3A%2F%2Flocalhost%3A8080"
-        if os.environ.get("LOCAL") == "true"
-        else "https%3A%2F%2Fnew.sfucsss.org"
-    ) + "%2Fapi%2Fauth%2Flogin%3Fredirect_path%3D%2Fapi%2Fapi%2Fdocs%2F%26redirect_fragment%3D"
-)
-
 # Enable OpenAPI docs only for local development
-if os.environ.get("LOCAL") == "true":
+if not IS_PROD:
+    print("Running local environment")
+    origins = [
+        "http://localhost:*", # default Angular
+        "http://localhost:8080", # for existing applications/sites
+    ]
     app = FastAPI(
         lifespan=database.lifespan,
         title="CSSS Site Backend",
-        description=f'To login, please click <a href="{_login_link}">here</a><br><br>To logout from CAS click <a href="https://cas.sfu.ca/cas/logout">here</a>',
         root_path="/api",
     )
-# if on production, disable vieweing the docs
+# if on production, disable viewing the docs
 else:
+    print("Running production environment")
+    origins = [
+        "https://sfucsss.org",
+        "https://test.sfucsss.org",
+        "https://admin.sfucsss.org"
+    ]
     app = FastAPI(
         lifespan=database.lifespan,
         title="CSSS Site Backend",
-        description=f'To login, please click <a href="{_login_link}">here</a><br><br>To logout from CAS click <a href="https://cas.sfu.ca/cas/logout">here</a>',
         root_path="/api",
         docs_url=None,  # disables Swagger UI
         redoc_url=None, # disables ReDoc
         openapi_url=None # disables OpenAPI schema
     )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 app.include_router(auth.urls.router)
 app.include_router(elections.urls.router)
@@ -55,7 +64,7 @@ async def read_root():
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-    request: Request,
+    _: Request,
     exception: RequestValidationError,
 ):
     return JSONResponse(

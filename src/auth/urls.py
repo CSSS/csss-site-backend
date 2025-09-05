@@ -2,15 +2,18 @@ import base64
 import logging
 import os
 import urllib.parse
+from typing import Literal
 
 import requests  # TODO: make this async
 import xmltodict
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
 import database
 from auth import crud
-from constants import FRONTEND_ROOT_URL
+from auth.models import LoginBodyModel
+from constants import IS_PROD
+from utils.shared_models import DetailModel
 
 _logger = logging.getLogger(__name__)
 
@@ -32,27 +35,34 @@ router = APIRouter(
 )
 
 
-# NOTE: logging in a second time invaldiates the last session_id
-@router.get(
+# NOTE: logging in a second time invalidates the last session_id
+@router.post(
     "/login",
-    description="Login to the sfucsss.org. Must redirect to this endpoint from SFU's cas authentication service for correct parameters",
+    description="Create a login session.",
+    response_description="Successfully validated with SFU's CAS",
+    response_model=None,
+    responses={
+        307: { "description": "Successful validation, with redirect" },
+        400: { "description": "Origin is missing.", "model": DetailModel },
+        401: { "description": "Failed to validate ticket with SFU's CAS", "model": DetailModel }
+    },
+    operation_id="login",
 )
 async def login_user(
-    redirect_path: str,
-    redirect_fragment: str,
-    ticket: str,
+    request: Request,
     db_session: database.DBSession,
     background_tasks: BackgroundTasks,
+    body: LoginBodyModel
 ):
     # verify the ticket is valid
-    service = urllib.parse.quote(f"{FRONTEND_ROOT_URL}/api/auth/login?redirect_path={redirect_path}&redirect_fragment={redirect_fragment}")
-    service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={ticket}"
+    service_url = body.service
+    service = urllib.parse.quote(service_url)
+    service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={body.ticket}"
     cas_response = xmltodict.parse(requests.get(service_validate_url).text)
 
     if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
         _logger.info(f"User failed to login, with response {cas_response}")
-        raise HTTPException(status_code=401, detail="authentication error, ticket likely invalid")
-
+        raise HTTPException(status_code=401, detail="authentication error")
     else:
         session_id = generate_session_id_b64(256)
         computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
@@ -63,15 +73,29 @@ async def login_user(
         # clean old sessions after sending the response
         background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
 
-        response = RedirectResponse(FRONTEND_ROOT_URL + redirect_path + "#" + redirect_fragment)
+        if body.redirect_url:
+            origin = request.headers.get("origin")
+            if origin:
+                response = RedirectResponse(origin + body.redirect_url)
+            else:
+                raise HTTPException(status_code=400, detail="bad origin")
+        else:
+            response = Response()
+
         response.set_cookie(
-            key="session_id", value=session_id
+            key="session_id",
+            value=session_id,
+            secure=IS_PROD,
+            httponly=True,
+            samesite=None if IS_PROD else "lax",
+            domain=".sfucsss.org" if IS_PROD else None
         )  # this overwrites any past, possibly invalid, session_id
         return response
 
 
 @router.get(
     "/logout",
+    operation_id="logout",
     description="Logs out the current user by invalidating the session_id cookie",
 )
 async def logout_user(
@@ -94,6 +118,7 @@ async def logout_user(
 
 @router.get(
     "/user",
+    operation_id="get_user",
     description="Get info about the current user. Only accessible by that user",
 )
 async def get_user(
@@ -116,6 +141,7 @@ async def get_user(
 
 @router.patch(
     "/user",
+    operation_id="update_user",
     description="Update information for the currently logged in user. Only accessible by that user",
 )
 async def update_user(

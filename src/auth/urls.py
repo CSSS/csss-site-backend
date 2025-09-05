@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 import database
 from auth import crud
 from auth.models import LoginBodyModel
-from constants import IS_PROD
+from constants import DOMAIN, IS_PROD, SAMESITE
 from utils.shared_models import DetailModel
 
 _logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ router = APIRouter(
     "/login",
     description="Create a login session.",
     response_description="Successfully validated with SFU's CAS",
-    response_model=None,
+    response_model=str,
     responses={
         307: { "description": "Successful validation, with redirect" },
         400: { "description": "Origin is missing.", "model": DetailModel },
@@ -87,8 +87,8 @@ async def login_user(
             value=session_id,
             secure=IS_PROD,
             httponly=True,
-            samesite=None if IS_PROD else "lax",
-            domain=".sfucsss.org" if IS_PROD else None
+            samesite=SAMESITE,
+            domain=DOMAIN
         )  # this overwrites any past, possibly invalid, session_id
         return response
 

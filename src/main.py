@@ -20,7 +20,7 @@ database.setup_database()
 if not IS_PROD:
     print("Running local environment")
     origins = [
-        "http://localhost:*", # default Angular
+        "http://localhost:4200", # default Angular
         "http://localhost:8080", # for existing applications/sites
     ]
     app = FastAPI(

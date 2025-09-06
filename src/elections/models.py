@@ -1,9 +1,9 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 
-class ElectionTypeEnum(str, Enum):
+class ElectionTypeEnum(StrEnum):
     GENERAL = "general_election"
     BY_ELECTION = "by_election"
     COUNCIL_REP = "council_rep_election"

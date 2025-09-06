@@ -152,10 +152,12 @@ async def main():
             # use the most up to date officer info
             # --------------------------------
 
+            # TODO: insert None instead of NA for many of the terms?
+
             new_officer_info = OfficerInfo(
                 computing_id = officer["sfu_computing_id"],
                 legal_name = officer["full_name"],
-                phone_number = str(officer["phone_number"]),
+                phone_number = None if str(officer["phone_number"]) == 0 else str(officer["phone_number"]),
 
                 discord_id = officer["discord_id"],
                 discord_name = officer["discord_username"],

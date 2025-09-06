@@ -2,12 +2,13 @@ import os
 
 # TODO(future): replace new.sfucsss.org with sfucsss.org during migration
 # TODO(far-future): branch-specific root IP addresses (e.g., devbranch.sfucsss.org)
-FRONTEND_ROOT_URL = "http://localhost:8080" if os.environ.get("LOCAL") == "true" else "https://new.sfucsss.org"
-GITHUB_ORG_NAME = "CSSS-Test-Organization" if os.environ.get("LOCAL") == "true" else "CSSS"
+ENV_LOCAL = os.environ.get("LOCAL")
+IS_PROD = True if not ENV_LOCAL or ENV_LOCAL.lower() != "true" else False
+GITHUB_ORG_NAME = "CSSS-Test-Organization" if not IS_PROD else "CSSS"
 
 W3_GUILD_ID = "1260652618875797504"
 CSSS_GUILD_ID = "228761314644852736"
-ACTIVE_GUILD_ID = W3_GUILD_ID if os.environ.get("LOCAL") == "true" else CSSS_GUILD_ID
+ACTIVE_GUILD_ID = W3_GUILD_ID if not IS_PROD else CSSS_GUILD_ID
 
 SESSION_ID_LEN = 512
 # technically a max of 8 digits https://www.sfu.ca/computing/about/support/tips/sfu-userid.html
@@ -25,3 +26,7 @@ DISCORD_NICKNAME_LEN = 32
 
 # https://docs.github.com/en/enterprise-server@3.10/admin/identity-and-access-management/iam-configuration-reference/username-considerations-for-external-authentication
 GITHUB_USERNAME_LEN = 39
+
+# COOKIE
+SAMESITE="none" if IS_PROD else "lax"
+DOMAIN=".sfucsss.org" if IS_PROD else None

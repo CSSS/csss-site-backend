@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncSession,
 )
+from sqlalchemy.orm import DeclarativeBase
 
 convention = {
     "ix": "ix_%(column_0_label)s", # index
@@ -21,8 +22,8 @@ convention = {
     "pk": "pk_%(table_name)s", # primary key
 }
 
-Base = sqlalchemy.orm.declarative_base()
-Base.metadata = MetaData(naming_convention=convention)
+class Base(DeclarativeBase):
+    metadata = MetaData(naming_convention=convention)
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:

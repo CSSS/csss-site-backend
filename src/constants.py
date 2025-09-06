@@ -3,7 +3,7 @@ import os
 # TODO(future): replace new.sfucsss.org with sfucsss.org during migration
 # TODO(far-future): branch-specific root IP addresses (e.g., devbranch.sfucsss.org)
 ENV_LOCAL = os.environ.get("LOCAL")
-IS_PROD = False if not ENV_LOCAL or ENV_LOCAL.lower() != "true" else True
+IS_PROD = True if not ENV_LOCAL or ENV_LOCAL.lower() != "true" else False
 GITHUB_ORG_NAME = "CSSS-Test-Organization" if not IS_PROD else "CSSS"
 
 W3_GUILD_ID = "1260652618875797504"

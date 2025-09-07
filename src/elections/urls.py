@@ -57,6 +57,39 @@ def _default_election_positions(election_type: ElectionTypeEnum) -> list[str]:
     return available_positions
 
 
+def _raise_if_bad_election_data(
+    slug: str,
+    election_type: str,
+    datetime_start_nominations: datetime,
+    datetime_start_voting: datetime,
+    datetime_end_voting: datetime,
+    available_positions: list[str]
+):
+    if election_type not in ElectionTypeEnum:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"unknown election type {election_type}",
+        )
+
+    if datetime_start_nominations > datetime_start_voting or datetime_start_voting > datetime_end_voting:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="dates must be in order from earliest to latest",
+        )
+
+    for position in available_positions:
+        if position not in OfficerPositionEnum:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"unknown position found in position list {position}",
+            )
+
+    if len(slug) > elections.tables.MAX_ELECTION_SLUG:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"election slug '{slug}' is too long",
+        )
+
 # elections ------------------------------------------------------------- #
 
 @router.get(

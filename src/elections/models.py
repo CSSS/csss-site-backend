@@ -16,7 +16,7 @@ class ElectionModel(BaseModel):
     datetime_start_voting: str
     datetime_end_voting: str
     available_positions: str
-    survey_link: str | None
+    survey_link: str | None = None
 
 class NomineeInfoModel(BaseModel):
     computing_id: str

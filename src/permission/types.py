@@ -4,7 +4,6 @@ from typing import ClassVar
 from fastapi import HTTPException
 
 import database
-import elections.crud
 import officers.constants
 import officers.crud
 import utils
@@ -52,7 +51,7 @@ class ElectionOfficer:
         return False
 
 class WebsiteAdmin:
-    WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPosition]] = [
+    WEBSITE_ADMIN_POSITIONS: ClassVar[list[str]] = [
         OfficerPosition.PRESIDENT,
         OfficerPosition.VICE_PRESIDENT,
         OfficerPosition.DIRECTOR_OF_ARCHIVES,

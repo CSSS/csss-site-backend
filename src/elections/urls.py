@@ -8,12 +8,12 @@ import database
 import elections
 import elections.crud
 import elections.tables
-from elections.models import ElectionModel, NomineeApplicationModel, NomineeInfoModel
+from elections.models import ElectionModel, ElectionTypeEnum, NomineeApplicationModel, NomineeInfoModel
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
 from officers.crud import get_active_officer_terms
 from permission.types import ElectionOfficer, WebsiteAdmin
-from utils.shared_models import SuccessFailModel
+from utils.shared_models import DetailModel, SuccessFailModel
 from utils.urls import is_logged_in
 
 router = APIRouter(
@@ -45,7 +45,11 @@ async def _validate_user(
 @router.get(
     "/list",
     description="Returns a list of all elections & their status",
-    response_model=list[ElectionModel]
+    response_model=list[ElectionModel],
+    responses={
+        404: { "description": "No elections found" }
+    },
+    operation_id="get_all_elections"
 )
 async def list_elections(
     request: Request,

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
@@ -38,8 +38,8 @@ class SiteUser(Base):
 
     # first and last time logged into the CSSS API
     # note: default date (for pre-existing columns) is June 16th, 2024
-    first_logged_in: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime(2024, 6, 16))
-    last_logged_in: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime(2024, 6, 16))
+    first_logged_in: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    last_logged_in: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
 
     # optional user information for display purposes
     profile_picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)

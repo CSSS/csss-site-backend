@@ -11,24 +11,10 @@ from sqlalchemy import (
 
 from constants import (
     COMPUTING_ID_LEN,
-    DISCORD_ID_LEN,
-    DISCORD_NAME_LEN,
     DISCORD_NICKNAME_LEN,
 )
 from database import Base
-from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS
-
-# If you wish to add more elections & defaults, please see `create_election`
-election_types = ["general_election", "by_election", "council_rep_election"]
-
-DEFAULT_POSITIONS_GENERAL_ELECTION = ",".join(GENERAL_ELECTION_POSITIONS)
-DEFAULT_POSITIONS_BY_ELECTION = ",".join(GENERAL_ELECTION_POSITIONS)
-DEFAULT_POSITIONS_COUNCIL_REP_ELECTION = ",".join(COUNCIL_REP_ELECTION_POSITIONS)
-
-STATUS_BEFORE_NOMINATIONS = "before_nominations"
-STATUS_NOMINATIONS = "nominations"
-STATUS_VOTING = "voting"
-STATUS_AFTER_VOTING = "after_voting"
+from elections.models import ElectionStatusEnum
 
 MAX_ELECTION_NAME = 64
 MAX_ELECTION_SLUG = 64
@@ -109,13 +95,13 @@ class Election(Base):
 
     def status(self, at_time: datetime) -> str:
         if at_time <= self.datetime_start_nominations:
-            return STATUS_BEFORE_NOMINATIONS
+            return ElectionStatusEnum.BEFORE_NOMINATIONS
         elif at_time <= self.datetime_start_voting:
-            return STATUS_NOMINATIONS
+            return ElectionStatusEnum.NOMINATIONS
         elif at_time <= self.datetime_end_voting:
-            return STATUS_VOTING
+            return ElectionStatusEnum.VOTING
         else:
-            return STATUS_AFTER_VOTING
+            return ElectionStatusEnum.AFTER_VOTING
 
 class NomineeInfo(Base):
     __tablename__ = "election_nominee_info"

@@ -3,6 +3,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 import database
 import elections
@@ -20,7 +21,7 @@ from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_
 from officers.crud import get_active_officer_terms
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessFailModel
-from utils.urls import is_logged_in
+from utils.urls import get_current_user, is_logged_in
 
 router = APIRouter(
     prefix="/elections",
@@ -45,6 +46,16 @@ async def _validate_user(
         has_permission = await WebsiteAdmin.has_permission(db_session, computing_id)
 
     return has_permission, session_id, computing_id
+
+def _default_election_positions(election_type: ElectionTypeEnum) -> list[str]:
+    if election_type == ElectionTypeEnum.GENERAL:
+        available_positions = GENERAL_ELECTION_POSITIONS
+    elif election_type == ElectionTypeEnum.BY_ELECTION:
+        available_positions = GENERAL_ELECTION_POSITIONS
+    elif election_type == ElectionTypeEnum.COUNCIL_REP:
+        available_positions = COUNCIL_REP_ELECTION_POSITIONS
+    return available_positions
+
 
 # elections ------------------------------------------------------------- #
 
@@ -283,30 +294,20 @@ async def create_election(
 
         Returns election json on success.
     """,
-    response_model=ElectionResponse
+    response_model=ElectionResponse,
+    responses={
+        400: { "model": DetailModel },
+        401: { "description": "Bad request", "model": DetailModel },
+        500: { "description": "Failed to find updated election", "model": DetailModel }
+    },
+    operation_id="update_election"
 )
 async def update_election(
     request: Request,
+    body: ElectionParams,
     db_session: database.DBSession,
     election_name: str,
-    election_type: str,
-    datetime_start_nominations: datetime,
-    datetime_start_voting: datetime,
-    datetime_end_voting: datetime,
-    available_positions: str,
-    survey_link: str | None = None,
 ):
-    slugified_name = _slugify(election_name)
-    current_time = datetime.now()
-    _raise_if_bad_election_data(
-        election_name,
-        election_type,
-        datetime_start_nominations,
-        datetime_start_voting,
-        datetime_end_voting,
-        available_positions,
-    )
-
     is_valid_user, _, _ = await _validate_user(request, db_session)
     if not is_valid_user:
         raise HTTPException(
@@ -314,11 +315,34 @@ async def update_election(
             detail="must have election officer or admin permission",
             headers={"WWW-Authenticate": "Basic"},
         )
-    elif await elections.crud.get_election(db_session, slugified_name) is None:
+
+    slugified_name = _slugify(election_name)
+    if await elections.crud.get_election(db_session, slugified_name) is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election with slug {slugified_name} does not exist",
         )
+
+    current_time = datetime.now()
+    if body.available_positions is None:
+        if body.type not in ElectionTypeEnum:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"invalid election type {body.type} for available positions"
+            )
+        available_positions = _default_election_positions(body.type)
+    else:
+        available_positions = body.available_positions
+
+    # TODO: We might be able to just use a validation function from Pydantic or SQLAlchemy to check this
+    _raise_if_bad_election_data(
+        slugified_name,
+        body.type,
+        datetime.fromisoformat(body.datetime_start_voting),
+        datetime.fromisoformat(body.datetime_start_voting),
+        datetime.fromisoformat(body.datetime_end_voting),
+        available_positions,
+    )
 
     # NOTE: If you update available positions, people will still *technically* be able to update their
     # registrations, however they will not be returned in the results.
@@ -327,17 +351,19 @@ async def update_election(
         Election(
             slug = slugified_name,
             name = election_name,
-            type = election_type,
-            datetime_start_nominations = datetime_start_nominations,
-            datetime_start_voting = datetime_start_voting,
-            datetime_end_voting = datetime_end_voting,
-            available_positions = available_positions,
-            survey_link = survey_link
+            type = body.type,
+            datetime_start_nominations = body.datetime_start_nominations,
+            datetime_start_voting = body.datetime_start_voting,
+            datetime_end_voting = body.datetime_end_voting,
+            available_positions = ",".join(available_positions),
+            survey_link = body.survey_link
         )
     )
     await db_session.commit()
 
     election = await elections.crud.get_election(db_session, slugified_name)
+    if election is None:
+        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
     return JSONResponse(election.private_details(current_time))
 
 @router.delete(
@@ -371,7 +397,11 @@ async def delete_election(
 @router.get(
     "/registration/{election_name:str}",
     description="get your election registration(s)",
-    response_model=list[NomineeApplicationModel]
+    response_model=list[NomineeApplicationModel],
+    responses={
+        401: { "description": "Not logged in", "model": DetailModel },
+        404: { "description": "Election with slug does not exist", "model": DetailModel }
+     }
 )
 async def get_election_registrations(
     request: Request,
@@ -379,8 +409,10 @@ async def get_election_registrations(
     election_name: str
 ):
     slugified_name = _slugify(election_name)
-    logged_in, _, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
+
+    _, computing_id = await get_current_user(request, db_session)
+
+    if computing_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must be logged in to get election registrations"

@@ -8,6 +8,13 @@ class ElectionTypeEnum(StrEnum):
     BY_ELECTION = "by_election"
     COUNCIL_REP = "council_rep_election"
 
+class ElectionStatusEnum(StrEnum):
+    BEFORE_NOMINATIONS = "before_nominations"
+    NOMINATIONS = "nominations"
+    VOTING = "voting"
+    AFTER_VOTING = "after_voting"
+
+
 class CandidateModel(BaseModel):
     position: str
     full_name: str
@@ -24,10 +31,10 @@ class ElectionResponse(BaseModel):
     datetime_start_nominations: str
     datetime_start_voting: str
     datetime_end_voting: str
-    available_positions: str
-    survey_link: str | None = None
+    available_positions: list[str]
 
-    candidates: list[CandidateModel] | None = Field(None, description="Only avaiable to admins")
+    survey_link: str | None = Field(None, description="Only available to admins")
+    candidates: list[CandidateModel] | None = Field(None, description="Only available to admins")
 
 class ElectionParams:
     slug: str

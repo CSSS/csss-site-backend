@@ -213,22 +213,19 @@ async def create_election(
         )
 
     if body.available_positions is None:
-        if body.type == ElectionTypeEnum.GENERAL:
-            available_positions = GENERAL_ELECTION_POSITIONS
-        elif body.type == ElectionTypeEnum.BY_ELECTION:
-            available_positions = GENERAL_ELECTION_POSITIONS
-        elif body.type == ElectionTypeEnum.COUNCIL_REP:
-            available_positions = COUNCIL_REP_ELECTION_POSITIONS
-        else:
+        if body.type not in ElectionTypeEnum:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"invalid election type {body.type} for available positions"
             )
+        available_positions = _default_election_positions(body.type)
     else:
         available_positions = body.available_positions
 
     slugified_name = _slugify(body.name)
     current_time = datetime.now()
+
+    # TODO: We might be able to just use a validation function from Pydantic or SQLAlchemy to check this
     _raise_if_bad_election_data(
         slugified_name,
         body.type,

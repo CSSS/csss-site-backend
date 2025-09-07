@@ -36,7 +36,7 @@ class ElectionResponse(BaseModel):
     survey_link: str | None = Field(None, description="Only available to admins")
     candidates: list[CandidateModel] | None = Field(None, description="Only available to admins")
 
-class ElectionParams:
+class ElectionParams(BaseModel):
     slug: str
     name: str
     type: ElectionTypeEnum

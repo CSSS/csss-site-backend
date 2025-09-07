@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ElectionTypeEnum(str, Enum):
@@ -16,7 +16,7 @@ class ElectionModel(BaseModel):
     datetime_start_voting: str
     datetime_end_voting: str
     available_positions: str
-    survey_link: str | None
+    survey_link: str | None = Field(None)
 
 class NomineeInfoModel(BaseModel):
     computing_id: str

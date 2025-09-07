@@ -48,9 +48,10 @@ async def _validate_user(
     response_model=list[ElectionModel]
 )
 async def list_elections(
-    _: Request,
+    request: Request,
     db_session: database.DBSession,
 ):
+    is_admin, _, _ = await _validate_user(request, db_session)
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
@@ -59,10 +60,16 @@ async def list_elections(
         )
 
     current_time = datetime.now()
-    election_metadata_list = [
-        election.public_metadata(current_time)
-        for election in election_list
-    ]
+    if is_admin:
+        election_metadata_list = [
+            election.private_details(current_time)
+            for election in election_list
+        ]
+    else:
+        election_metadata_list = [
+            election.public_details(current_time)
+            for election in election_list
+        ]
 
     return JSONResponse(election_metadata_list)
 

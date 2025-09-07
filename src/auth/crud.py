@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.models import SiteUserModel
 from auth.tables import SiteUser, UserSession
 
 _logger = logging.getLogger(__name__)

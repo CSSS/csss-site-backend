@@ -402,7 +402,11 @@ async def update_election(
 @router.delete(
     "/{election_name:str}",
     description="Deletes an election from the database. Returns whether the election exists after deletion.",
-    response_model=SuccessFailModel
+    response_model=SuccessResponse,
+    responses={
+        401: { "description": "Need to be logged in as an admin.", "model": DetailModel }
+    },
+    operation_id="delete_election"
 )
 async def delete_election(
     request: Request,
@@ -410,13 +414,11 @@ async def delete_election(
     election_name: str
 ):
     slugified_name = _slugify(election_name)
-    is_valid_user, _, _ = await _validate_user(request, db_session)
+    is_valid_user, _, _ = await _get_user_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must have election officer permission",
-            # TODO: is this header actually required?
-            headers={"WWW-Authenticate": "Basic"},
+            detail="must have election officer permission"
         )
 
     await elections.crud.delete_election(db_session, slugified_name)

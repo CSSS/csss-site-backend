@@ -14,10 +14,9 @@ from elections.models import (
     ElectionTypeEnum,
     NomineeApplicationModel,
     NomineeInfoModel,
-    UpdateElectionParams,
 )
-from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
-from officers.constants import OfficerPosition
+from elections.tables import Election, NomineeApplication, NomineeInfo
+from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPosition
 from officers.crud import get_active_officer_terms
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessFailModel
@@ -159,37 +158,37 @@ async def get_election(
     return JSONResponse(election_json)
 
 def _raise_if_bad_election_data(
-    name: str,
+    slug: str,
     election_type: str,
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
     available_positions: list[str]
 ):
-    if election_type not in election_types:
+    if election_type not in ElectionTypeEnum:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"unknown election type {election_type}",
         )
-    elif not (
-        (datetime_start_nominations <= datetime_start_voting)
-        and (datetime_start_voting <= datetime_end_voting)
-    ):
+
+    if datetime_start_nominations > datetime_start_voting or datetime_start_voting > datetime_end_voting:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="dates must be in order from earliest to latest",
         )
-    elif available_positions is not None:
-        for position in available_positions:
-            if position not in OfficerPosition.position_list():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"unknown position found in position list {position}",
-                )
-    elif len(_slugify(name)) > elections.tables.MAX_ELECTION_SLUG:
+
+    # TODO: Change the officer positions to enums
+    for position in available_positions:
+        if position not in OfficerPosition.position_list():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"unknown position found in position list {position}",
+            )
+
+    if len(slug) > elections.tables.MAX_ELECTION_SLUG:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election slug {_slugify(name)} is too long",
+            detail=f"election slug '{slug}' is too long",
         )
 
 @router.post(
@@ -207,7 +206,6 @@ async def create_election(
     body: ElectionParams,
     db_session: database.DBSession,
 ):
-    # ensure that election name is not "list" as it will collide with endpoint
     if body.name == "list":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -216,25 +214,28 @@ async def create_election(
 
     if body.available_positions is None:
         if body.type == ElectionTypeEnum.GENERAL:
-            available_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
+            available_positions = GENERAL_ELECTION_POSITIONS
         elif body.type == ElectionTypeEnum.BY_ELECTION:
-            available_positions = elections.tables.DEFAULT_POSITIONS_BY_ELECTION
+            available_positions = GENERAL_ELECTION_POSITIONS
         elif body.type == ElectionTypeEnum.COUNCIL_REP:
-            available_positions = elections.tables.DEFAULT_POSITIONS_COUNCIL_REP_ELECTION
+            available_positions = COUNCIL_REP_ELECTION_POSITIONS
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"invalid election type {body.type} for available positions"
             )
+    else:
+        available_positions = body.available_positions
+
     slugified_name = _slugify(body.name)
     current_time = datetime.now()
     _raise_if_bad_election_data(
-        body.name,
+        slugified_name,
         body.type,
         datetime.fromisoformat(body.datetime_start_voting),
         datetime.fromisoformat(body.datetime_start_voting),
         datetime.fromisoformat(body.datetime_end_voting),
-        body.available_positions,
+        available_positions,
     )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
@@ -255,13 +256,14 @@ async def create_election(
         db_session,
         Election(
             slug = slugified_name,
-            name = election_name,
-            type = election_type,
-            datetime_start_nominations = datetime_start_nominations,
-            datetime_start_voting = datetime_start_voting,
-            datetime_end_voting = datetime_end_voting,
-            available_positions = available_positions,
-            survey_link = survey_link
+            name = body.name,
+            type = body.type,
+            datetime_start_nominations = body.datetime_start_nominations,
+            datetime_start_voting = body.datetime_start_voting,
+            datetime_end_voting = body.datetime_end_voting,
+            # TODO: Make this automatically concatenate the string and set it to lowercase if supplied with a list[str]
+            available_positions = ",".join(available_positions),
+            survey_link = body.survey_link
         )
     )
     await db_session.commit()

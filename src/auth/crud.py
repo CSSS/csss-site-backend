@@ -5,7 +5,6 @@ import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.tables import SiteUser, UserSession
-from auth.types import SiteUserData
 
 _logger = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
         ))
 
 
-async def remove_user_session(db_session: AsyncSession, session_id: str) -> dict:
+async def remove_user_session(db_session: AsyncSession, session_id: str):
     query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
     user_session = await db_session.scalars(query)
     await db_session.delete(user_session.first())
@@ -74,7 +73,7 @@ async def task_clean_expired_user_sessions(db_session: AsyncSession):
 
 
 # get the site user given a session ID; returns None when session is invalid
-async def get_site_user(db_session: AsyncSession, session_id: str) -> None | SiteUserData:
+async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUser | None:
     query = (
         sqlalchemy
         .select(UserSession)
@@ -89,17 +88,7 @@ async def get_site_user(db_session: AsyncSession, session_id: str) -> None | Sit
         .select(SiteUser)
         .where(SiteUser.computing_id == user_session.computing_id)
     )
-    user = await db_session.scalar(query)
-    if user is None:
-        return None
-
-    return SiteUserData(
-        user_session.computing_id,
-        user.first_logged_in.isoformat(),
-        user.last_logged_in.isoformat(),
-        user.profile_picture_url
-    )
-
+    return await db_session.scalar(query)
 
 async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:
     user = await db_session.scalar(

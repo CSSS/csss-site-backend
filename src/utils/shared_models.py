@@ -6,3 +6,6 @@ class SuccessFailModel(BaseModel):
 
 class DetailModel(BaseModel):
     detail: str
+
+class MessageModel(BaseModel):
+    message: str

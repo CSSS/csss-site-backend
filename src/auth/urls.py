@@ -6,13 +6,13 @@ import urllib.parse
 import requests  # TODO: make this async
 import xmltodict
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
-from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 import database
 from auth import crud
-from auth.models import LoginBodyModel
+from auth.models import LoginBodyParams, SiteUserModel, UpdateUserParams
 from constants import DOMAIN, IS_PROD, SAMESITE
-from utils.shared_models import DetailModel
+from utils.shared_models import DetailModel, MessageModel
 
 _logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ async def login_user(
     request: Request,
     db_session: database.DBSession,
     background_tasks: BackgroundTasks,
-    body: LoginBodyModel
+    body: LoginBodyParams
 ):
     # verify the ticket is valid
     service_url = body.service
@@ -94,8 +94,9 @@ async def login_user(
 
 @router.get(
     "/logout",
-    operation_id="logout",
     description="Logs out the current user by invalidating the session_id cookie",
+    operation_id="logout",
+    response_model=MessageModel
 )
 async def logout_user(
     request: Request,
@@ -119,6 +120,10 @@ async def logout_user(
     "/user",
     operation_id="get_user",
     description="Get info about the current user. Only accessible by that user",
+    response_model=SiteUserModel,
+    responses={
+        401: { "description": "Not logged in.", "model": DetailModel }
+    },
 )
 async def get_user(
     request: Request,
@@ -129,35 +134,38 @@ async def get_user(
     """
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
-        raise HTTPException(status_code=401, detail="User must be authenticated to get their info")
+        raise HTTPException(status_code=401, detail="user must be authenticated to get their info")
 
     user_info = await crud.get_site_user(db_session, session_id)
     if user_info is None:
-        raise HTTPException(status_code=401, detail="Could not find user with session_id, please log in")
+        raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")
 
-    return JSONResponse(user_info.serializable_dict())
+    return JSONResponse(user_info.serialize())
 
 
+# TODO: We should change this so that the admins can change people's pictures too, so they can remove offensive stuff
 @router.patch(
     "/user",
     operation_id="update_user",
     description="Update information for the currently logged in user. Only accessible by that user",
+    response_model=str,
+    responses={
+        401: { "description": "Not logged in.", "model": DetailModel }
+    },
 )
 async def update_user(
-    profile_picture_url: str,
+    body: UpdateUserParams,
     request: Request,
     db_session: database.DBSession,
 ):
     """
     Returns the info stored in the site_user table in the auth module, if the user is logged in.
     """
-    session_id = request.cookies.get("session_id", None)
+    session_id = request.cookies.get("session_id")
     if session_id is None:
-        raise HTTPException(status_code=401, detail="User must be authenticated to get their info")
+        raise HTTPException(status_code=401, detail="user must be authenticated to get their info")
 
-    ok = await crud.update_site_user(db_session, session_id, profile_picture_url)
+    ok = await crud.update_site_user(db_session, session_id, body.profile_picture_url)
     await db_session.commit()
     if not ok:
-        raise HTTPException(status_code=401, detail="Could not find user with session_id, please log in")
-
-    return PlainTextResponse("ok")
+        raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")

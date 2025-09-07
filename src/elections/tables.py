@@ -1,13 +1,13 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    Column,
     DateTime,
     ForeignKey,
     PrimaryKeyConstraint,
     String,
     Text,
 )
+from sqlalchemy.orm import Mapped, mapped_column
 
 from constants import (
     COMPUTING_ID_LEN,
@@ -23,16 +23,16 @@ class Election(Base):
     __tablename__ = "election"
 
     # Slugs are unique identifiers
-    slug = Column(String(MAX_ELECTION_SLUG), primary_key=True)
-    name = Column(String(MAX_ELECTION_NAME), nullable=False)
-    type = Column(String(64), default="general_election")
-    datetime_start_nominations = Column(DateTime, nullable=False)
-    datetime_start_voting = Column(DateTime, nullable=False)
-    datetime_end_voting = Column(DateTime, nullable=False)
+    slug: Mapped[str] = mapped_column(String(MAX_ELECTION_SLUG), primary_key=True)
+    name: Mapped[str] = mapped_column(String(MAX_ELECTION_NAME), nullable=False)
+    type: Mapped[str] = mapped_column(String(64), default="general_election")
+    datetime_start_nominations: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    datetime_start_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    datetime_end_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     # a csv list of positions which must be elements of OfficerPosition
-    available_positions = Column(Text, nullable=False)
-    survey_link = Column(String(300))
+    available_positions: Mapped[str] = mapped_column(Text, nullable=False)
+    survey_link: Mapped[str] = mapped_column(String(300))
 
     def private_details(self, at_time: datetime) -> dict:
         # is serializable
@@ -106,12 +106,12 @@ class Election(Base):
 class NomineeInfo(Base):
     __tablename__ = "election_nominee_info"
 
-    computing_id = Column(String(COMPUTING_ID_LEN), primary_key=True)
-    full_name = Column(String(64), nullable=False)
-    linked_in = Column(String(128))
-    instagram = Column(String(128))
-    email = Column(String(64))
-    discord_username = Column(String(DISCORD_NICKNAME_LEN))
+    computing_id: Mapped[str] = mapped_column(String(COMPUTING_ID_LEN), primary_key=True)
+    full_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    linked_in: Mapped[str] = mapped_column(String(128))
+    instagram: Mapped[str] = mapped_column(String(128))
+    email: Mapped[str] = mapped_column(String(64))
+    discord_username: Mapped[str] = mapped_column(String(DISCORD_NICKNAME_LEN))
 
     def to_update_dict(self) -> dict:
         return {
@@ -124,7 +124,7 @@ class NomineeInfo(Base):
             "discord_username": self.discord_username,
         }
 
-    def as_serializable(self) -> dict:
+    def serialize(self) -> dict:
         # NOTE: this function is currently the same as to_update_dict since the contents
         # have a different invariant they're upholding, which may cause them to change if a
         # new property is introduced. For example, dates must be converted into strings
@@ -142,18 +142,17 @@ class NomineeInfo(Base):
 class NomineeApplication(Base):
     __tablename__ = "election_nominee_application"
 
-    # TODO: add index for nominee_election?
-    computing_id = Column(ForeignKey("election_nominee_info.computing_id"), primary_key=True)
-    nominee_election = Column(ForeignKey("election.slug"), primary_key=True)
-    position = Column(String(64), primary_key=True)
+    computing_id: Mapped[str] = mapped_column(ForeignKey("election_nominee_info.computing_id"), primary_key=True)
+    nominee_election: Mapped[str] = mapped_column(ForeignKey("election.slug"), primary_key=True)
+    position: Mapped[str] = mapped_column(String(64), primary_key=True)
 
-    speech = Column(Text)
+    speech: Mapped[str] = mapped_column(Text)
 
     __table_args__ = (
         PrimaryKeyConstraint(computing_id, nominee_election, position),
     )
 
-    def serializable_dict(self) -> dict:
+    def serialize(self) -> dict:
         return {
             "computing_id": self.computing_id,
             "nominee_election": self.nominee_election,

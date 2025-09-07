@@ -8,7 +8,14 @@ import database
 import elections
 import elections.crud
 import elections.tables
-from elections.models import ElectionModel, ElectionTypeEnum, NomineeApplicationModel, NomineeInfoModel
+from elections.models import (
+    ElectionParams,
+    ElectionResponse,
+    ElectionTypeEnum,
+    NomineeApplicationModel,
+    NomineeInfoModel,
+    UpdateElectionParams,
+)
 from elections.tables import Election, NomineeApplication, NomineeInfo, election_types
 from officers.constants import OfficerPosition
 from officers.crud import get_active_officer_terms
@@ -45,7 +52,7 @@ async def _validate_user(
 @router.get(
     "/list",
     description="Returns a list of all elections & their status",
-    response_model=list[ElectionModel],
+    response_model=list[ElectionResponse],
     responses={
         404: { "description": "No elections found" }
     },
@@ -84,19 +91,23 @@ async def list_elections(
     Returns private details when the time is allowed.
     If user is an admin or elections officer, returns computing ids for each candidate as well.
     """,
-    response_model=ElectionModel
+    response_model=ElectionResponse,
+    responses={
+        404: { "description": "Election of that name doesn't exist", "model": DetailModel }
+    },
+    operation_id="get_election_by_name"
 )
 async def get_election(
     request: Request,
     db_session: database.DBSession,
-    election_name: str,
+    election_name: str
 ):
     current_time = datetime.now()
     slugified_name = _slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_BAD_REQUEST,
             detail=f"election with slug {slugified_name} does not exist"
         )
 
@@ -153,7 +164,7 @@ def _raise_if_bad_election_data(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
-    available_positions: str | None,
+    available_positions: list[str]
 ):
     if election_type not in election_types:
         raise HTTPException(
@@ -169,7 +180,7 @@ def _raise_if_bad_election_data(
             detail="dates must be in order from earliest to latest",
         )
     elif available_positions is not None:
-        for position in available_positions.split(","):
+        for position in available_positions:
             if position not in OfficerPosition.position_list():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -182,50 +193,48 @@ def _raise_if_bad_election_data(
         )
 
 @router.post(
-    "/{election_name:str}",
+    "",
     description="Creates an election and places it in the database. Returns election json on success",
-    response_model=ElectionModel
+    response_model=ElectionResponse,
+    responses={
+        400: { "description": "Invalid request.", "model": DetailModel },
+        500: { "model": DetailModel },
+    },
+    operation_id="create_election"
 )
 async def create_election(
     request: Request,
+    body: ElectionParams,
     db_session: database.DBSession,
-    election_name: str,
-    election_type: str,
-    datetime_start_nominations: datetime,
-    datetime_start_voting: datetime,
-    datetime_end_voting: datetime,
-    # allows None, which assigns it to the default
-    available_positions: str | None = None,
-    survey_link: str | None = None,
 ):
     # ensure that election name is not "list" as it will collide with endpoint
-    if election_name == "list":
+    if body.name == "list":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="cannot use that election name",
         )
 
-    if available_positions is None:
-        if election_type == "general_election":
+    if body.available_positions is None:
+        if body.type == ElectionTypeEnum.GENERAL:
             available_positions = elections.tables.DEFAULT_POSITIONS_GENERAL_ELECTION
-        elif election_type == "by_election":
+        elif body.type == ElectionTypeEnum.BY_ELECTION:
             available_positions = elections.tables.DEFAULT_POSITIONS_BY_ELECTION
-        elif election_type == "council_rep_election":
+        elif body.type == ElectionTypeEnum.COUNCIL_REP:
             available_positions = elections.tables.DEFAULT_POSITIONS_COUNCIL_REP_ELECTION
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"invalid election type {election_type} for available positions"
+                detail=f"invalid election type {body.type} for available positions"
             )
-    slugified_name = _slugify(election_name)
+    slugified_name = _slugify(body.name)
     current_time = datetime.now()
     _raise_if_bad_election_data(
-        election_name,
-        election_type,
-        datetime_start_nominations,
-        datetime_start_voting,
-        datetime_end_voting,
-        available_positions,
+        body.name,
+        body.type,
+        datetime.fromisoformat(body.datetime_start_voting),
+        datetime.fromisoformat(body.datetime_start_voting),
+        datetime.fromisoformat(body.datetime_end_voting),
+        body.available_positions,
     )
 
     is_valid_user, _, _ = await _validate_user(request, db_session)
@@ -233,7 +242,6 @@ async def create_election(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="must have election officer or admin permission",
-            # TODO: is this header actually required?
             headers={"WWW-Authenticate": "Basic"},
         )
     elif await elections.crud.get_election(db_session, slugified_name) is not None:
@@ -259,6 +267,11 @@ async def create_election(
     await db_session.commit()
 
     election = await elections.crud.get_election(db_session, slugified_name)
+    if election is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="couldn't fetch newly created election"
+        )
     return JSONResponse(election.private_details(current_time))
 
 @router.patch(
@@ -271,7 +284,7 @@ async def create_election(
 
         Returns election json on success.
     """,
-    response_model=ElectionModel
+    response_model=ElectionResponse
 )
 async def update_election(
     request: Request,

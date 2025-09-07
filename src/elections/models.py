@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ElectionTypeEnum(StrEnum):
@@ -8,7 +8,16 @@ class ElectionTypeEnum(StrEnum):
     BY_ELECTION = "by_election"
     COUNCIL_REP = "council_rep_election"
 
-class ElectionModel(BaseModel):
+class CandidateModel(BaseModel):
+    position: str
+    full_name: str
+    linked_in: str
+    instagram: str
+    email: str
+    discord_username: str
+    speech: str
+
+class ElectionResponse(BaseModel):
     slug: str
     name: str
     type: ElectionTypeEnum
@@ -17,6 +26,20 @@ class ElectionModel(BaseModel):
     datetime_end_voting: str
     available_positions: str
     survey_link: str | None = None
+
+    candidates: list[CandidateModel] | None = Field(None, description="Only avaiable to admins")
+
+class ElectionParams:
+    slug: str
+    name: str
+    type: ElectionTypeEnum
+    datetime_start_nominations: str
+    datetime_start_voting: str
+    datetime_end_voting: str
+    available_positions: list[str] | None = None
+    survey_link: str | None = None
+
+    candidates: list[CandidateModel] | None = Field(None, description="Only avaiable to admins")
 
 class NomineeInfoModel(BaseModel):
     computing_id: str

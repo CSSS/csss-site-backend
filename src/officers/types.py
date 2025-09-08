@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import date
+from enum import StrEnum
 
 from fastapi import HTTPException
 

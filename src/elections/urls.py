@@ -11,7 +11,9 @@ import elections.crud
 import elections.tables
 from elections.models import (
     ElectionParams,
+    ElectionRegisterParams,
     ElectionResponse,
+    ElectionStatusEnum,
     ElectionTypeEnum,
     NomineeApplicationModel,
     NomineeInfoModel,
@@ -19,9 +21,10 @@ from elections.models import (
 from elections.tables import Election, NomineeApplication, NomineeInfo
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPosition
 from officers.crud import get_active_officer_terms
+from officers.types import OfficerPositionEnum
 from permission.types import ElectionOfficer, WebsiteAdmin
-from utils.shared_models import DetailModel, SuccessFailModel
-from utils.urls import get_current_user, is_logged_in
+from utils.shared_models import DetailModel, SuccessResponse
+from utils.urls import get_current_user, logged_in_or_raise
 
 router = APIRouter(
     prefix="/elections",
@@ -32,12 +35,12 @@ def _slugify(text: str) -> str:
     """Creates a unique slug based on text passed in. Assumes non-unicode text."""
     return re.sub(r"[\W_]+", "-", text.strip().replace("/", "").replace("&", ""))
 
-async def _validate_user(
+async def _get_user_permissions(
     request: Request,
     db_session: database.DBSession,
 ) -> tuple[bool, str | None, str | None]:
-    logged_in, session_id, computing_id = await is_logged_in(request, db_session)
-    if not logged_in or not computing_id:
+    session_id, computing_id = await get_current_user(request, db_session)
+    if not session_id or not computing_id:
         return False, None, None
 
     # where valid means elections officer or website admin
@@ -105,7 +108,7 @@ async def list_elections(
     request: Request,
     db_session: database.DBSession,
 ):
-    is_admin, _, _ = await _validate_user(request, db_session)
+    is_admin, _, _ = await _get_user_permissions(request, db_session)
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
@@ -154,7 +157,7 @@ async def get_election(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    is_valid_user, _, _ = await _validate_user(request, db_session)
+    is_valid_user, _, _ = await _get_user_permissions(request, db_session)
     if current_time >= election.datetime_start_voting or is_valid_user:
 
         election_json = election.private_details(current_time)
@@ -201,40 +204,6 @@ async def get_election(
 
     return JSONResponse(election_json)
 
-def _raise_if_bad_election_data(
-    slug: str,
-    election_type: str,
-    datetime_start_nominations: datetime,
-    datetime_start_voting: datetime,
-    datetime_end_voting: datetime,
-    available_positions: list[str]
-):
-    if election_type not in ElectionTypeEnum:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"unknown election type {election_type}",
-        )
-
-    if datetime_start_nominations > datetime_start_voting or datetime_start_voting > datetime_end_voting:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="dates must be in order from earliest to latest",
-        )
-
-    # TODO: Change the officer positions to enums
-    for position in available_positions:
-        if position not in OfficerPosition.position_list():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"unknown position found in position list {position}",
-            )
-
-    if len(slug) > elections.tables.MAX_ELECTION_SLUG:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"election slug '{slug}' is too long",
-        )
-
 @router.post(
     "",
     description="Creates an election and places it in the database. Returns election json on success",
@@ -279,12 +248,11 @@ async def create_election(
         available_positions,
     )
 
-    is_valid_user, _, _ = await _validate_user(request, db_session)
+    is_valid_user, _, _ = await _get_user_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must have election officer or admin permission",
-            headers={"WWW-Authenticate": "Basic"},
+            detail="must have election officer or admin permission"
         )
     elif await elections.crud.get_election(db_session, slugified_name) is not None:
         # don't overwrite a previous election
@@ -341,7 +309,7 @@ async def update_election(
     db_session: database.DBSession,
     election_name: str,
 ):
-    is_valid_user, _, _ = await _validate_user(request, db_session)
+    is_valid_user, _, _ = await _get_user_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -461,67 +429,81 @@ async def get_election_registrations(
     ])
 
 @router.post(
-    "/registration/{election_name:str}",
+    "/register",
     description="register for a specific position in this election, but doesn't set a speech",
+    responses={
+        400: { "description": "Bad request", "model": DetailModel },
+        401: { "description": "Not logged in", "model": DetailModel },
+        403: { "description": "Not an admin", "model": DetailModel },
+        404: { "description": "No election found", "model": DetailModel },
+    },
+    operation_id="register"
 )
 async def register_in_election(
     request: Request,
     db_session: database.DBSession,
-    election_name: str,
-    position: str
+    body: ElectionRegisterParams,
 ):
-    logged_in, _, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
+    is_admin, session_id, admin_id = await _get_user_permissions(request, db_session)
+    if not session_id or not admin_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in to register in election"
+            detail="must be logged in"
         )
-    if position not in OfficerPosition.position_list():
+
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="must be an admin"
+        )
+
+    if body.position not in OfficerPositionEnum:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"invalid position {position}"
-    )
+            detail=f"invalid position {body.position}"
+        )
 
-    if await elections.crud.get_nominee_info(db_session, computing_id) is None:
+    if await elections.crud.get_nominee_info(db_session, body.computing_id) is None:
         # ensure that the user has a nominee info entry before allowing registration to occur.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="must have submitted nominee info before registering"
         )
 
-    current_time = datetime.now()
-    slugified_name = _slugify(election_name)
+    slugified_name = _slugify(body.election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"election with slug {slugified_name} does not exist"
         )
-    elif position not in election.available_positions.split(","):
+
+    if body.position not in election.available_positions.split(","):
         # NOTE: We only restrict creating a registration for a position that doesn't exist,
         # not updating or deleting one
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{position} is not available to register for in this election"
+            detail=f"{body.position} is not available to register for in this election"
         )
-    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
+
+    if election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registrations can only be made during the nomination period"
         )
-    elif await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
+
+    if await elections.crud.get_all_registrations_of_user(db_session, body.computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="you are already registered in this election"
+            detail="person is already registered in this election"
         )
 
     # TODO: associate specific elections officers with specific elections, then don't
     # allow any elections officer running an election to register for it
-
     await elections.crud.add_registration(db_session, NomineeApplication(
-        computing_id=computing_id,
+        computing_id=body.computing_id,
         nominee_election=slugified_name,
-        position=position,
+        position=body.position,
         speech=None
     ))
     await db_session.commit()
@@ -660,7 +642,7 @@ async def get_nominee_info(
             detail="You don't have any nominee info yet"
         )
 
-    return JSONResponse(nominee_info.as_serializable())
+    return JSONResponse(nominee_info.serialize())
 
 @router.put(
     "/nominee/info",
@@ -727,4 +709,4 @@ async def provide_nominee_info(
     await db_session.commit()
 
     nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
-    return JSONResponse(nominee_info.as_serializable())
+    return JSONResponse(nominee_info.serialize())

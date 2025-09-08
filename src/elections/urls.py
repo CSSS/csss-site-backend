@@ -623,29 +623,29 @@ async def delete_registration(
 # nominee info ------------------------------------------------------------- #
 
 @router.get(
-    "/nominee/info",
+    "/nominee/{computing_id:str}",
     description="Nominee info is always publically tied to elections, so be careful!",
-    response_model=NomineeInfoModel
+    response_model=NomineeInfoModel,
+    responses={
+        404: { "description": "nominee doesn't exist" }
+    },
+    operation_id="get_nominee"
 )
 async def get_nominee_info(
     request: Request,
     db_session: database.DBSession,
+    computing_id: str
 ):
-    logged_in, _, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in to get your nominee info"
-        )
-
+    # Putting this one behind the admin wall since it has contact information
+    await admin_or_raise(request, db_session)
     nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
     if nominee_info is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You don't have any nominee info yet"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="nominee doesn't exist"
         )
 
-    return JSONResponse(nominee_info.serialize())
+    return JSONResponse(nominee_info)
 
 @router.patch(
     "/nominee/info",

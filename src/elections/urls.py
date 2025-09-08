@@ -18,7 +18,7 @@ from elections.models import (
     NomineeApplicationParams,
     NomineeApplicationUpdateParams,
     NomineeInfoModel,
-    NomineeUpdateParams,
+    NomineeInfoUpdateParams,
 )
 from elections.tables import Election, NomineeApplication, NomineeInfo
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS
@@ -97,7 +97,7 @@ def _raise_if_bad_election_data(
 # elections ------------------------------------------------------------- #
 
 @router.get(
-    "/list",
+    "",
     description="Returns a list of all elections & their status",
     response_model=list[ElectionResponse],
     responses={
@@ -220,12 +220,6 @@ async def create_election(
     body: ElectionParams,
     db_session: database.DBSession,
 ):
-    if body.name == "list":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="cannot use that election name",
-        )
-
     if body.available_positions is None:
         if body.type not in ElectionTypeEnum:
             raise HTTPException(
@@ -238,14 +232,17 @@ async def create_election(
 
     slugified_name = _slugify(body.name)
     current_time = datetime.now()
+    start_nominations = datetime.fromisoformat(body.datetime_start_nominations)
+    start_voting = datetime.fromisoformat(body.datetime_start_voting)
+    end_voting = datetime.fromisoformat(body.datetime_end_voting)
 
     # TODO: We might be able to just use a validation function from Pydantic or SQLAlchemy to check this
     _raise_if_bad_election_data(
         slugified_name,
         body.type,
-        datetime.fromisoformat(body.datetime_start_voting),
-        datetime.fromisoformat(body.datetime_start_voting),
-        datetime.fromisoformat(body.datetime_end_voting),
+        start_nominations,
+        start_voting,
+        end_voting,
         ",".join(available_positions),
     )
 
@@ -268,11 +265,10 @@ async def create_election(
             slug = slugified_name,
             name = body.name,
             type = body.type,
-            datetime_start_nominations = body.datetime_start_nominations,
-            datetime_start_voting = body.datetime_start_voting,
-            datetime_end_voting = body.datetime_end_voting,
-            # TODO: Make this automatically concatenate the string and set it to lowercase if supplied with a list[str]
-            available_positions = ",".join(available_positions),
+            datetime_start_nominations = start_nominations,
+            datetime_start_voting = start_voting,
+            datetime_end_voting = end_voting,
+            available_positions = available_positions,
             survey_link = body.survey_link
         )
     )
@@ -413,7 +409,7 @@ async def get_election_registrations(
     ])
 
 @router.post(
-    "/register",
+    "/registration/{election_name:str}",
     description="Register for a specific position in this election, but doesn't set a speech. Returns the created entry.",
     response_model=NomineeApplicationModel,
     responses={
@@ -428,6 +424,7 @@ async def register_in_election(
     request: Request,
     db_session: database.DBSession,
     body: NomineeApplicationParams,
+    election_name: str
 ):
     await admin_or_raise(request, db_session)
 
@@ -444,7 +441,7 @@ async def register_in_election(
             detail="must have submitted nominee info before registering"
         )
 
-    slugified_name = _slugify(body.election_name)
+    slugified_name = _slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
@@ -545,16 +542,11 @@ async def update_registration(
 
     registration.update_from_params(body)
 
-    await elections.crud.update_registration(db_session, NomineeApplication(
-        computing_id=computing_id,
-        nominee_election=slugified_name,
-        position=body.position,
-        speech=body.speech
-    ))
+    await elections.crud.update_registration(db_session, registration)
     await db_session.commit()
 
     registrant = await elections.crud.get_one_registration_in_election(
-        db_session, registration.computing_id, slugified_name, body.position
+        db_session, registration.computing_id, slugified_name, registration.position
     )
     if not registrant:
         raise HTTPException(
@@ -654,7 +646,7 @@ async def get_nominee_info(
 async def provide_nominee_info(
     request: Request,
     db_session: database.DBSession,
-    body: NomineeUpdateParams,
+    body: NomineeInfoUpdateParams,
     computing_id: str
 ):
     # TODO: There needs to be a lot more validation here.

@@ -39,9 +39,8 @@ class ElectionResponse(BaseModel):
     candidates: list[CandidateModel] | None = Field(None, description="Only available to admins")
 
 class ElectionParams(BaseModel):
-    slug: str
     name: str
-    type: ElectionTypeEnum | None = None
+    type: ElectionTypeEnum
     datetime_start_nominations: str
     datetime_start_voting: str
     datetime_end_voting: str
@@ -57,7 +56,6 @@ class ElectionUpdateParams(BaseModel):
     survey_link: str | None = None
 
 class NomineeApplicationParams(BaseModel):
-    election_name: str
     computing_id: str
     position: OfficerPositionEnum
 
@@ -69,7 +67,7 @@ class NomineeApplicationModel(BaseModel):
     computing_id: str
     nominee_election: str
     position: str
-    speech: str
+    speech: str | None = None
 
 class NomineeInfoModel(BaseModel):
     computing_id: str
@@ -79,7 +77,7 @@ class NomineeInfoModel(BaseModel):
     email: str
     discord_username: str
 
-class NomineeUpdateParams(BaseModel):
+class NomineeInfoUpdateParams(BaseModel):
     full_name: str | None = None
     linked_in: str | None = None
     instagram: str | None = None

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     DateTime,
@@ -21,7 +21,6 @@ from elections.models import (
     ElectionStatusEnum,
     ElectionUpdateParams,
     NomineeApplicationUpdateParams,
-    NomineeUpdateParams,
 )
 from officers.types import OfficerPositionEnum
 
@@ -52,7 +51,6 @@ class Election(Base):
         if isinstance(value, list):
             value = ",".join(value)
         self._available_positions = value
-
 
     def private_details(self, at_time: datetime) -> dict:
         # is serializable
@@ -105,18 +103,27 @@ class Election(Base):
             "name": self.name,
             "type": self.type,
 
-            "datetime_start_nominations": self.datetime_start_nominations,
-            "datetime_start_voting": self.datetime_start_voting,
-            "datetime_end_voting": self.datetime_end_voting,
+            "datetime_start_nominations": self.datetime_start_nominations.date(),
+            "datetime_start_voting": self.datetime_start_voting.date(),
+            "datetime_end_voting": self.datetime_end_voting.date(),
 
             "available_positions": self._available_positions,
             "survey_link": self.survey_link,
         }
 
     def update_from_params(self, params: ElectionUpdateParams):
-        update_data = params.model_dump(exclude_unset=True)
+        update_data = params.model_dump(
+            exclude_unset=True,
+            exclude={"datetime_start_nominations", "datetime_start_voting", "datetime_end_voting"}
+        )
         for k, v in update_data.items():
             setattr(self, k, v)
+        if params.datetime_start_nominations:
+            self.datetime_start_nominations = datetime.fromisoformat(params.datetime_start_nominations)
+        if params.datetime_start_voting:
+            self.datetime_start_voting = datetime.fromisoformat(params.datetime_start_voting)
+        if params.datetime_end_voting:
+            self.datetime_end_voting = datetime.fromisoformat(params.datetime_end_voting)
 
     def status(self, at_time: datetime) -> str:
         if at_time <= self.datetime_start_nominations:

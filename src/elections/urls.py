@@ -16,6 +16,7 @@ from elections.models import (
     NomineeApplicationModel,
     NomineeInfoModel,
     RegistrationParams,
+    RegistrationUpdateParams,
 )
 from elections.tables import Election, NomineeApplication, NomineeInfo
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPosition
@@ -519,41 +520,38 @@ async def register_in_election(
     return registrant
 
 @router.patch(
-    "/registration/{election_name:str}/{ccid_of_registrant}",
+    "/registration/{election_name:str}/{computing_id:str}",
     description="update the application of a specific registrant"
 )
 async def update_registration(
     request: Request,
     db_session: database.DBSession,
+    body: RegistrationUpdateParams,
     election_name: str,
-    ccid_of_registrant: str,
-    position: str,
-    speech: str | None,
+    computing_id: str,
+    # position: str,
+    # speech: str | None,
 ):
-    # check if logged in
-    logged_in, _, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
+    is_admin, _, _ = await _get_user_permissions(request, db_session)
+    is_admin, session_id, admin_id = await _get_user_permissions(request, db_session)
+    if not session_id or not admin_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in to update election registration"
-    )
-    # Leave this for now, can remove self_updates if no longer needed.
-    is_self_update = (computing_id == ccid_of_registrant)
-    is_officer = await get_active_officer_terms(db_session, computing_id)
-    # check if the computing_id is of a valid officer or the right applicant
-    if not is_officer and not is_self_update: # returns [] if user is currently not an officer
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="only valid **current** officers or the applicant can update registrations"
-    )
+            detail="must be logged in"
+        )
 
-    if position not in OfficerPosition.position_list():
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="must be an admin"
+        )
+
+    if body.position not in OfficerPositionEnum:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"invalid position {position}"
+            detail=f"invalid position {body.position}"
     )
 
-    current_time = datetime.now()
     slugified_name = _slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
@@ -563,23 +561,23 @@ async def update_registration(
         )
 
     # self updates can only be done during nomination period. Officer updates can be done whenever
-    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS and is_self_update:
+    elif election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="speeches can only be updated during the nomination period"
         )
 
-    elif not await elections.crud.get_all_registrations_of_user(db_session, ccid_of_registrant, slugified_name):
+    elif not await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="applicant not yet registered in this election"
         )
 
     await elections.crud.update_registration(db_session, NomineeApplication(
-        computing_id=ccid_of_registrant,
+        computing_id=computing_id,
         nominee_election=slugified_name,
-        position=position,
-        speech=speech
+        position=body.position,
+        speech=body.speech
     ))
     await db_session.commit()
 
@@ -654,7 +652,7 @@ async def get_nominee_info(
 
     return JSONResponse(nominee_info.serialize())
 
-@router.put(
+@router.patch(
     "/nominee/info",
     description="Will create or update nominee info. Returns an updated copy of their nominee info.",
     response_model=NomineeInfoModel

@@ -61,7 +61,8 @@ class RegistrationParams(BaseModel):
     computing_id: str
     position: OfficerPositionEnum
 
-class RegistrationUpdateParams(BaseModel):
+class RegistrationUpdateParams(RegistrationParams):
+    speech: str | None = None
 
 class NomineeApplicationModel(BaseModel):
     computing_id: str

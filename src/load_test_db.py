@@ -303,7 +303,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=400),
         datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
         datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
-        available_positions="president,vice-president",
+        available_positions=["president", "vice-president"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await update_election(db_session, Election(

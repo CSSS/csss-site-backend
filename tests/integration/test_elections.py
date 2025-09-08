@@ -1,32 +1,24 @@
 import asyncio
 import json
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-import load_test_db
-from auth.crud import create_user_session, get_computing_id, update_site_user
-from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
-from main import app
+from src import load_test_db
+from src.auth.crud import create_user_session, get_computing_id, update_site_user
+from src.database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from src.elections.crud import (
-    add_registration,
-    create_election,
-    create_nominee_info,
-    delete_election,
-    delete_registration,
     # election crud
     get_all_elections,
     get_all_registrations_in_election,
     # election registration crud
-    get_all_registrations_of_user,
     get_election,
     # info crud
     get_nominee_info,
-    update_election,
-    update_nominee_info,
-    update_registration,
 )
+from src.elections.urls import _slugify
+from src.main import app
 
 
 @pytest.fixture(scope="session")
@@ -95,8 +87,6 @@ async def test_read_elections(database_setup):
 # API endpoint testing (without AUTH)--------------------------------------
 @pytest.mark.anyio
 async def test_endpoints(client, database_setup):
-
-
     response = await client.get("/elections/list")
     assert response.status_code == 200
     assert response.json() != {}
@@ -115,31 +105,30 @@ async def test_endpoints(client, database_setup):
     response = await client.get(f"/elections/registration/{election_name}")
     assert response.status_code == 401
 
-    response = await client.get("/elections/nominee/info")
+    response = await client.get("/elections/nominee/pkn4")
     assert response.status_code == 401
 
-
-
-    response = await client.post(f"/elections/{election_name}", params={
-        "election_type": "general_election",
+    response = await client.post("/elections", json={
+        "slug": _slugify(election_name),
+        "name": election_name,
+        "type": "general_election",
         "datetime_start_nominations": "2025-08-18T09:00:00Z",
         "datetime_start_voting": "2025-09-03T09:00:00Z",
         "datetime_end_voting": "2025-09-18T23:59:59Z",
-        "available_positions": "president",
+        "available_positions": ["president"],
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
-
     })
     assert response.status_code == 401 # unauthorized access to create an election
 
-    response = await client.post(f"/elections/registration/{election_name}", params={
+    response = await client.post("/elections/register", json={
+        "computing_id": "1234567",
+        "election_name": "test-election-1",
         "position": "president",
-
     })
     assert response.status_code == 401 # unauthorized access to register candidates
 
     response = await client.patch(f"/elections/{election_name}",  params={
-        "name": "test election 4",
-        "election_type": "general_election",
+        "type": "general_election",
         "datetime_start_nominations": "2025-08-18T09:00:00Z",
         "datetime_start_voting": "2025-09-03T09:00:00Z",
         "datetime_end_voting": "2025-09-18T23:59:59Z",
@@ -272,15 +261,13 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 400
     assert "registered" in response.json()["detail"]
 
-
-
     # update the above election
     response = await client.patch("/elections/testElection4", params={
         "election_type": "general_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
         "datetime_end_voting": (datetime.now() + timedelta(days=14)).isoformat(),
-        "available_positions": "president,vice-president,treasurer",  # update this
+        "available_positions": ["president", "vice-president", "treasurer"],  # update this
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
     assert response.status_code == 200

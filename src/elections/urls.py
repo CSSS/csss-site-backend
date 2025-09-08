@@ -13,6 +13,7 @@ from elections.models import (
     ElectionResponse,
     ElectionStatusEnum,
     ElectionTypeEnum,
+    ElectionUpdateParams,
     NomineeInfoModel,
     NomineeUpdateParams,
     RegistrantModel,
@@ -20,7 +21,7 @@ from elections.models import (
     RegistrationUpdateParams,
 )
 from elections.tables import Election, NomineeApplication, NomineeInfo
-from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPosition
+from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS
 from officers.types import OfficerPositionEnum
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessResponse
@@ -66,7 +67,7 @@ def _raise_if_bad_election_data(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
-    available_positions: list[str]
+    available_positions: str
 ):
     if election_type not in ElectionTypeEnum:
         raise HTTPException(
@@ -80,7 +81,7 @@ def _raise_if_bad_election_data(
             detail="dates must be in order from earliest to latest",
         )
 
-    for position in available_positions:
+    for position in available_positions.split(","):
         if position not in OfficerPositionEnum:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -153,7 +154,7 @@ async def get_election(
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
-            status_code=status.HTTP_404_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"election with slug {slugified_name} does not exist"
         )
 
@@ -169,7 +170,7 @@ async def get_election(
             )
         election_json["candidates"] = []
 
-        available_positions_list = election.available_positions.split(",")
+        available_positions_list = election._available_positions.split(",")
         for nomination in all_nominations:
             if nomination.position not in available_positions_list:
                 # ignore any positions that are **no longer** active
@@ -245,7 +246,7 @@ async def create_election(
         datetime.fromisoformat(body.datetime_start_voting),
         datetime.fromisoformat(body.datetime_start_voting),
         datetime.fromisoformat(body.datetime_end_voting),
-        available_positions,
+        ",".join(available_positions),
     )
 
     is_valid_user, _, _ = await _get_user_permissions(request, db_session)
@@ -305,7 +306,7 @@ async def create_election(
 )
 async def update_election(
     request: Request,
-    body: ElectionParams,
+    body: ElectionUpdateParams,
     db_session: database.DBSession,
     election_name: str,
 ):
@@ -313,53 +314,36 @@ async def update_election(
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must have election officer or admin permission",
-            headers={"WWW-Authenticate": "Basic"},
+            detail="must have election officer or admin permission"
         )
 
     slugified_name = _slugify(election_name)
-    if await elections.crud.get_election(db_session, slugified_name) is None:
+    election = await elections.crud.get_election(db_session, slugified_name)
+    if not election:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"election with slug {slugified_name} does not exist",
         )
 
-    current_time = datetime.now()
-    if body.available_positions is None:
-        if body.type not in ElectionTypeEnum:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"invalid election type {body.type} for available positions"
-            )
-        available_positions = _default_election_positions(body.type)
-    else:
-        available_positions = body.available_positions
+    election.update_from_params(body)
 
     # TODO: We might be able to just use a validation function from Pydantic or SQLAlchemy to check this
     _raise_if_bad_election_data(
         slugified_name,
-        body.type,
-        datetime.fromisoformat(body.datetime_start_voting),
-        datetime.fromisoformat(body.datetime_start_voting),
-        datetime.fromisoformat(body.datetime_end_voting),
-        available_positions,
+        election.type,
+        election.datetime_start_voting,
+        election.datetime_start_voting,
+        election.datetime_end_voting,
+        election._available_positions,
     )
 
     # NOTE: If you update available positions, people will still *technically* be able to update their
     # registrations, however they will not be returned in the results.
     await elections.crud.update_election(
         db_session,
-        Election(
-            slug = slugified_name,
-            name = election_name,
-            type = body.type,
-            datetime_start_nominations = body.datetime_start_nominations,
-            datetime_start_voting = body.datetime_start_voting,
-            datetime_end_voting = body.datetime_end_voting,
-            available_positions = ",".join(available_positions),
-            survey_link = body.survey_link
-        )
+        election
     )
+
     await db_session.commit()
 
     election = await elections.crud.get_election(db_session, slugified_name)
@@ -468,7 +452,7 @@ async def register_in_election(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    if body.position not in election.available_positions.split(","):
+    if body.position not in election._available_positions.split(","):
         # NOTE: We only restrict creating a registration for a position that doesn't exist,
         # not updating or deleting one
         raise HTTPException(

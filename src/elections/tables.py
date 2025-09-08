@@ -7,14 +7,17 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm.attributes import set_attribute
+from sqlalchemy.util import hybridproperty
 
 from constants import (
     COMPUTING_ID_LEN,
     DISCORD_NICKNAME_LEN,
 )
 from database import Base
-from elections.models import ElectionStatusEnum
+from elections.models import ElectionStatusEnum, ElectionUpdateParams
 
 MAX_ELECTION_NAME = 64
 MAX_ELECTION_SLUG = 64
@@ -31,8 +34,19 @@ class Election(Base):
     datetime_end_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     # a csv list of positions which must be elements of OfficerPosition
-    available_positions: Mapped[str] = mapped_column(Text, nullable=False)
-    survey_link: Mapped[str] = mapped_column(String(300))
+    _available_positions: Mapped[str] = mapped_column("available_positions", Text, nullable=False)
+    survey_link: Mapped[str | None] = mapped_column(String(300))
+
+    @hybrid_property
+    def available_positions(self) -> str: # pyright: ignore
+        return self._available_positions
+
+    @available_positions.setter
+    def available_positions(self, value: str | list[str]) -> None:
+        if isinstance(value, list):
+            value = ",".join(value)
+        self._available_positions = value
+
 
     def private_details(self, at_time: datetime) -> dict:
         # is serializable
@@ -46,7 +60,7 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
             "status": self.status(at_time),
-            "available_positions": self.available_positions,
+            "available_positions": self._available_positions,
             "survey_link": self.survey_link,
         }
 
@@ -62,7 +76,7 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
             "status": self.status(at_time),
-            "available_positions": self.available_positions,
+            "available_positions": self._available_positions,
         }
 
     def public_metadata(self, at_time: datetime) -> dict:
@@ -89,9 +103,14 @@ class Election(Base):
             "datetime_start_voting": self.datetime_start_voting,
             "datetime_end_voting": self.datetime_end_voting,
 
-            "available_positions": self.available_positions,
+            "available_positions": self._available_positions,
             "survey_link": self.survey_link,
         }
+
+    def update_from_params(self, params: ElectionUpdateParams):
+        update_data = params.model_dump(exclude_unset=True)
+        for k, v in update_data.items():
+            setattr(self, k, v)
 
     def status(self, at_time: datetime) -> str:
         if at_time <= self.datetime_start_nominations:
@@ -146,7 +165,7 @@ class NomineeApplication(Base):
     nominee_election: Mapped[str] = mapped_column(ForeignKey("election.slug"), primary_key=True)
     position: Mapped[str] = mapped_column(String(64), primary_key=True)
 
-    speech: Mapped[str] = mapped_column(Text)
+    speech: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         PrimaryKeyConstraint(computing_id, nominee_election, position),

@@ -48,6 +48,14 @@ class ElectionParams(BaseModel):
     available_positions: list[str] | None = None
     survey_link: str | None = None
 
+class ElectionUpdateParams(BaseModel):
+    type: ElectionTypeEnum | None = None
+    datetime_start_nominations: str | None = None
+    datetime_start_voting: str | None = None
+    datetime_end_voting: str | None = None
+    available_positions: list[str] | None = None
+    survey_link: str | None = None
+
 class RegistrationParams(BaseModel):
     election_name: str
     computing_id: str

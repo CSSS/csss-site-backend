@@ -56,10 +56,12 @@ class NomineeInfoModel(BaseModel):
     email: str
     discord_username: str
 
-class ElectionRegisterParams(BaseModel):
+class RegistrationParams(BaseModel):
     election_name: str
     computing_id: str
     position: OfficerPositionEnum
+
+class RegistrationUpdateParams(BaseModel):
 
 class NomineeApplicationModel(BaseModel):
     computing_id: str

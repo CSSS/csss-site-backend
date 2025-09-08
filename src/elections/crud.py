@@ -2,6 +2,7 @@ import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from elections.tables import Election, NomineeApplication, NomineeInfo
+from officers.types import OfficerPositionEnum
 
 
 async def get_all_elections(db_session: AsyncSession) -> list[Election]:
@@ -64,6 +65,23 @@ async def get_all_registrations_of_user(
         )
     )).all()
     return registrations
+
+async def get_one_registration_in_election(
+    db_session: AsyncSession,
+    computing_id: str,
+    election_slug: str,
+    position: OfficerPositionEnum,
+) -> NomineeApplication | None:
+    registration = (await db_session.scalar(
+        sqlalchemy
+        .select(NomineeApplication)
+        .where(
+            NomineeApplication.computing_id == computing_id,
+            NomineeApplication.nominee_election == election_slug,
+            NomineeApplication.position == position
+        )
+    ))
+    return registration
 
 async def get_all_registrations_in_election(
     db_session: AsyncSession,

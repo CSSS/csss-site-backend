@@ -3,7 +3,6 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 import database
 import elections
@@ -11,12 +10,12 @@ import elections.crud
 import elections.tables
 from elections.models import (
     ElectionParams,
-    ElectionRegisterParams,
     ElectionResponse,
     ElectionStatusEnum,
     ElectionTypeEnum,
     NomineeApplicationModel,
     NomineeInfoModel,
+    RegistrationParams,
 )
 from elections.tables import Election, NomineeApplication, NomineeInfo
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPosition
@@ -364,7 +363,7 @@ async def update_election(
 
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
-        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
     return JSONResponse(election.private_details(current_time))
 
 @router.delete(
@@ -431,6 +430,7 @@ async def get_election_registrations(
 @router.post(
     "/register",
     description="register for a specific position in this election, but doesn't set a speech",
+    response_model=NomineeApplicationModel,
     responses={
         400: { "description": "Bad request", "model": DetailModel },
         401: { "description": "Not logged in", "model": DetailModel },
@@ -442,7 +442,7 @@ async def get_election_registrations(
 async def register_in_election(
     request: Request,
     db_session: database.DBSession,
-    body: ElectionRegisterParams,
+    body: RegistrationParams,
 ):
     is_admin, session_id, admin_id = await _get_user_permissions(request, db_session)
     if not session_id or not admin_id:
@@ -507,6 +507,16 @@ async def register_in_election(
         speech=None
     ))
     await db_session.commit()
+
+    registrant = await elections.crud.get_one_registration_in_election(
+        db_session, body.computing_id, slugified_name, body.position
+    )
+    if not registrant:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="failed to find new registrant"
+        )
+    return registrant
 
 @router.patch(
     "/registration/{election_name:str}/{ccid_of_registrant}",

@@ -266,7 +266,7 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # update the registration
-    response = await client.patch(f"/elections/registration/{election_name}/pkn4", json={
+    await client.patch(f"/elections/registration/{election_name}/vice-president/pkn4", json={
         "position": "president",
         "speech": "Vote for me as treasurer"
     })

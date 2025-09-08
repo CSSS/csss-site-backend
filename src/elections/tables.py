@@ -17,7 +17,13 @@ from constants import (
     DISCORD_NICKNAME_LEN,
 )
 from database import Base
-from elections.models import ElectionStatusEnum, ElectionUpdateParams
+from elections.models import (
+    ElectionStatusEnum,
+    ElectionUpdateParams,
+    NomineeApplicationUpdateParams,
+    NomineeUpdateParams,
+)
+from officers.types import OfficerPositionEnum
 
 MAX_ELECTION_NAME = 64
 MAX_ELECTION_SLUG = 64
@@ -163,7 +169,7 @@ class NomineeApplication(Base):
 
     computing_id: Mapped[str] = mapped_column(ForeignKey("election_nominee_info.computing_id"), primary_key=True)
     nominee_election: Mapped[str] = mapped_column(ForeignKey("election.slug"), primary_key=True)
-    position: Mapped[str] = mapped_column(String(64), primary_key=True)
+    position: Mapped[OfficerPositionEnum] = mapped_column(String(64), primary_key=True)
 
     speech: Mapped[str | None] = mapped_column(Text)
 
@@ -188,4 +194,10 @@ class NomineeApplication(Base):
 
             "speech": self.speech,
         }
+
+    def update_from_params(self, params: NomineeApplicationUpdateParams):
+        update_data = params.model_dump(exclude_unset=True)
+        for k, v in update_data.items():
+            setattr(self, k, v)
+
 

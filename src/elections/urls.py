@@ -14,11 +14,11 @@ from elections.models import (
     ElectionStatusEnum,
     ElectionTypeEnum,
     ElectionUpdateParams,
+    NomineeApplicationModel,
+    NomineeApplicationParams,
+    NomineeApplicationUpdateParams,
     NomineeInfoModel,
     NomineeUpdateParams,
-    RegistrantModel,
-    RegistrationParams,
-    RegistrationUpdateParams,
 )
 from elections.tables import Election, NomineeApplication, NomineeInfo
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS
@@ -349,7 +349,7 @@ async def update_election(
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
-    return JSONResponse(election.private_details(current_time))
+    return JSONResponse(election.private_details(datetime.now()))
 
 @router.delete(
     "/{election_name:str}",
@@ -384,7 +384,7 @@ async def delete_election(
 @router.get(
     "/registration/{election_name:str}",
     description="get all the registrations of a single election",
-    response_model=list[RegistrantModel],
+    response_model=list[NomineeApplicationModel],
     responses={
         401: { "description": "Not logged in", "model": DetailModel },
         404: { "description": "Election with slug does not exist", "model": DetailModel }
@@ -415,7 +415,7 @@ async def get_election_registrations(
 @router.post(
     "/register",
     description="Register for a specific position in this election, but doesn't set a speech. Returns the created entry.",
-    response_model=RegistrantModel,
+    response_model=NomineeApplicationModel,
     responses={
         400: { "description": "Bad request", "model": DetailModel },
         401: { "description": "Not logged in", "model": DetailModel },
@@ -427,7 +427,7 @@ async def get_election_registrations(
 async def register_in_election(
     request: Request,
     db_session: database.DBSession,
-    body: RegistrationParams,
+    body: NomineeApplicationParams,
 ):
     await admin_or_raise(request, db_session)
 
@@ -493,9 +493,9 @@ async def register_in_election(
     return registrant
 
 @router.patch(
-    "/registration/{election_name:str}/{computing_id:str}",
+    "/registration/{election_name:str}/{position:str}/{computing_id:str}",
     description="update the application of a specific registrant and return the changed entry",
-    response_model=RegistrantModel,
+    response_model=NomineeApplicationModel,
     responses={
         400: { "description": "Bad request", "model": DetailModel },
         401: { "description": "Not logged in", "model": DetailModel },
@@ -507,9 +507,10 @@ async def register_in_election(
 async def update_registration(
     request: Request,
     db_session: database.DBSession,
-    body: RegistrationUpdateParams,
+    body: NomineeApplicationUpdateParams,
     election_name: str,
     computing_id: str,
+    position: OfficerPositionEnum
 ):
     await admin_or_raise(request, db_session)
 
@@ -528,17 +529,21 @@ async def update_registration(
         )
 
     # self updates can only be done during nomination period. Officer updates can be done whenever
-    elif election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
+    if election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="speeches can only be updated during the nomination period"
         )
 
-    elif not await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
+    registration = await elections.crud.get_one_registration_in_election(db_session, computing_id, slugified_name, position)
+
+    if not registration:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="applicant not yet registered in this election"
+            detail="no registration record found"
         )
+
+    registration.update_from_params(body)
 
     await elections.crud.update_registration(db_session, NomineeApplication(
         computing_id=computing_id,
@@ -549,7 +554,7 @@ async def update_registration(
     await db_session.commit()
 
     registrant = await elections.crud.get_one_registration_in_election(
-        db_session, body.computing_id, slugified_name, body.position
+        db_session, registration.computing_id, slugified_name, body.position
     )
     if not registrant:
         raise HTTPException(

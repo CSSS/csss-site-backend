@@ -127,24 +127,24 @@ async def test_endpoints(client, database_setup):
     })
     assert response.status_code == 401 # unauthorized access to register candidates
 
-    response = await client.patch(f"/elections/{election_name}",  params={
+    response = await client.patch(f"/elections/{election_name}", json={
         "type": "general_election",
         "datetime_start_nominations": "2025-08-18T09:00:00Z",
         "datetime_start_voting": "2025-09-03T09:00:00Z",
         "datetime_end_voting": "2025-09-18T23:59:59Z",
-        "available_positions": "president,treasurer",
+        "available_positions": ["president", "treasurer"],
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
 
     })
     assert response.status_code == 401
 
-    response = await client.patch(f"/elections/registration/{election_name}/pkn4", params={
+    response = await client.patch(f"/elections/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}", json={
         "position": "president",
         "speech": "I would like to run for president because I'm the best in Valorant at SFU."
     })
     assert response.status_code == 401
 
-    response = await client.put("/elections/nominee/info", params={
+    response = await client.patch("/elections/nominee/jdo12", json={
         "full_name": "John Doe VI",
         "linked_in": "linkedin.com/john-doe-vi",
         "instagram": "john_vi",
@@ -156,7 +156,7 @@ async def test_endpoints(client, database_setup):
     response = await client.delete(f"/elections/{election_name}")
     assert response.status_code == 401
 
-    response = await client.delete(f"/elections/registration/{election_name}/president")
+    response = await client.delete(f"/elections/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 401
 
 
@@ -190,7 +190,7 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # ensure that authorized users can create an election
-    response = await client.post("/elections/testElection4", params={
+    response = await client.post("/elections/testElection4", json={
         "election_type": "general_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
@@ -200,7 +200,7 @@ async def test_endpoints_admin(client, database_setup):
     })
     assert response.status_code == 200
     # ensure that user can create elections without knowing each position type
-    response = await client.post("/elections/byElection4", params={
+    response = await client.post("/elections/byElection4", json={
         "election_type": "by_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
@@ -210,7 +210,7 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # try creating an invalid election name
-    response = await client.post("/elections/list", params={
+    response = await client.post("/elections/list", json={
         "election_type": "by_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
@@ -223,21 +223,21 @@ async def test_endpoints_admin(client, database_setup):
 
 
     # try to register for a past election -> should say nomination period expired
-    response = await client.post("/elections/registration/test election    1", params={
+    response = await client.post("/elections/registration/test election    1", json={
         "position": "president",
     })
     assert response.status_code == 400
     assert "nomination period" in response.json()["detail"]
 
     # try to register for an invalid position
-    response = await client.post(f"/elections/registration/{election_name}", params={
+    response = await client.post(f"/elections/registration/{election_name}", json={
         "position": "CEO",
     })
     assert response.status_code == 400
     assert "invalid position" in response.json()["detail"]
 
     # try to register in an unknown election
-    response = await client.post("/elections/registration/unknownElection12345", params={
+    response = await client.post("/elections/registration/unknownElection12345", json={
         "position": "president",
     })
     assert response.status_code == 404
@@ -246,7 +246,7 @@ async def test_endpoints_admin(client, database_setup):
 
 
     # register for an election correctly
-    response = await client.post(f"/elections/registration/{election_name}", params={
+    response = await client.post(f"/elections/registration/{election_name}", json={
         "position": "president",
     })
     assert response.status_code == 200
@@ -255,14 +255,14 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # duplicate registration
-    response = await client.post(f"/elections/registration/{election_name}", params={
+    response = await client.post(f"/elections/registration/{election_name}", json={
         "position": "president",
     })
     assert response.status_code == 400
     assert "registered" in response.json()["detail"]
 
     # update the above election
-    response = await client.patch("/elections/testElection4", params={
+    response = await client.patch("/elections/testElection4", json={
         "election_type": "general_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
@@ -273,14 +273,14 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # update the registration
-    response = await client.patch(f"/elections/registration/{election_name}/pkn4", params={
+    response = await client.patch(f"/elections/registration/{election_name}/pkn4", json={
         "position": "president",
         "speech": "Vote for me as treasurer"
     })
     assert response.status_code == 200
 
     # try updating a non-registered election
-    response = await client.patch("/elections/registration/testElection4/pkn4", params={
+    response = await client.patch("/elections/registration/testElection4/pkn4", json={
         "position": "president",
         "speech": "Vote for me as president, I am good at valorant."
     })
@@ -299,7 +299,7 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # update nominee info
-    response = await client.put("/elections/nominee/info", params={
+    response = await client.put("/elections/nominee/info", json={
         "full_name": "Puneet N",
         "linked_in": "linkedin.com/not-my-linkedin",
     })

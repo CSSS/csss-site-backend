@@ -41,7 +41,7 @@ class ElectionResponse(BaseModel):
 class ElectionParams(BaseModel):
     slug: str
     name: str
-    type: ElectionTypeEnum
+    type: ElectionTypeEnum | None = None
     datetime_start_nominations: str
     datetime_start_voting: str
     datetime_end_voting: str
@@ -56,15 +56,16 @@ class ElectionUpdateParams(BaseModel):
     available_positions: list[str] | None = None
     survey_link: str | None = None
 
-class RegistrationParams(BaseModel):
+class NomineeApplicationParams(BaseModel):
     election_name: str
     computing_id: str
     position: OfficerPositionEnum
 
-class RegistrationUpdateParams(RegistrationParams):
+class NomineeApplicationUpdateParams(BaseModel):
+    position: OfficerPositionEnum | None = None
     speech: str | None = None
 
-class RegistrantModel(BaseModel):
+class NomineeApplicationModel(BaseModel):
     computing_id: str
     nominee_election: str
     position: str

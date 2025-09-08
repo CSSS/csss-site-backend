@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
-from elections.crud import create_election, create_nominee_info, update_election
-from elections.tables import Election, NomineeInfo
+from elections.crud import add_registration, create_election, create_nominee_info, update_election
+from elections.tables import Election, NomineeApplication, NomineeInfo
 from officers.constants import OfficerPosition
 from officers.crud import (
     create_new_officer_info,
@@ -364,6 +364,15 @@ async def load_test_elections_data(db_session: AsyncSession):
     ))
     await db_session.commit()
 
+async def load_test_election_nominee_application_data(db_session: AsyncSession):
+    await add_registration(db_session, NomineeApplication(
+        computing_id=SYSADMIN_COMPUTING_ID,
+        nominee_election="test-election-2",
+        position="vice-president",
+        speech=None
+    ))
+    await db_session.commit()
+
 # ----------------------------------------------------------------- #
 
 async def async_main(sessionmanager):
@@ -373,6 +382,7 @@ async def async_main(sessionmanager):
         await load_test_officers_data(db_session)
         await load_sysadmin(db_session)
         await load_test_elections_data(db_session)
+        await load_test_election_nominee_application_data(db_session)
 
 if __name__ == "__main__":
     response = input(f"This will reset the {SQLALCHEMY_TEST_DATABASE_URL} database, are you okay with this? (y/N): ")

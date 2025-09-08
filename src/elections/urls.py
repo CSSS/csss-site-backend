@@ -13,18 +13,17 @@ from elections.models import (
     ElectionResponse,
     ElectionStatusEnum,
     ElectionTypeEnum,
-    NomineeApplicationModel,
     NomineeInfoModel,
+    RegistrantModel,
     RegistrationParams,
     RegistrationUpdateParams,
 )
 from elections.tables import Election, NomineeApplication, NomineeInfo
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPosition
-from officers.crud import get_active_officer_terms
 from officers.types import OfficerPositionEnum
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessResponse
-from utils.urls import get_current_user, logged_in_or_raise
+from utils.urls import admin_or_raise, get_current_user, logged_in_or_raise
 
 router = APIRouter(
     prefix="/elections",
@@ -400,7 +399,7 @@ async def delete_election(
 @router.get(
     "/registration/{election_name:str}",
     description="get all the registrations of a single election",
-    response_model=list[NomineeApplicationModel],
+    response_model=list[RegistrantModel],
     responses={
         401: { "description": "Not logged in", "model": DetailModel },
         404: { "description": "Election with slug does not exist", "model": DetailModel }
@@ -430,8 +429,8 @@ async def get_election_registrations(
 
 @router.post(
     "/register",
-    description="register for a specific position in this election, but doesn't set a speech",
-    response_model=NomineeApplicationModel,
+    description="Register for a specific position in this election, but doesn't set a speech. Returns the created entry.",
+    response_model=RegistrantModel,
     responses={
         400: { "description": "Bad request", "model": DetailModel },
         401: { "description": "Not logged in", "model": DetailModel },
@@ -445,18 +444,7 @@ async def register_in_election(
     db_session: database.DBSession,
     body: RegistrationParams,
 ):
-    is_admin, session_id, admin_id = await _get_user_permissions(request, db_session)
-    if not session_id or not admin_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in"
-        )
-
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="must be an admin"
-        )
+    await admin_or_raise(request, db_session)
 
     if body.position not in OfficerPositionEnum:
         raise HTTPException(
@@ -521,7 +509,14 @@ async def register_in_election(
 
 @router.patch(
     "/registration/{election_name:str}/{computing_id:str}",
-    description="update the application of a specific registrant"
+    description="update the application of a specific registrant and return the changed entry",
+    response_model=RegistrantModel,
+    responses={
+        400: { "description": "Bad request", "model": DetailModel },
+        401: { "description": "Not logged in", "model": DetailModel },
+        403: { "description": "Not an admin", "model": DetailModel },
+        404: { "description": "No election found", "model": DetailModel },
+    },
 )
 async def update_registration(
     request: Request,
@@ -529,22 +524,8 @@ async def update_registration(
     body: RegistrationUpdateParams,
     election_name: str,
     computing_id: str,
-    # position: str,
-    # speech: str | None,
 ):
-    is_admin, _, _ = await _get_user_permissions(request, db_session)
-    is_admin, session_id, admin_id = await _get_user_permissions(request, db_session)
-    if not session_id or not admin_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in"
-        )
-
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="must be an admin"
-        )
+    await admin_or_raise(request, db_session)
 
     if body.position not in OfficerPositionEnum:
         raise HTTPException(
@@ -581,29 +562,41 @@ async def update_registration(
     ))
     await db_session.commit()
 
+    registrant = await elections.crud.get_one_registration_in_election(
+        db_session, body.computing_id, slugified_name, body.position
+    )
+    if not registrant:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="failed to find changed registrant"
+        )
+    return registrant
+
 @router.delete(
-    "/registration/{election_name:str}/{position:str}",
-    description="revoke your registration for a specific position in this election"
+    "/registration/{election_name:str}/{position:str}/{computing_id:str}",
+    description="delete the registration of a person",
+    responses={
+        400: { "description": "Bad request", "model": DetailModel },
+        401: { "description": "Not logged in", "model": DetailModel },
+        403: { "description": "Not an admin", "model": DetailModel },
+        404: { "description": "No election or registrant found", "model": DetailModel },
+    },
 )
 async def delete_registration(
     request: Request,
     db_session: database.DBSession,
     election_name: str,
     position: str,
+    computing_id: str
 ):
-    logged_in, _, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in to delete election registration"
-        )
-    elif position not in OfficerPosition.position_list():
+    await admin_or_raise(request, db_session)
+
+    if position not in OfficerPosition.position_list():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"invalid position {position}"
         )
 
-    current_time = datetime.now()
     slugified_name = _slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
@@ -611,15 +604,17 @@ async def delete_registration(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"election with slug {slugified_name} does not exist"
         )
-    elif election.status(current_time) != elections.tables.STATUS_NOMINATIONS:
+
+    if election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registration can only be revoked during the nomination period"
         )
-    elif not await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
+
+    if not await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="you are not yet registered in this election"
+            detail=f"{computing_id} was not registered in election {slugified_name} for {position}"
         )
 
     await elections.crud.delete_registration(db_session, computing_id, slugified_name, position)

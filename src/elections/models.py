@@ -64,7 +64,7 @@ class RegistrationParams(BaseModel):
 class RegistrationUpdateParams(RegistrationParams):
     speech: str | None = None
 
-class NomineeApplicationModel(BaseModel):
+class RegistrantModel(BaseModel):
     computing_id: str
     nominee_election: str
     position: str

@@ -1,8 +1,9 @@
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, status
 
 import auth
 import auth.crud
 import database
+from permission.types import ElectionOfficer, WebsiteAdmin
 
 # TODO: move other utils into this module
 
@@ -41,3 +42,20 @@ async def get_current_user(request: Request, db_session: database.DBSession) -> 
         return None, None
 
     return session_id, session_computing_id
+
+async def admin_or_raise(request: Request, db_session: database.DBSession) -> tuple[str, str]:
+    session_id, computing_id = await get_current_user(request, db_session)
+    if not session_id or not computing_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="must be logged in"
+        )
+
+    # where valid means elections officer or website admin
+    if (await ElectionOfficer.has_permission(db_session, computing_id)) or (await WebsiteAdmin.has_permission(db_session, computing_id)):
+        raise HTTPException(
+            status_code=status.HTTP_403_UNAUTHORIZED,
+            detail="must be an admin"
+        )
+
+    return session_id, computing_id

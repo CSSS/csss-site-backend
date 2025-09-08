@@ -48,14 +48,6 @@ class ElectionParams(BaseModel):
     available_positions: list[str] | None = None
     survey_link: str | None = None
 
-class NomineeInfoModel(BaseModel):
-    computing_id: str
-    full_name: str
-    linked_in: str
-    instagram: str
-    email: str
-    discord_username: str
-
 class RegistrationParams(BaseModel):
     election_name: str
     computing_id: str
@@ -69,3 +61,19 @@ class RegistrantModel(BaseModel):
     nominee_election: str
     position: str
     speech: str
+
+class NomineeInfoModel(BaseModel):
+    computing_id: str
+    full_name: str
+    linked_in: str
+    instagram: str
+    email: str
+    discord_username: str
+
+class NomineeUpdateParams(BaseModel):
+    full_name: str | None = None
+    linked_in: str | None = None
+    instagram: str | None = None
+    email: str | None = None
+    discord_username: str | None = None
+

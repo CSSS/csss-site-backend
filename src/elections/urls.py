@@ -14,6 +14,7 @@ from elections.models import (
     ElectionStatusEnum,
     ElectionTypeEnum,
     NomineeInfoModel,
+    NomineeUpdateParams,
     RegistrantModel,
     RegistrationParams,
     RegistrationUpdateParams,
@@ -517,6 +518,7 @@ async def register_in_election(
         403: { "description": "Not an admin", "model": DetailModel },
         404: { "description": "No election found", "model": DetailModel },
     },
+    operation_id="update_registration"
 )
 async def update_registration(
     request: Request,
@@ -581,6 +583,7 @@ async def update_registration(
         403: { "description": "Not an admin", "model": DetailModel },
         404: { "description": "No election or registrant found", "model": DetailModel },
     },
+    operation_id="delete_registration"
 )
 async def delete_registration(
     request: Request,
@@ -648,48 +651,39 @@ async def get_nominee_info(
     return JSONResponse(nominee_info)
 
 @router.patch(
-    "/nominee/info",
+    "/nominee/{computing_id:str}",
     description="Will create or update nominee info. Returns an updated copy of their nominee info.",
-    response_model=NomineeInfoModel
+    response_model=NomineeInfoModel,
+    responses={
+        500: { "description": "Failed to retrieve updated nominee." }
+    },
+    operation_id="update_nominee"
 )
 async def provide_nominee_info(
     request: Request,
     db_session: database.DBSession,
-    full_name: str | None = None,
-    linked_in: str | None = None,
-    instagram: str | None = None,
-    email: str | None = None,
-    discord_username: str | None = None,
+    body: NomineeUpdateParams,
+    computing_id: str
 ):
-    logged_in, _, computing_id = await is_logged_in(request, db_session)
-    if not logged_in:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in to update nominee info"
-        )
+    # TODO: There needs to be a lot more validation here.
+    await admin_or_raise(request, db_session)
 
     updated_data = {}
     # Only update fields that were provided
-    if full_name is not None:
-        updated_data["full_name"] = full_name
-    if linked_in is not None:
-       updated_data["linked_in"] = linked_in
-    if instagram is not None:
-        updated_data["instagram"] = instagram
-    if email is not None:
-        updated_data["email"] = email
-    if discord_username is not None:
-        updated_data["discord_username"] = discord_username
+    if body.full_name is not None:
+        updated_data["full_name"] = body.full_name
+    if body.linked_in is not None:
+       updated_data["linked_in"] = body.linked_in
+    if body.instagram is not None:
+        updated_data["instagram"] = body.instagram
+    if body.email is not None:
+        updated_data["email"] = body.email
+    if body.discord_username is not None:
+        updated_data["discord_username"] = body.discord_username
 
     existing_info = await elections.crud.get_nominee_info(db_session, computing_id)
     # if not already existing, create it
     if not existing_info:
-        # check if full name is passed
-        if "full_name" not in updated_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="full name is required when creating a nominee info"
-            )
         # unpack dictionary and expand into NomineeInfo class
         new_nominee_info = NomineeInfo(computing_id=computing_id, **updated_data)
         # create a new nominee
@@ -712,4 +706,9 @@ async def provide_nominee_info(
     await db_session.commit()
 
     nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
-    return JSONResponse(nominee_info.serialize())
+    if not nominee_info:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="failed to get updated nominee"
+        )
+    return JSONResponse(nominee_info)

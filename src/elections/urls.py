@@ -533,7 +533,6 @@ async def update_registration(
         )
 
     registration = await elections.crud.get_one_registration_in_election(db_session, computing_id, slugified_name, position)
-
     if not registration:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -632,7 +631,7 @@ async def get_nominee_info(
             detail="nominee doesn't exist"
         )
 
-    return JSONResponse(nominee_info)
+    return JSONResponse(nominee_info.serialize())
 
 @router.patch(
     "/nominee/{computing_id:str}",
@@ -695,4 +694,4 @@ async def provide_nominee_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="failed to get updated nominee"
         )
-    return JSONResponse(nominee_info)
+    return JSONResponse(nominee_info.serialize())

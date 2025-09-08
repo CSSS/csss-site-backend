@@ -267,7 +267,6 @@ async def test_endpoints_admin(client, database_setup):
 
     # update the registration
     await client.patch(f"/elections/registration/{election_name}/vice-president/pkn4", json={
-        "position": "president",
         "speech": "Vote for me as treasurer"
     })
     assert response.status_code == 200
@@ -284,19 +283,19 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # delete a registration
-    response = await client.delete(f"/elections/registration/{election_name}/president")
+    response = await client.delete(f"/elections/registration/{election_name}/president/jdo12")
     assert response.status_code == 200
 
     # get nominee info
-    response = await client.get("/elections/nominee/info")
+    response = await client.get(f"/elections/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200
 
     # update nominee info
-    response = await client.put("/elections/nominee/info", json={
+    response = await client.patch(f"/elections/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}", json={
         "full_name": "Puneet N",
         "linked_in": "linkedin.com/not-my-linkedin",
     })
     assert response.status_code == 200
 
-    response = await client.get("/elections/nominee/info")
+    response = await client.get(f"/elections/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200

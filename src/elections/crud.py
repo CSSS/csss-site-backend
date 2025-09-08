@@ -121,7 +121,7 @@ async def delete_registration(
     db_session: AsyncSession,
     computing_id: str,
     election_slug: str,
-    position: str
+    position: OfficerPositionEnum
 ):
     await db_session.execute(
         sqlalchemy

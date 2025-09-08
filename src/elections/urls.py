@@ -577,6 +577,7 @@ async def update_registration(
 @router.delete(
     "/registration/{election_name:str}/{position:str}/{computing_id:str}",
     description="delete the registration of a person",
+    response_model=SuccessResponse,
     responses={
         400: { "description": "Bad request", "model": DetailModel },
         401: { "description": "Not logged in", "model": DetailModel },
@@ -589,12 +590,12 @@ async def delete_registration(
     request: Request,
     db_session: database.DBSession,
     election_name: str,
-    position: str,
+    position: OfficerPositionEnum,
     computing_id: str
 ):
     await admin_or_raise(request, db_session)
 
-    if position not in OfficerPosition.position_list():
+    if position not in OfficerPositionEnum:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"invalid position {position}"
@@ -622,6 +623,8 @@ async def delete_registration(
 
     await elections.crud.delete_registration(db_session, computing_id, slugified_name, position)
     await db_session.commit()
+    old_election = await elections.crud.get_one_registration_in_election(db_session, computing_id, slugified_name, position)
+    return JSONResponse({"success": old_election is None})
 
 # nominee info ------------------------------------------------------------- #
 

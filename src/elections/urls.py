@@ -431,28 +431,22 @@ async def delete_election(
 
 @router.get(
     "/registration/{election_name:str}",
-    description="get your election registration(s)",
+    description="get all the registrations of a single election",
     response_model=list[NomineeApplicationModel],
     responses={
         401: { "description": "Not logged in", "model": DetailModel },
         404: { "description": "Election with slug does not exist", "model": DetailModel }
-     }
+     },
+    operation_id="get_election_registrations"
 )
 async def get_election_registrations(
     request: Request,
     db_session: database.DBSession,
     election_name: str
 ):
+    _, computing_id = await logged_in_or_raise(request, db_session)
+
     slugified_name = _slugify(election_name)
-
-    _, computing_id = await get_current_user(request, db_session)
-
-    if computing_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in to get election registrations"
-        )
-
     if await elections.crud.get_election(db_session, slugified_name) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -463,7 +457,7 @@ async def get_election_registrations(
     if registration_list is None:
         return JSONResponse([])
     return JSONResponse([
-        item.serializable_dict() for item in registration_list
+        item.serialize() for item in registration_list
     ])
 
 @router.post(

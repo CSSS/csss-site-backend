@@ -1,12 +1,11 @@
 import asyncio
-import json
 from datetime import datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src import load_test_db
-from src.auth.crud import create_user_session, get_computing_id, update_site_user
+from src.auth.crud import create_user_session
 from src.database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from src.elections.crud import (
     # election crud

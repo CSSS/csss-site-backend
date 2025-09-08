@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
     DateTime,
@@ -7,10 +7,8 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.orm.attributes import set_attribute
-from sqlalchemy.util import hybridproperty
 
 from constants import (
     COMPUTING_ID_LEN,

@@ -1,11 +1,13 @@
+from collections.abc import Sequence
+
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from elections.tables import Election, NomineeApplication, NomineeInfo
+from officers.constants import OfficerPositionEnum
 
 
-async def get_all_elections(db_session: AsyncSession) -> list[Election]:
-    # TODO: can this return None?
+async def get_all_elections(db_session: AsyncSession) -> Sequence[Election]:
     election_list = (await db_session.scalars(
         sqlalchemy
         .select(Election)
@@ -54,7 +56,7 @@ async def get_all_registrations_of_user(
     db_session: AsyncSession,
     computing_id: str,
     election_slug: str
-) -> list[NomineeApplication] | None:
+) -> Sequence[NomineeApplication] | None:
     registrations = (await db_session.scalars(
         sqlalchemy
         .select(NomineeApplication)
@@ -65,10 +67,27 @@ async def get_all_registrations_of_user(
     )).all()
     return registrations
 
+async def get_one_registration_in_election(
+    db_session: AsyncSession,
+    computing_id: str,
+    election_slug: str,
+    position: OfficerPositionEnum,
+) -> NomineeApplication | None:
+    registration = (await db_session.scalar(
+        sqlalchemy
+        .select(NomineeApplication)
+        .where(
+            NomineeApplication.computing_id == computing_id,
+            NomineeApplication.nominee_election == election_slug,
+            NomineeApplication.position == position
+        )
+    ))
+    return registration
+
 async def get_all_registrations_in_election(
     db_session: AsyncSession,
     election_slug: str,
-) -> list[NomineeApplication] | None:
+) -> Sequence[NomineeApplication] | None:
     registrations = (await db_session.scalars(
         sqlalchemy
         .select(NomineeApplication)
@@ -103,7 +122,7 @@ async def delete_registration(
     db_session: AsyncSession,
     computing_id: str,
     election_slug: str,
-    position: str
+    position: OfficerPositionEnum
 ):
     await db_session.execute(
         sqlalchemy

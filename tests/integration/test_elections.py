@@ -108,7 +108,6 @@ async def test_endpoints(client, database_setup):
     assert response.status_code == 401
 
     response = await client.post("/elections", json={
-        "slug": _slugify(election_name),
         "name": election_name,
         "type": "general_election",
         "datetime_start_nominations": "2025-08-18T09:00:00Z",

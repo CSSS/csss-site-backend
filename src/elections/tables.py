@@ -7,7 +7,6 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column
 
 from constants import (
@@ -21,6 +20,7 @@ from elections.models import (
     NomineeApplicationUpdateParams,
 )
 from officers.types import OfficerPositionEnum
+from utils.types import StringList
 
 MAX_ELECTION_NAME = 64
 MAX_ELECTION_SLUG = 64
@@ -36,19 +36,12 @@ class Election(Base):
     datetime_start_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     datetime_end_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-    # a csv list of positions which must be elements of OfficerPosition
-    _available_positions: Mapped[str] = mapped_column("available_positions", Text, nullable=False)
+    # a comma-separated string of positions which must be elements of OfficerPosition
+    # By giving it the type `StringList`, the database entry will automatically be marshalled to the correct form
+    # DB -> Python: str -> list[str]
+    # Python -> DB: list[str] -> str
+    available_positions: Mapped[list[OfficerPositionEnum]] = mapped_column(StringList(), nullable=False,)
     survey_link: Mapped[str | None] = mapped_column(String(300))
-
-    @hybrid_property
-    def available_positions(self) -> str: # pyright: ignore
-        return self._available_positions
-
-    @available_positions.setter
-    def available_positions(self, value: str | list[str]) -> None:
-        if isinstance(value, list):
-            value = ",".join(value)
-        self._available_positions = value
 
     def private_details(self, at_time: datetime) -> dict:
         # is serializable
@@ -62,7 +55,7 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
             "status": self.status(at_time),
-            "available_positions": self._available_positions,
+            "available_positions": self.available_positions,
             "survey_link": self.survey_link,
         }
 
@@ -78,7 +71,7 @@ class Election(Base):
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
 
             "status": self.status(at_time),
-            "available_positions": self._available_positions,
+            "available_positions": self.available_positions,
         }
 
     def public_metadata(self, at_time: datetime) -> dict:
@@ -105,7 +98,7 @@ class Election(Base):
             "datetime_start_voting": self.datetime_start_voting.date(),
             "datetime_end_voting": self.datetime_end_voting.date(),
 
-            "available_positions": self._available_positions,
+            "available_positions": self.available_positions,
             "survey_link": self.survey_link,
         }
 

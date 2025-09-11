@@ -67,7 +67,7 @@ def _raise_if_bad_election_data(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
-    available_positions: str
+    available_positions: list[str]
 ):
     if election_type not in ElectionTypeEnum:
         raise HTTPException(
@@ -81,7 +81,7 @@ def _raise_if_bad_election_data(
             detail="dates must be in order from earliest to latest",
         )
 
-    for position in available_positions.split(","):
+    for position in available_positions:
         if position not in OfficerPositionEnum:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -170,7 +170,7 @@ async def get_election(
             )
         election_json["candidates"] = []
 
-        available_positions_list = election._available_positions.split(",")
+        available_positions_list = election.available_positions
         for nomination in all_nominations:
             if nomination.position not in available_positions_list:
                 # ignore any positions that are **no longer** active
@@ -243,7 +243,7 @@ async def create_election(
         start_nominations,
         start_voting,
         end_voting,
-        ",".join(available_positions),
+        available_positions
     )
 
     is_valid_user, _, _ = await _get_user_permissions(request, db_session)
@@ -330,7 +330,7 @@ async def update_election(
         election.datetime_start_voting,
         election.datetime_start_voting,
         election.datetime_end_voting,
-        election._available_positions,
+        election.available_positions,
     )
 
     # NOTE: If you update available positions, people will still *technically* be able to update their
@@ -449,7 +449,7 @@ async def register_in_election(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    if body.position not in election._available_positions.split(","):
+    if body.position not in election.available_positions:
         # NOTE: We only restrict creating a registration for a position that doesn't exist,
         # not updating or deleting one
         raise HTTPException(

@@ -313,7 +313,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=400),
         datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
         datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president", "vice-president", "treasurer"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await create_election(db_session, Election(
@@ -323,7 +323,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=1),
         datetime_start_voting=datetime.now() + timedelta(days=7),
         datetime_end_voting=datetime.now() + timedelta(days=14),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president", "vice-president", "treasurer"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5 (oh yeah)"
     ))
     await create_nominee_info(db_session, NomineeInfo(
@@ -349,7 +349,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=5),
         datetime_start_voting=datetime.now() - timedelta(days=1, hours=4),
         datetime_end_voting=datetime.now() + timedelta(days=5, hours=8),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president", "vice-president" ,"treasurer"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await create_election(db_session, Election(
@@ -359,7 +359,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() + timedelta(days=5),
         datetime_start_voting=datetime.now() + timedelta(days=10, hours=4),
         datetime_end_voting=datetime.now() + timedelta(days=15, hours=8),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president" ,"vice-president", "treasurer"],
         survey_link=None
     ))
     await db_session.commit()

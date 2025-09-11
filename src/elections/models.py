@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from officers.types import OfficerPositionEnum
+from officers.constants import OfficerPositionEnum
 
 
 class ElectionTypeEnum(StrEnum):

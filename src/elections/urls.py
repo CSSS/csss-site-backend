@@ -21,8 +21,7 @@ from elections.models import (
     NomineeInfoUpdateParams,
 )
 from elections.tables import Election, NomineeApplication, NomineeInfo
-from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS
-from officers.types import OfficerPositionEnum
+from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessResponse
 from utils.urls import admin_or_raise, get_current_user, logged_in_or_raise

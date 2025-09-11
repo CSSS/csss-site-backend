@@ -19,7 +19,7 @@ from elections.models import (
     ElectionUpdateParams,
     NomineeApplicationUpdateParams,
 )
-from officers.types import OfficerPositionEnum
+from officers.constants import OfficerPositionEnum
 from utils.types import StringList
 
 MAX_ELECTION_NAME = 64

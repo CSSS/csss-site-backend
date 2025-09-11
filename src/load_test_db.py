@@ -14,7 +14,7 @@ from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from elections.crud import add_registration, create_election, create_nominee_info, update_election
 from elections.tables import Election, NomineeApplication, NomineeInfo
-from officers.constants import OfficerPosition
+from officers.constants import OfficerPositionEnum
 from officers.crud import (
     create_new_officer_info,
     create_new_officer_term,
@@ -125,7 +125,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc11",
 
-        position=OfficerPosition.VICE_PRESIDENT,
+        position=OfficerPositionEnum.VICE_PRESIDENT,
         start_date=date.today() - timedelta(days=365),
         end_date=date.today() - timedelta(days=1),
 
@@ -142,7 +142,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc11",
 
-        position=OfficerPosition.EXECUTIVE_AT_LARGE,
+        position=OfficerPositionEnum.EXECUTIVE_AT_LARGE,
         start_date=date.today(),
         end_date=None,
 
@@ -159,7 +159,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc33",
 
-        position=OfficerPosition.PRESIDENT,
+        position=OfficerPositionEnum.PRESIDENT,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -177,7 +177,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc22",
 
-        position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
+        position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -208,7 +208,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await update_officer_term(db_session, OfficerTerm(
         computing_id="abc33",
 
-        position=OfficerPosition.PRESIDENT,
+        position=OfficerPositionEnum.PRESIDENT,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -243,7 +243,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id=SYSADMIN_COMPUTING_ID,
 
-        position=OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+        position=OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
         start_date=date.today() - timedelta(days=(365*3)),
         end_date=date.today() - timedelta(days=(365*2)),
 
@@ -260,7 +260,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id=SYSADMIN_COMPUTING_ID,
 
-        position=OfficerPosition.SYSTEM_ADMINISTRATOR,
+        position=OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
         start_date=date.today() - timedelta(days=365),
         end_date=None,
 
@@ -278,7 +278,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id=SYSADMIN_COMPUTING_ID,
 
-        position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
+        position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
         start_date=date.today() + timedelta(days=365*1),
         end_date=date.today() + timedelta(days=365*2),
 

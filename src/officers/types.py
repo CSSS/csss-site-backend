@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import date
-from enum import StrEnum
 
 from fastapi import HTTPException
 
@@ -13,30 +12,6 @@ from discord import discord
 from officers.constants import OfficerPosition
 from officers.tables import OfficerInfo, OfficerTerm
 
-
-class OfficerPositionEnum(StrEnum):
-    PRESIDENT = "president"
-    VICE_PRESIDENT = "vice-president"
-    TREASURER = "treasurer"
-
-    DIRECTOR_OF_RESOURCES = "director of resources"
-    DIRECTOR_OF_EVENTS = "director of events"
-    DIRECTOR_OF_EDUCATIONAL_EVENTS = "director of educational events"
-    ASSISTANT_DIRECTOR_OF_EVENTS = "assistant director of events"
-    DIRECTOR_OF_COMMUNICATIONS = "director of communications"
-    #DIRECTOR_OF_OUTREACH = "director of outreach"
-    DIRECTOR_OF_MULTIMEDIA = "director of multimedia"
-    DIRECTOR_OF_ARCHIVES = "director of archives"
-    EXECUTIVE_AT_LARGE = "executive at large"
-    FIRST_YEAR_REPRESENTATIVE = "first year representative"
-
-    ELECTIONS_OFFICER = "elections officer"
-    SFSS_COUNCIL_REPRESENTATIVE = "sfss council representative"
-    FROSH_WEEK_CHAIR = "frosh week chair"
-
-    SYSTEM_ADMINISTRATOR = "system administrator"
-    WEBMASTER = "webmaster"
-    SOCIAL_MEDIA_MANAGER = "social media manager"
 
 @dataclass
 class InitialOfficerInfo:

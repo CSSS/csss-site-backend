@@ -8,7 +8,7 @@ import officers.constants
 import officers.crud
 import utils
 from data.semesters import step_semesters
-from officers.constants import OfficerPosition
+from officers.constants import OfficerPositionEnum
 
 
 class OfficerPrivateInfo:
@@ -38,7 +38,7 @@ class ElectionOfficer:
         """
         officer_terms = await officers.crud.current_officers(db_session, True)
         current_election_officer = officer_terms.get(
-            officers.constants.OfficerPosition.ELECTIONS_OFFICER
+            officers.constants.OfficerPositionEnum.ELECTIONS_OFFICER
         )
         if current_election_officer is not None:
             for election_officer in current_election_officer[1]:
@@ -51,12 +51,12 @@ class ElectionOfficer:
         return False
 
 class WebsiteAdmin:
-    WEBSITE_ADMIN_POSITIONS: ClassVar[list[str]] = [
-        OfficerPosition.PRESIDENT,
-        OfficerPosition.VICE_PRESIDENT,
-        OfficerPosition.DIRECTOR_OF_ARCHIVES,
-        OfficerPosition.SYSTEM_ADMINISTRATOR,
-        OfficerPosition.WEBMASTER,
+    WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPositionEnum]] = [
+        OfficerPositionEnum.PRESIDENT,
+        OfficerPositionEnum.VICE_PRESIDENT,
+        OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+        OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
+        OfficerPositionEnum.WEBMASTER,
     ]
 
     @staticmethod

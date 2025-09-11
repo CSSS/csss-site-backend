@@ -4,7 +4,7 @@ import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from elections.tables import Election, NomineeApplication, NomineeInfo
-from officers.types import OfficerPositionEnum
+from officers.constants import OfficerPositionEnum
 
 
 async def get_all_elections(db_session: AsyncSession) -> Sequence[Election]:

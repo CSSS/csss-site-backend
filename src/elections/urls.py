@@ -51,7 +51,7 @@ async def _get_user_permissions(
 
     return has_permission, session_id, computing_id
 
-def _default_election_positions(election_type: ElectionTypeEnum) -> list[str]:
+def _default_election_positions(election_type: ElectionTypeEnum) -> list[OfficerPositionEnum]:
     if election_type == ElectionTypeEnum.GENERAL:
         available_positions = GENERAL_ELECTION_POSITIONS
     elif election_type == ElectionTypeEnum.BY_ELECTION:
@@ -67,7 +67,7 @@ def _raise_if_bad_election_data(
     datetime_start_nominations: datetime,
     datetime_start_voting: datetime,
     datetime_end_voting: datetime,
-    available_positions: list[str]
+    available_positions: list[OfficerPositionEnum]
 ):
     if election_type not in ElectionTypeEnum:
         raise HTTPException(

@@ -1,3 +1,6 @@
+from officers.types import OfficerPositionEnum
+
+
 class OfficerPosition:
     PRESIDENT = "president"
     VICE_PRESIDENT = "vice-president"
@@ -23,7 +26,7 @@ class OfficerPosition:
     SOCIAL_MEDIA_MANAGER = "social media manager"
 
     @staticmethod
-    def position_list() -> list[str]:
+    def position_list() -> list[OfficerPositionEnum]:
         return _OFFICER_POSITION_LIST
 
     @staticmethod
@@ -152,45 +155,45 @@ _LENGTH_MAP = {
 }
 
 _OFFICER_POSITION_LIST = [
-    OfficerPosition.PRESIDENT,
-    OfficerPosition.VICE_PRESIDENT,
-    OfficerPosition.TREASURER,
+    OfficerPositionEnum.PRESIDENT,
+    OfficerPositionEnum.VICE_PRESIDENT,
+    OfficerPositionEnum.TREASURER,
 
-    OfficerPosition.DIRECTOR_OF_RESOURCES,
-    OfficerPosition.DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
-    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
-    #OfficerPosition.DIRECTOR_OF_OUTREACH,
-    OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
-    OfficerPosition.DIRECTOR_OF_ARCHIVES,
-    OfficerPosition.EXECUTIVE_AT_LARGE,
-    OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+    OfficerPositionEnum.DIRECTOR_OF_RESOURCES,
+    OfficerPositionEnum.DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+    OfficerPositionEnum.ASSISTANT_DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_COMMUNICATIONS,
+    #OfficerPositionEnum.DIRECTOR_OF_OUTREACH,
+    OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
+    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+    OfficerPositionEnum.EXECUTIVE_AT_LARGE,
+    OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
 
-    OfficerPosition.ELECTIONS_OFFICER,
-    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
-    OfficerPosition.FROSH_WEEK_CHAIR,
+    OfficerPositionEnum.ELECTIONS_OFFICER,
+    OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE,
+    OfficerPositionEnum.FROSH_WEEK_CHAIR,
 
-    OfficerPosition.SYSTEM_ADMINISTRATOR,
-    OfficerPosition.WEBMASTER,
-    OfficerPosition.SOCIAL_MEDIA_MANAGER,
+    OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
+    OfficerPositionEnum.WEBMASTER,
+    OfficerPositionEnum.SOCIAL_MEDIA_MANAGER,
 ]
 
 GENERAL_ELECTION_POSITIONS = [
-    OfficerPosition.PRESIDENT,
-    OfficerPosition.VICE_PRESIDENT,
-    OfficerPosition.TREASURER,
+    OfficerPositionEnum.PRESIDENT,
+    OfficerPositionEnum.VICE_PRESIDENT,
+    OfficerPositionEnum.TREASURER,
 
-    OfficerPosition.DIRECTOR_OF_RESOURCES,
-    OfficerPosition.DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
-    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
-    #OfficerPosition.DIRECTOR_OF_OUTREACH,
-    OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
-    OfficerPosition.DIRECTOR_OF_ARCHIVES,
+    OfficerPositionEnum.DIRECTOR_OF_RESOURCES,
+    OfficerPositionEnum.DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+    OfficerPositionEnum.ASSISTANT_DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_COMMUNICATIONS,
+    #OfficerPositionEnum.DIRECTOR_OF_OUTREACH,
+    OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
+    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
 ]
 
 COUNCIL_REP_ELECTION_POSITIONS = [
-    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
+    OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE,
 ]

@@ -16,7 +16,6 @@ from src.elections.crud import (
     # info crud
     get_nominee_info,
 )
-from src.elections.urls import _slugify
 from src.main import app
 
 

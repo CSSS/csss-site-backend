@@ -3,11 +3,11 @@ from fastapi.responses import JSONResponse
 
 import database
 import nominees.crud
-from elections.models import (
+from nominees.models import (
     NomineeInfoModel,
     NomineeInfoUpdateParams,
 )
-from elections.tables import NomineeInfo
+from nominees.tables import NomineeInfo
 from utils.urls import admin_or_raise
 
 router = APIRouter(

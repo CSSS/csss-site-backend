@@ -1,7 +1,7 @@
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from elections.tables import NomineeInfo
+from nominees.tables import NomineeInfo
 
 
 async def get_nominee_info(

@@ -13,8 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from elections.crud import create_election, update_election
-from elections.tables import Election, NomineeInfo
+from elections.tables import Election
 from nominees.crud import create_nominee_info
+from nominees.tables import NomineeInfo
 from officers.constants import OfficerPositionEnum
 from officers.crud import (
     create_new_officer_info,

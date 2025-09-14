@@ -4,26 +4,24 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 import database
-import elections
 import elections.crud
 import elections.tables
+import registrations.crud
 from elections.models import (
     ElectionParams,
     ElectionResponse,
     ElectionTypeEnum,
     ElectionUpdateParams,
-    NomineeInfoModel,
-    NomineeInfoUpdateParams,
 )
-from elections.tables import Election, NomineeInfo
+from elections.tables import Election
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessResponse
-from utils.urls import admin_or_raise, get_current_user, slugify
+from utils.urls import get_current_user, slugify
 
 router = APIRouter(
-    prefix="/elections",
-    tags=["elections"],
+    prefix="/election",
+    tags=["election"],
 )
 
 async def get_user_permissions(
@@ -34,7 +32,7 @@ async def get_user_permissions(
     if not session_id or not computing_id:
         return False, None, None
 
-    # where valid means elections officer or website admin
+    # where valid means election officer or website admin
     has_permission = await ElectionOfficer.has_permission(db_session, computing_id)
     if not has_permission:
         has_permission = await WebsiteAdmin.has_permission(db_session, computing_id)
@@ -84,14 +82,14 @@ def _raise_if_bad_election_data(
             detail=f"election slug '{slug}' is too long",
         )
 
-# elections ------------------------------------------------------------- #
+# election ------------------------------------------------------------- #
 
 @router.get(
     "",
-    description="Returns a list of all elections & their status",
+    description="Returns a list of all election & their status",
     response_model=list[ElectionResponse],
     responses={
-        404: { "description": "No elections found" }
+        404: { "description": "No election found" }
     },
     operation_id="get_all_elections"
 )
@@ -104,7 +102,7 @@ async def list_elections(
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="no elections found"
+            detail="no election found"
         )
 
     current_time = datetime.now()
@@ -126,7 +124,7 @@ async def list_elections(
     description="""
     Retrieves the election data for an election by name.
     Returns private details when the time is allowed.
-    If user is an admin or elections officer, returns computing ids for each candidate as well.
+    If user is an admin or election officer, returns computing ids for each candidate as well.
     """,
     response_model=ElectionResponse,
     responses={
@@ -152,7 +150,7 @@ async def get_election(
     if current_time >= election.datetime_start_voting or is_valid_user:
 
         election_json = election.private_details(current_time)
-        all_nominations = await elections.crud.get_all_registrations_in_election(db_session, slugified_name)
+        all_nominations = await registrations.crud.get_all_registrations_in_election(db_session, slugified_name)
         if not all_nominations:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -364,93 +362,3 @@ async def delete_election(
 
     old_election = await elections.crud.get_election(db_session, slugified_name)
     return JSONResponse({"success": old_election is None})
-
-# nominee info ------------------------------------------------------------- #
-
-@router.get(
-    "/nominee/{computing_id:str}",
-    description="Nominee info is always publically tied to elections, so be careful!",
-    response_model=NomineeInfoModel,
-    responses={
-        404: { "description": "nominee doesn't exist" }
-    },
-    operation_id="get_nominee"
-)
-async def get_nominee_info(
-    request: Request,
-    db_session: database.DBSession,
-    computing_id: str
-):
-    # Putting this one behind the admin wall since it has contact information
-    await admin_or_raise(request, db_session)
-    nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
-    if nominee_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="nominee doesn't exist"
-        )
-
-    return JSONResponse(nominee_info.serialize())
-
-@router.patch(
-    "/nominee/{computing_id:str}",
-    description="Will create or update nominee info. Returns an updated copy of their nominee info.",
-    response_model=NomineeInfoModel,
-    responses={
-        500: { "description": "Failed to retrieve updated nominee." }
-    },
-    operation_id="update_nominee"
-)
-async def provide_nominee_info(
-    request: Request,
-    db_session: database.DBSession,
-    body: NomineeInfoUpdateParams,
-    computing_id: str
-):
-    # TODO: There needs to be a lot more validation here.
-    await admin_or_raise(request, db_session)
-
-    updated_data = {}
-    # Only update fields that were provided
-    if body.full_name is not None:
-        updated_data["full_name"] = body.full_name
-    if body.linked_in is not None:
-       updated_data["linked_in"] = body.linked_in
-    if body.instagram is not None:
-        updated_data["instagram"] = body.instagram
-    if body.email is not None:
-        updated_data["email"] = body.email
-    if body.discord_username is not None:
-        updated_data["discord_username"] = body.discord_username
-
-    existing_info = await elections.crud.get_nominee_info(db_session, computing_id)
-    # if not already existing, create it
-    if not existing_info:
-        # unpack dictionary and expand into NomineeInfo class
-        new_nominee_info = NomineeInfo(computing_id=computing_id, **updated_data)
-        # create a new nominee
-        await elections.crud.create_nominee_info(db_session, new_nominee_info)
-    # else just update the partial data
-    else:
-        merged_data = {
-            "computing_id": computing_id,
-            "full_name": existing_info.full_name,
-            "linked_in": existing_info.linked_in,
-            "instagram": existing_info.instagram,
-            "email": existing_info.email,
-            "discord_username": existing_info.discord_username,
-        }
-        #  update the dictionary with new data
-        merged_data.update(updated_data)
-        updated_nominee_info = NomineeInfo(**merged_data)
-        await elections.crud.update_nominee_info(db_session, updated_nominee_info)
-
-    await db_session.commit()
-
-    nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
-    if not nominee_info:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="failed to get updated nominee"
-        )
-    return JSONResponse(nominee_info.serialize())

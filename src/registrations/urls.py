@@ -5,14 +5,17 @@ from fastapi.responses import JSONResponse
 
 import database
 import elections.crud
+import registrations.crud
 from elections.models import (
     ElectionStatusEnum,
+)
+from officers.constants import OfficerPositionEnum
+from registrations.models import (
     NomineeApplicationModel,
     NomineeApplicationParams,
     NomineeApplicationUpdateParams,
 )
-from elections.tables import NomineeApplication
-from officers.constants import OfficerPositionEnum
+from registrations.tables import NomineeApplication
 from utils.shared_models import DetailModel, SuccessResponse
 from utils.urls import admin_or_raise, logged_in_or_raise, slugify
 
@@ -45,7 +48,7 @@ async def get_election_registrations(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    registration_list = await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name)
+    registration_list = await registrations.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name)
     if registration_list is None:
         return JSONResponse([])
     return JSONResponse([
@@ -107,15 +110,15 @@ async def register_in_election(
             detail="registrations can only be made during the nomination period"
         )
 
-    if await elections.crud.get_all_registrations_of_user(db_session, body.computing_id, slugified_name):
+    if await registrations.crud.get_all_registrations_of_user(db_session, body.computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="person is already registered in this election"
         )
 
-    # TODO: associate specific elections officers with specific elections, then don't
-    # allow any elections officer running an election to register for it
-    await elections.crud.add_registration(db_session, NomineeApplication(
+    # TODO: associate specific election officers with specific election, then don't
+    # allow any election officer running an election to register for it
+    await registrations.crud.add_registration(db_session, NomineeApplication(
         computing_id=body.computing_id,
         nominee_election=slugified_name,
         position=body.position,
@@ -123,7 +126,7 @@ async def register_in_election(
     ))
     await db_session.commit()
 
-    registrant = await elections.crud.get_one_registration_in_election(
+    registrant = await registrations.crud.get_one_registration_in_election(
         db_session, body.computing_id, slugified_name, body.position
     )
     if not registrant:
@@ -176,7 +179,7 @@ async def update_registration(
             detail="speeches can only be updated during the nomination period"
         )
 
-    registration = await elections.crud.get_one_registration_in_election(db_session, computing_id, slugified_name, position)
+    registration = await registrations.crud.get_one_registration_in_election(db_session, computing_id, slugified_name, position)
     if not registration:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -185,10 +188,10 @@ async def update_registration(
 
     registration.update_from_params(body)
 
-    await elections.crud.update_registration(db_session, registration)
+    await registrations.crud.update_registration(db_session, registration)
     await db_session.commit()
 
-    registrant = await elections.crud.get_one_registration_in_election(
+    registrant = await registrations.crud.get_one_registration_in_election(
         db_session, registration.computing_id, slugified_name, registration.position
     )
     if not registrant:
@@ -239,14 +242,14 @@ async def delete_registration(
             detail="registration can only be revoked during the nomination period"
         )
 
-    if not await elections.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
+    if not await registrations.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"{computing_id} was not registered in election {slugified_name} for {position}"
         )
 
-    await elections.crud.delete_registration(db_session, computing_id, slugified_name, position)
+    await registrations.crud.delete_registration(db_session, computing_id, slugified_name, position)
     await db_session.commit()
-    old_election = await elections.crud.get_one_registration_in_election(db_session, computing_id, slugified_name, position)
+    old_election = await registrations.crud.get_one_registration_in_election(db_session, computing_id, slugified_name, position)
     return JSONResponse({"success": old_election is None})
 

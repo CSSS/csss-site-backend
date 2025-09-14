@@ -17,7 +17,7 @@ class OfficerPositionEnum(StrEnum):
     EXECUTIVE_AT_LARGE = "executive at large"
     FIRST_YEAR_REPRESENTATIVE = "first year representative"
 
-    ELECTIONS_OFFICER = "elections officer"
+    ELECTIONS_OFFICER = "election officer"
     SFSS_COUNCIL_REPRESENTATIVE = "sfss council representative"
     FROSH_WEEK_CHAIR = "frosh week chair"
 
@@ -120,7 +120,7 @@ _EMAIL_MAP = {
     OfficerPositionEnum.EXECUTIVE_AT_LARGE: "csss-eal-current@sfu.ca",
     OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE: "csss-fyr-current@sfu.ca",
 
-    OfficerPositionEnum.ELECTIONS_OFFICER: "csss-elections@sfu.ca",
+    OfficerPositionEnum.ELECTIONS_OFFICER: "csss-election@sfu.ca",
     OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE: "csss-councilrep@sfu.ca",
     OfficerPositionEnum.FROSH_WEEK_CHAIR: "csss-froshchair@sfu.ca",
 

@@ -8,15 +8,14 @@ from src import load_test_db
 from src.auth.crud import create_user_session
 from src.database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from src.elections.crud import (
-    # election crud
     get_all_elections,
-    get_all_registrations_in_election,
-    # election registration crud
     get_election,
-    # info crud
     get_nominee_info,
 )
 from src.main import app
+from src.registrations.crud import (
+    get_all_registrations_in_election,
+)
 
 
 @pytest.fixture(scope="session")
@@ -85,13 +84,13 @@ async def test_read_elections(database_setup):
 # API endpoint testing (without AUTH)--------------------------------------
 @pytest.mark.anyio
 async def test_endpoints(client, database_setup):
-    response = await client.get("/elections")
+    response = await client.get("/election")
     assert response.status_code == 200
     assert response.json() != {}
 
-    # Returns private details when the time is allowed. If user is an admin or elections officer, returns computing ids for each candidate as well.
+    # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
     election_name = "test election 2"
-    response = await client.get(f"/elections/{election_name}")
+    response = await client.get(f"/election/{election_name}")
     assert response.status_code == 200
     assert response.json() != {}
     # if candidates filled, enure unauthorized values remain hidden
@@ -105,10 +104,10 @@ async def test_endpoints(client, database_setup):
     response = await client.get(f"/registration/{election_name}")
     assert response.status_code == 401
 
-    response = await client.get("/elections/nominee/pkn4")
+    response = await client.get("/nominee/pkn4")
     assert response.status_code == 401
 
-    response = await client.post("/elections", json={
+    response = await client.post("/election", json={
         "name": election_name,
         "type": "general_election",
         "datetime_start_nominations": "2025-08-18T09:00:00Z",
@@ -127,7 +126,7 @@ async def test_endpoints(client, database_setup):
     })
     assert response.status_code == 401 # unauthorized access to register candidates
 
-    response = await client.patch(f"/elections/{election_name}", json={
+    response = await client.patch(f"/election/{election_name}", json={
         "type": "general_election",
         "datetime_start_nominations": "2025-08-18T09:00:00Z",
         "datetime_start_voting": "2025-09-03T09:00:00Z",
@@ -145,7 +144,7 @@ async def test_endpoints(client, database_setup):
     })
     assert response.status_code == 401
 
-    response = await client.patch("/elections/nominee/jdo12", json={
+    response = await client.patch("/nominee/jdo12", json={
         "full_name": "John Doe VI",
         "linked_in": "linkedin.com/john-doe-vi",
         "instagram": "john_vi",
@@ -154,7 +153,7 @@ async def test_endpoints(client, database_setup):
     })
     assert response.status_code == 401
 
-    response = await client.delete(f"/elections/{election_name}")
+    response = await client.delete(f"/election/{election_name}")
     assert response.status_code == 401
 
     # TODO: Move these tests to a registrations test function
@@ -173,13 +172,13 @@ async def test_endpoints_admin(client, database_setup):
     client.cookies = { "session_id": session_id }
 
     # test that more info is given if logged in & with access to it
-    response = await client.get("/elections")
+    response = await client.get("/election")
     assert response.status_code == 200
     assert response.json() != {}
 
-    # Returns private details when the time is allowed. If user is an admin or elections officer, returns computing ids for each candidate as well.
+    # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
     election_name = "test election 2"
-    response = await client.get(f"/elections/{election_name}")
+    response = await client.get(f"/election/{election_name}")
     assert response.status_code == 200
     assert response.json() != {}
     # if candidates filled, enure unauthorized values remain hidden
@@ -189,11 +188,11 @@ async def test_endpoints_admin(client, database_setup):
 
     # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
-    response = await client.get(f"/elections/{election_name}")
+    response = await client.get(f"/election/{election_name}")
     assert response.status_code == 200
 
     # ensure that authorized users can create an election
-    response = await client.post("/elections", json={
+    response = await client.post("/election", json={
         "name": "testElection4",
         "type": "general_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
@@ -203,8 +202,8 @@ async def test_endpoints_admin(client, database_setup):
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
     assert response.status_code == 200
-    # ensure that user can create elections without knowing each position type
-    response = await client.post("/elections", json={
+    # ensure that user can create election without knowing each position type
+    response = await client.post("/election", json={
         "name": "byElection4",
         "type": "by_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
@@ -272,7 +271,7 @@ async def test_endpoints_admin(client, database_setup):
     assert "registered" in response.json()["detail"]
 
     # update the above election
-    response = await client.patch("/elections/testElection4", json={
+    response = await client.patch("/election/testElection4", json={
         "election_type": "general_election",
         "datetime_start_nominations": (datetime.now() - timedelta(days=1)).isoformat(),
         "datetime_start_voting": (datetime.now() + timedelta(days=7)).isoformat(),
@@ -300,7 +299,7 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 404
 
     # delete an election
-    response = await client.delete("/elections/testElection4")
+    response = await client.delete("/election/testElection4")
     assert response.status_code == 200
 
     # TODO: Move these tests to a registrations test function
@@ -310,15 +309,15 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 200
 
     # get nominee info
-    response = await client.get(f"/elections/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    response = await client.get(f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200
 
     # update nominee info
-    response = await client.patch(f"/elections/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}", json={
+    response = await client.patch(f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}", json={
         "full_name": "Puneet N",
         "linked_in": "linkedin.com/not-my-linkedin",
     })
     assert response.status_code == 200
 
-    response = await client.get(f"/elections/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    response = await client.get(f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200

@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
-from elections.crud import add_registration, create_election, create_nominee_info, update_election
-from elections.tables import Election, NomineeApplication, NomineeInfo
+from elections.crud import create_election, create_nominee_info, update_election
+from elections.tables import Election, NomineeInfo
 from officers.constants import OfficerPositionEnum
 from officers.crud import (
     create_new_officer_info,
@@ -22,6 +22,8 @@ from officers.crud import (
     update_officer_term,
 )
 from officers.tables import OfficerInfo, OfficerTerm
+from registrations.crud import add_registration
+from registrations.tables import NomineeApplication
 
 
 async def reset_db(engine):
@@ -295,7 +297,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await db_session.commit()
 
 async def load_test_elections_data(db_session: AsyncSession):
-    print("loading elections data...")
+    print("loading election data...")
     await create_election(db_session, Election(
         slug="test-election-1",
         name="test election    1",

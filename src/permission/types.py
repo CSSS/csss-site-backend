@@ -34,7 +34,7 @@ class ElectionOfficer:
     @staticmethod
     async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
         """
-        An current elections officer has access to all elections, prior elections officers have no access.
+        An current election officer has access to all election, prior election officers have no access.
         """
         officer_terms = await officers.crud.current_officers(db_session, True)
         current_election_officer = officer_terms.get(

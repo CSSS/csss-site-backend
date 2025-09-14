@@ -57,7 +57,7 @@ async def admin_or_raise(request: Request, db_session: database.DBSession) -> tu
             detail="must be logged in"
         )
 
-    # where valid means elections officer or website admin
+    # where valid means election officer or website admin
     if (await ElectionOfficer.has_permission(db_session, computing_id)) or (await WebsiteAdmin.has_permission(db_session, computing_id)):
         return session_id, computing_id
     else:

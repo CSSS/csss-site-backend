@@ -3,6 +3,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from officers.constants import OfficerPositionEnum
+from registrations.models import RegistrationModel
 
 
 class ElectionTypeEnum(StrEnum):
@@ -16,15 +17,6 @@ class ElectionStatusEnum(StrEnum):
     VOTING = "voting"
     AFTER_VOTING = "after_voting"
 
-class CandidateModel(BaseModel):
-    position: str
-    full_name: str
-    linked_in: str
-    instagram: str
-    email: str
-    discord_username: str
-    speech: str
-
 class ElectionResponse(BaseModel):
     slug: str
     name: str
@@ -36,7 +28,7 @@ class ElectionResponse(BaseModel):
     status: ElectionStatusEnum
 
     survey_link: str | None = Field(None, description="Only available to admins")
-    candidates: list[CandidateModel] | None = Field(None, description="Only available to admins")
+    candidates: list[RegistrationModel] | None = Field(None, description="Only available to admins")
 
 class ElectionParams(BaseModel):
     name: str
@@ -54,20 +46,6 @@ class ElectionUpdateParams(BaseModel):
     datetime_end_voting: str | None = None
     available_positions: list[OfficerPositionEnum] | None = None
     survey_link: str | None = None
-
-class NomineeApplicationParams(BaseModel):
-    computing_id: str
-    position: OfficerPositionEnum
-
-class NomineeApplicationUpdateParams(BaseModel):
-    position: OfficerPositionEnum | None = None
-    speech: str | None = None
-
-class NomineeApplicationModel(BaseModel):
-    computing_id: str
-    nominee_election: str
-    position: OfficerPositionEnum
-    speech: str | None = None
 
 class NomineeInfoModel(BaseModel):
     computing_id: str

@@ -40,7 +40,7 @@ async def get_election_registrations(
     db_session: database.DBSession,
     election_name: str
 ):
-    _, computing_id = await logged_in_or_raise(request, db_session)
+    await logged_in_or_raise(request, db_session)
 
     slugified_name = slugify(election_name)
     if await elections.crud.get_election(db_session, slugified_name) is None:
@@ -49,7 +49,7 @@ async def get_election_registrations(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    registration_list = await registrations.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name)
+    registration_list = await registrations.crud.get_all_registrations_in_election(db_session, slugified_name)
     if registration_list is None:
         return JSONResponse([])
     return JSONResponse([

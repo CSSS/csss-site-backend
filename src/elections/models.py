@@ -32,7 +32,7 @@ class ElectionResponse(BaseModel):
     datetime_start_nominations: str
     datetime_start_voting: str
     datetime_end_voting: str
-    available_positions: list[str]
+    available_positions: list[OfficerPositionEnum]
     status: ElectionStatusEnum
 
     survey_link: str | None = Field(None, description="Only available to admins")
@@ -44,7 +44,7 @@ class ElectionParams(BaseModel):
     datetime_start_nominations: str
     datetime_start_voting: str
     datetime_end_voting: str
-    available_positions: list[str] | None = None
+    available_positions: list[OfficerPositionEnum] | None = None
     survey_link: str | None = None
 
 class ElectionUpdateParams(BaseModel):
@@ -52,7 +52,7 @@ class ElectionUpdateParams(BaseModel):
     datetime_start_nominations: str | None = None
     datetime_start_voting: str | None = None
     datetime_end_voting: str | None = None
-    available_positions: list[str] | None = None
+    available_positions: list[OfficerPositionEnum] | None = None
     survey_link: str | None = None
 
 class NomineeApplicationParams(BaseModel):
@@ -66,7 +66,7 @@ class NomineeApplicationUpdateParams(BaseModel):
 class NomineeApplicationModel(BaseModel):
     computing_id: str
     nominee_election: str
-    position: str
+    position: OfficerPositionEnum
     speech: str | None = None
 
 class NomineeInfoModel(BaseModel):

@@ -99,8 +99,10 @@ async def test_endpoints(client, database_setup):
         for cand in response.json()["candidates"]:
          assert "computing_id" not in cand
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # Only authorized users can access registrations get
-    response = await client.get(f"/elections/registration/{election_name}")
+    response = await client.get(f"/registration/{election_name}")
     assert response.status_code == 401
 
     response = await client.get("/elections/nominee/pkn4")
@@ -117,7 +119,9 @@ async def test_endpoints(client, database_setup):
     })
     assert response.status_code == 401 # unauthorized access to create an election
 
-    response = await client.post("/elections/registration/{test-election-1}", json={
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
+    response = await client.post("/registration/{test-election-1}", json={
         "computing_id": "1234567",
         "position": "president",
     })
@@ -134,7 +138,8 @@ async def test_endpoints(client, database_setup):
     })
     assert response.status_code == 401
 
-    response = await client.patch(f"/elections/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}", json={
+    # TODO: Move these tests to a registrations test function
+    response = await client.patch(f"/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}", json={
         "position": "president",
         "speech": "I would like to run for president because I'm the best in Valorant at SFU."
     })
@@ -152,7 +157,8 @@ async def test_endpoints(client, database_setup):
     response = await client.delete(f"/elections/{election_name}")
     assert response.status_code == 401
 
-    response = await client.delete(f"/elections/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    # TODO: Move these tests to a registrations test function
+    response = await client.delete(f"/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 401
 
 
@@ -181,8 +187,9 @@ async def test_endpoints_admin(client, database_setup):
         for cand in response.json()["candidates"]:
          assert "computing_id" in cand
 
+    # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
-    response = await client.get(f"/elections/registration/{election_name}")
+    response = await client.get(f"/elections/{election_name}")
     assert response.status_code == 200
 
     # ensure that authorized users can create an election
@@ -207,24 +214,30 @@ async def test_endpoints_admin(client, database_setup):
     })
     assert response.status_code == 200
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # try to register for a past election -> should say nomination period expired
     testElection1 = "test election    1"
-    response = await client.post(f"/elections/registration/{testElection1}", json={
+    response = await client.post(f"/registration/{testElection1}", json={
         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
         "position": "president",
     })
     assert response.status_code == 400
     assert "nomination period" in response.json()["detail"]
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # try to register for an invalid position will just throw a 422
-    response = await client.post(f"/elections/registration/{election_name}", json={
+    response = await client.post(f"/registration/{election_name}", json={
         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
         "position": "CEO",
     })
     assert response.status_code == 422
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # try to register in an unknown election
-    response = await client.post("/elections/registration/unknownElection12345", json={
+    response = await client.post("/registration/unknownElection12345", json={
         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
         "position": "president",
     })
@@ -233,18 +246,25 @@ async def test_endpoints_admin(client, database_setup):
 
 
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # register for an election correctly
-    response = await client.post(f"/elections/registration/{election_name}", json={
+    response = await client.post(f"/registration/{election_name}", json={
         "computing_id": "jdo12",
         "position": "president",
     })
     assert response.status_code == 200
+
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # ensure that the above registration exists and is valid
-    response = await client.get(f"/elections/registration/{election_name}")
+    response = await client.get(f"/registration/{election_name}")
     assert response.status_code == 200
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # duplicate registration
-    response = await client.post(f"/elections/registration/{election_name}", json={
+    response = await client.post(f"/registration/{election_name}", json={
         "computing_id": "jdo12",
         "position": "president",
     })
@@ -262,14 +282,18 @@ async def test_endpoints_admin(client, database_setup):
     })
     assert response.status_code == 200
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # update the registration
-    await client.patch(f"/elections/registration/{election_name}/vice-president/pkn4", json={
+    await client.patch(f"/registration/{election_name}/vice-president/pkn4", json={
         "speech": "Vote for me as treasurer"
     })
     assert response.status_code == 200
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # try updating a non-registered election
-    response = await client.patch("/elections/registration/testElection4/pkn4", json={
+    response = await client.patch("/registration/testElection4/pkn4", json={
         "position": "president",
         "speech": "Vote for me as president, I am good at valorant."
     })
@@ -279,8 +303,10 @@ async def test_endpoints_admin(client, database_setup):
     response = await client.delete("/elections/testElection4")
     assert response.status_code == 200
 
+    # TODO: Move these tests to a registrations test function
+    # ensure that registrations can be viewed
     # delete a registration
-    response = await client.delete(f"/elections/registration/{election_name}/president/jdo12")
+    response = await client.delete(f"/registration/{election_name}/president/jdo12")
     assert response.status_code == 200
 
     # get nominee info

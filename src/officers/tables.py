@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import (
-    Column,
-    Date,
+    DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
 )
+from sqlalchemy.orm import Mapped, mapped_column
 
-# from sqlalchemy.orm import relationship
 from constants import (
     COMPUTING_ID_LEN,
     DISCORD_ID_LEN,
@@ -18,6 +19,7 @@ from constants import (
     GITHUB_USERNAME_LEN,
 )
 from database import Base
+from officers.constants import OfficerPositionEnum
 
 
 # A row represents an assignment of a person to a position.
@@ -26,27 +28,27 @@ class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
     # TODO (#98): create a unique constraint for (computing_id, position, start_date).
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
-    computing_id = Column(
+    computing_id: Mapped[str] = mapped_column(
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),
         nullable=False,
     )
 
-    position = Column(String(128), nullable=False)
-    start_date = Column(Date, nullable=False)
+    position: Mapped[OfficerPositionEnum] = mapped_column(String(128), nullable=False)
+    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date = Column(Date, nullable=True)
+    end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    nickname = Column(String(128), nullable=True)
-    favourite_course_0 = Column(String(64), nullable=True)
-    favourite_course_1 = Column(String(64), nullable=True)
+    nickname: Mapped[str] = mapped_column(String(128), nullable=True)
+    favourite_course_0: Mapped[str] = mapped_column(String(64), nullable=True)
+    favourite_course_1: Mapped[str] = mapped_column(String(64), nullable=True)
     # programming language
-    favourite_pl_0 = Column(String(64), nullable=True)
-    favourite_pl_1 = Column(String(64), nullable=True)
-    biography = Column(Text, nullable=True)
-    photo_url = Column(Text, nullable=True) # some urls get big, best to let it be a string
+    favourite_pl_0: Mapped[str] = mapped_column(String(64), nullable=True)
+    favourite_pl_1: Mapped[str] = mapped_column(String(64), nullable=True)
+    biography: Mapped[str] = mapped_column(Text, nullable=True)
+    photo_url: Mapped[str] = mapped_column(Text, nullable=True) # some urls get big, best to let it be a string
 
     def serializable_dict(self) -> dict:
         return {
@@ -102,32 +104,32 @@ class OfficerTerm(Base):
 class OfficerInfo(Base):
     __tablename__ = "officer_info"
 
-    computing_id = Column(
+    computing_id: Mapped[str] = mapped_column(
         String(COMPUTING_ID_LEN),
         ForeignKey("site_user.computing_id"),
         primary_key=True,
     )
 
     # TODO (#71): we'll need to use SFU's API to get the legal name for users
-    legal_name = Column(String(128), nullable=False) # some people have long names, you never know
-    phone_number = Column(String(24), nullable=True)
+    legal_name: Mapped[str] = mapped_column(String(128), nullable=False) # some people have long names, you never know
+    phone_number: Mapped[str] = mapped_column(String(24), nullable=True)
 
     # TODO (#99): add unique constraints to discord_id (stops users from stealing the username of someone else)
-    discord_id = Column(String(DISCORD_ID_LEN), nullable=True)
-    discord_name = Column(String(DISCORD_NAME_LEN), nullable=True)
+    discord_id: Mapped[str] = mapped_column(String(DISCORD_ID_LEN), nullable=True)
+    discord_name: Mapped[str] = mapped_column(String(DISCORD_NAME_LEN), nullable=True)
     # this is their nickname in the csss server
-    discord_nickname = Column(String(DISCORD_NICKNAME_LEN), nullable=True)
+    discord_nickname: Mapped[str] = mapped_column(String(DISCORD_NICKNAME_LEN), nullable=True)
 
     # Technically 320 is the most common max-size for emails, but we'll use 256 instead,
     # since it's reasonably large (input validate this too)
     # TODO (#99): add unique constraint to this (stops users from stealing the username of someone else)
-    google_drive_email = Column(String(256), nullable=True)
+    google_drive_email: Mapped[str] = mapped_column(String(256), nullable=True)
 
     # TODO (#99): add unique constraint to this (stops users from stealing the username of someone else)
-    github_username = Column(String(GITHUB_USERNAME_LEN), nullable=True)
+    github_username: Mapped[str] = mapped_column(String(GITHUB_USERNAME_LEN), nullable=True)
 
     # TODO (#22): add support for giving executives bitwarden access automagically
-    # has_signed_into_bitwarden = Column(Boolean)
+    # has_signed_into_bitwarden: Mapped[str] = mapped_column(Boolean)
 
     def serializable_dict(self) -> dict:
         return {

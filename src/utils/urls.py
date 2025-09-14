@@ -1,3 +1,5 @@
+import re
+
 from fastapi import HTTPException, Request, status
 
 import auth
@@ -5,7 +7,11 @@ import auth.crud
 import database
 from permission.types import ElectionOfficer, WebsiteAdmin
 
+
 # TODO: move other utils into this module
+def slugify(text: str) -> str:
+    """Creates a unique slug based on text passed in. Assumes non-unicode text."""
+    return re.sub(r"[\W_]+", "-", text.strip().replace("/", "").replace("&", ""))
 
 async def logged_in_or_raise(
     request: Request,

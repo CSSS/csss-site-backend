@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 import database
 import elections.crud
 import elections.tables
+import nominees.crud
 import registrations.crud
 from elections.models import (
     ElectionParams,
@@ -81,8 +82,6 @@ def _raise_if_bad_election_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"election slug '{slug}' is too long",
         )
-
-# election ------------------------------------------------------------- #
 
 @router.get(
     "",
@@ -165,7 +164,7 @@ async def get_election(
                 continue
 
             # NOTE: if a nominee does not input their legal name, they are not considered a nominee
-            nominee_info = await elections.crud.get_nominee_info(db_session, nomination.computing_id)
+            nominee_info = await nominees.crud.get_nominee_info(db_session, nomination.computing_id)
             if nominee_info is None:
                 continue
 

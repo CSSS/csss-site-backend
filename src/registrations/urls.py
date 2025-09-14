@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 import database
 import elections.crud
+import nominees.crud
 import registrations.crud
 from elections.models import (
     ElectionStatusEnum,
@@ -81,7 +82,7 @@ async def register_in_election(
             detail=f"invalid position {body.position}"
         )
 
-    if await elections.crud.get_nominee_info(db_session, body.computing_id) is None:
+    if await nominees.crud.get_nominee_info(db_session, body.computing_id) is None:
         # ensure that the user has a nominee info entry before allowing registration to occur.
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -2,8 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 import database
-import elections
-import elections.crud
+import nominees.crud
 from elections.models import (
     NomineeInfoModel,
     NomineeInfoUpdateParams,
@@ -32,7 +31,7 @@ async def get_nominee_info(
 ):
     # Putting this one behind the admin wall since it has contact information
     await admin_or_raise(request, db_session)
-    nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
+    nominee_info = await nominees.crud.get_nominee_info(db_session, computing_id)
     if nominee_info is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -72,13 +71,13 @@ async def provide_nominee_info(
     if body.discord_username is not None:
         updated_data["discord_username"] = body.discord_username
 
-    existing_info = await elections.crud.get_nominee_info(db_session, computing_id)
+    existing_info = await nominees.crud.get_nominee_info(db_session, computing_id)
     # if not already existing, create it
     if not existing_info:
         # unpack dictionary and expand into NomineeInfo class
         new_nominee_info = NomineeInfo(computing_id=computing_id, **updated_data)
         # create a new nominee
-        await elections.crud.create_nominee_info(db_session, new_nominee_info)
+        await nominees.crud.create_nominee_info(db_session, new_nominee_info)
     # else just update the partial data
     else:
         merged_data = {
@@ -92,11 +91,11 @@ async def provide_nominee_info(
         #  update the dictionary with new data
         merged_data.update(updated_data)
         updated_nominee_info = NomineeInfo(**merged_data)
-        await elections.crud.update_nominee_info(db_session, updated_nominee_info)
+        await nominees.crud.update_nominee_info(db_session, updated_nominee_info)
 
     await db_session.commit()
 
-    nominee_info = await elections.crud.get_nominee_info(db_session, computing_id)
+    nominee_info = await nominees.crud.get_nominee_info(db_session, computing_id)
     if not nominee_info:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

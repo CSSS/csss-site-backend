@@ -10,9 +10,11 @@ from src.database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from src.elections.crud import (
     get_all_elections,
     get_election,
-    get_nominee_info,
 )
 from src.main import app
+from src.nominees.crud import (
+    get_nominee_info,
+)
 from src.registrations.crud import (
     get_all_registrations_in_election,
 )

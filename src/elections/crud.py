@@ -3,7 +3,7 @@ from collections.abc import Sequence
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from elections.tables import Election, NomineeInfo
+from elections.tables import Election
 
 
 async def get_all_elections(db_session: AsyncSession) -> Sequence[Election]:
@@ -46,33 +46,4 @@ async def delete_election(db_session: AsyncSession, slug: str) -> None:
         sqlalchemy
         .delete(Election)
         .where(Election.slug == slug)
-    )
-
-# ------------------------------------------------------- #
-
-async def get_nominee_info(
-    db_session: AsyncSession,
-    computing_id: str,
-) -> NomineeInfo | None:
-    return await db_session.scalar(
-        sqlalchemy
-        .select(NomineeInfo)
-        .where(NomineeInfo.computing_id == computing_id)
-    )
-
-async def create_nominee_info(
-    db_session: AsyncSession,
-    info: NomineeInfo,
-):
-    db_session.add(info)
-
-async def update_nominee_info(
-    db_session: AsyncSession,
-    info: NomineeInfo,
-):
-    await db_session.execute(
-        sqlalchemy
-        .update(NomineeInfo)
-        .where(NomineeInfo.computing_id == info.computing_id)
-        .values(info.to_update_dict())
     )

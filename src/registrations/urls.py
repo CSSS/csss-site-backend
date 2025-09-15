@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -105,7 +105,7 @@ async def register_in_election(
             detail=f"{body.position} is not available to register for in this election"
         )
 
-    if election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
+    if election.status(datetime.datetime.now(tz=datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registrations can only be made during the nomination period"
@@ -174,7 +174,7 @@ async def update_registration(
         )
 
     # self updates can only be done during nomination period. Officer updates can be done whenever
-    if election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
+    if election.status(datetime.datetime.now(tz=datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="speeches can only be updated during the nomination period"
@@ -237,7 +237,7 @@ async def delete_registration(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    if election.status(datetime.now()) != ElectionStatusEnum.NOMINATIONS:
+    if election.status(datetime.datetime.now(tz=datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registration can only be revoked during the nomination period"

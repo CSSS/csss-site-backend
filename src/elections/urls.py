@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -53,9 +53,9 @@ def _default_election_positions(election_type: ElectionTypeEnum) -> list[Officer
 def _raise_if_bad_election_data(
     slug: str,
     election_type: str,
-    datetime_start_nominations: datetime,
-    datetime_start_voting: datetime,
-    datetime_end_voting: datetime,
+    datetime_start_nominations: datetime.datetime,
+    datetime_start_voting: datetime.datetime,
+    datetime_end_voting: datetime.datetime,
     available_positions: list[OfficerPositionEnum]
 ):
     if election_type not in ElectionTypeEnum:
@@ -104,7 +104,7 @@ async def list_elections(
             detail="no election found"
         )
 
-    current_time = datetime.now()
+    current_time = datetime.datetime.now(tz=datetime.UTC)
     if is_admin:
         election_metadata_list = [
             election.private_details(current_time)
@@ -136,7 +136,7 @@ async def get_election(
     db_session: database.DBSession,
     election_name: str
 ):
-    current_time = datetime.now()
+    current_time = datetime.datetime.now(tz=datetime.UTC)
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
@@ -218,10 +218,10 @@ async def create_election(
         available_positions = body.available_positions
 
     slugified_name = slugify(body.name)
-    current_time = datetime.now()
-    start_nominations = datetime.fromisoformat(body.datetime_start_nominations)
-    start_voting = datetime.fromisoformat(body.datetime_start_voting)
-    end_voting = datetime.fromisoformat(body.datetime_end_voting)
+    current_time = datetime.datetime.now(tz=datetime.UTC)
+    start_nominations = datetime.datetime.fromisoformat(body.datetime_start_nominations)
+    start_voting = datetime.datetime.fromisoformat(body.datetime_start_voting)
+    end_voting = datetime.datetime.fromisoformat(body.datetime_end_voting)
 
     # TODO: We might be able to just use a validation function from Pydantic or SQLAlchemy to check this
     _raise_if_bad_election_data(
@@ -332,7 +332,7 @@ async def update_election(
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
-    return JSONResponse(election.private_details(datetime.now()))
+    return JSONResponse(election.private_details(datetime.datetime.now(tz=datetime.UTC)))
 
 @router.delete(
     "/{election_name:str}",

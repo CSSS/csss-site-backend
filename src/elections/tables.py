@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from database import Base
 from elections.models import (
     ElectionStatusEnum,
+    ElectionTypeEnum,
     ElectionUpdateParams,
 )
 from officers.constants import OfficerPositionEnum
@@ -23,7 +24,7 @@ class Election(Base):
     # Slugs are unique identifiers
     slug: Mapped[str] = mapped_column(String(MAX_ELECTION_SLUG), primary_key=True)
     name: Mapped[str] = mapped_column(String(MAX_ELECTION_NAME), nullable=False)
-    type: Mapped[str] = mapped_column(String(64), default="general_election")
+    type: Mapped[ElectionTypeEnum] = mapped_column(String(64), default=ElectionTypeEnum.GENERAL)
     datetime_start_nominations: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     datetime_start_voting: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     datetime_end_voting: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

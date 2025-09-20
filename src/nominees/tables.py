@@ -22,7 +22,6 @@ class NomineeInfo(Base):
 
     def to_update_dict(self) -> dict:
         return {
-            "computing_id": self.computing_id,
             "full_name": self.full_name,
 
             "linked_in": self.linked_in,

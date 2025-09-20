@@ -15,7 +15,7 @@ class StringList(TypeDecorator):
 
         return ",".join(value)
 
-    def process_result_value(self, value, dialect: Dialect) -> list[str] | None:
+    def process_result_value(self, value, dialect: Dialect) -> list[str]:
         if value is None or value == "":
             return []
         return value.split(",")

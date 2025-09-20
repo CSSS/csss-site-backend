@@ -4,7 +4,7 @@ from officers.constants import OfficerPositionEnum
 
 
 class RegistrationModel(BaseModel):
-    position: str
+    position: OfficerPositionEnum
     full_name: str
     linked_in: str
     instagram: str

@@ -314,7 +314,7 @@ async def update_election(
     _raise_if_bad_election_data(
         slugified_name,
         election.type,
-        election.datetime_start_voting,
+        election.datetime_start_nominations,
         election.datetime_start_voting,
         election.datetime_end_voting,
         election.available_positions,

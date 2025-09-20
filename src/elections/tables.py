@@ -86,9 +86,9 @@ class Election(Base):
             "name": self.name,
             "type": self.type,
 
-            "datetime_start_nominations": self.datetime_start_nominations.date(),
-            "datetime_start_voting": self.datetime_start_voting.date(),
-            "datetime_end_voting": self.datetime_end_voting.date(),
+            "datetime_start_nominations": self.datetime_start_nominations,
+            "datetime_start_voting": self.datetime_start_voting,
+            "datetime_end_voting": self.datetime_end_voting,
 
             "available_positions": self.available_positions,
             "survey_link": self.survey_link,

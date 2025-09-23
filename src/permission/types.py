@@ -8,7 +8,7 @@ import officers.constants
 import officers.crud
 import utils
 from data.semesters import step_semesters
-from officers.constants import OfficerPosition
+from officers.constants import OfficerPositionEnum
 
 
 class OfficerPrivateInfo:
@@ -34,11 +34,11 @@ class ElectionOfficer:
     @staticmethod
     async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
         """
-        An current elections officer has access to all elections, prior elections officers have no access.
+        An current election officer has access to all election, prior election officers have no access.
         """
         officer_terms = await officers.crud.current_officers(db_session, True)
         current_election_officer = officer_terms.get(
-            officers.constants.OfficerPosition.ELECTIONS_OFFICER
+            officers.constants.OfficerPositionEnum.ELECTIONS_OFFICER
         )
         if current_election_officer is not None:
             for election_officer in current_election_officer[1]:
@@ -51,12 +51,12 @@ class ElectionOfficer:
         return False
 
 class WebsiteAdmin:
-    WEBSITE_ADMIN_POSITIONS: ClassVar[list[str]] = [
-        OfficerPosition.PRESIDENT,
-        OfficerPosition.VICE_PRESIDENT,
-        OfficerPosition.DIRECTOR_OF_ARCHIVES,
-        OfficerPosition.SYSTEM_ADMINISTRATOR,
-        OfficerPosition.WEBMASTER,
+    WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPositionEnum]] = [
+        OfficerPositionEnum.PRESIDENT,
+        OfficerPositionEnum.VICE_PRESIDENT,
+        OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+        OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
+        OfficerPositionEnum.WEBMASTER,
     ]
 
     @staticmethod
@@ -77,3 +77,4 @@ class WebsiteAdmin:
     ) -> bool:
         if not await WebsiteAdmin.has_permission(db_session, computing_id):
             raise HTTPException(status_code=401, detail=errmsg)
+        return True

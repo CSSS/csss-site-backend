@@ -179,7 +179,7 @@ async def new_officer_term(
 @router.patch(
     "/info/{computing_id}",
     description="""
-        After elections, officer computing ids are input into our system.
+        After election, officer computing ids are input into our system.
         If you have been elected as a new officer, you may authenticate with SFU CAS,
         then input your information & the valid token for us. Admins may update this info.
     """

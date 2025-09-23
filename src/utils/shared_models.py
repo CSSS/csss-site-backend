@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class SuccessFailModel(BaseModel):
+class SuccessResponse(BaseModel):
     success: bool
 
 class DetailModel(BaseModel):

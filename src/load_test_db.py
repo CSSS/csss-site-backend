@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
-from elections.crud import create_election, create_nominee_info, update_election
-from elections.tables import Election, NomineeInfo
-from officers.constants import OfficerPosition
+from elections.crud import create_election, update_election
+from elections.tables import Election
+from nominees.crud import create_nominee_info
+from nominees.tables import NomineeInfo
+from officers.constants import OfficerPositionEnum
 from officers.crud import (
     create_new_officer_info,
     create_new_officer_term,
@@ -22,6 +24,8 @@ from officers.crud import (
     update_officer_term,
 )
 from officers.tables import OfficerInfo, OfficerTerm
+from registrations.crud import add_registration
+from registrations.tables import NomineeApplication
 
 
 async def reset_db(engine):
@@ -125,7 +129,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc11",
 
-        position=OfficerPosition.VICE_PRESIDENT,
+        position=OfficerPositionEnum.VICE_PRESIDENT,
         start_date=date.today() - timedelta(days=365),
         end_date=date.today() - timedelta(days=1),
 
@@ -142,7 +146,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc11",
 
-        position=OfficerPosition.EXECUTIVE_AT_LARGE,
+        position=OfficerPositionEnum.EXECUTIVE_AT_LARGE,
         start_date=date.today(),
         end_date=None,
 
@@ -159,7 +163,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc33",
 
-        position=OfficerPosition.PRESIDENT,
+        position=OfficerPositionEnum.PRESIDENT,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -177,7 +181,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id="abc22",
 
-        position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
+        position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -208,7 +212,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     await update_officer_term(db_session, OfficerTerm(
         computing_id="abc33",
 
-        position=OfficerPosition.PRESIDENT,
+        position=OfficerPositionEnum.PRESIDENT,
         start_date=date.today(),
         end_date=date.today() + timedelta(days=365),
 
@@ -243,7 +247,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id=SYSADMIN_COMPUTING_ID,
 
-        position=OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+        position=OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
         start_date=date.today() - timedelta(days=(365*3)),
         end_date=date.today() - timedelta(days=(365*2)),
 
@@ -260,7 +264,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id=SYSADMIN_COMPUTING_ID,
 
-        position=OfficerPosition.SYSTEM_ADMINISTRATOR,
+        position=OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
         start_date=date.today() - timedelta(days=365),
         end_date=None,
 
@@ -278,7 +282,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_term(db_session, OfficerTerm(
         computing_id=SYSADMIN_COMPUTING_ID,
 
-        position=OfficerPosition.DIRECTOR_OF_ARCHIVES,
+        position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
         start_date=date.today() + timedelta(days=365*1),
         end_date=date.today() + timedelta(days=365*2),
 
@@ -295,7 +299,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await db_session.commit()
 
 async def load_test_elections_data(db_session: AsyncSession):
-    print("loading elections data...")
+    print("loading election data...")
     await create_election(db_session, Election(
         slug="test-election-1",
         name="test election    1",
@@ -303,7 +307,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=400),
         datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
         datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
-        available_positions="president,vice-president",
+        available_positions=["president", "vice-president"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await update_election(db_session, Election(
@@ -313,7 +317,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=400),
         datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
         datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president", "vice-president", "treasurer"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await create_election(db_session, Election(
@@ -323,7 +327,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=1),
         datetime_start_voting=datetime.now() + timedelta(days=7),
         datetime_end_voting=datetime.now() + timedelta(days=14),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president", "vice-president", "treasurer"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5 (oh yeah)"
     ))
     await create_nominee_info(db_session, NomineeInfo(
@@ -349,7 +353,7 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() - timedelta(days=5),
         datetime_start_voting=datetime.now() - timedelta(days=1, hours=4),
         datetime_end_voting=datetime.now() + timedelta(days=5, hours=8),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president", "vice-president" ,"treasurer"],
         survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     ))
     await create_election(db_session, Election(
@@ -359,8 +363,17 @@ async def load_test_elections_data(db_session: AsyncSession):
         datetime_start_nominations=datetime.now() + timedelta(days=5),
         datetime_start_voting=datetime.now() + timedelta(days=10, hours=4),
         datetime_end_voting=datetime.now() + timedelta(days=15, hours=8),
-        available_positions="president,vice-president,treasurer",
+        available_positions=["president" ,"vice-president", "treasurer"],
         survey_link=None
+    ))
+    await db_session.commit()
+
+async def load_test_election_nominee_application_data(db_session: AsyncSession):
+    await add_registration(db_session, NomineeApplication(
+        computing_id=SYSADMIN_COMPUTING_ID,
+        nominee_election="test-election-2",
+        position="vice-president",
+        speech=None
     ))
     await db_session.commit()
 
@@ -373,6 +386,7 @@ async def async_main(sessionmanager):
         await load_test_officers_data(db_session)
         await load_sysadmin(db_session)
         await load_test_elections_data(db_session)
+        await load_test_election_nominee_application_data(db_session)
 
 if __name__ == "__main__":
     response = input(f"This will reset the {SQLALCHEMY_TEST_DATABASE_URL} database, are you okay with this? (y/N): ")

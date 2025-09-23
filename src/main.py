@@ -9,8 +9,10 @@ from fastapi.responses import JSONResponse
 import auth.urls
 import database
 import elections.urls
+import nominees.urls
 import officers.urls
 import permission.urls
+import registrations.urls
 from constants import IS_PROD
 
 logging.basicConfig(level=logging.DEBUG)
@@ -55,6 +57,8 @@ app.add_middleware(
 
 app.include_router(auth.urls.router)
 app.include_router(elections.urls.router)
+app.include_router(registrations.urls.router)
+app.include_router(nominees.urls.router)
 app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
 

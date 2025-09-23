@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 
 import sqlalchemy
@@ -14,8 +13,6 @@ from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (
     OfficerData,
 )
-
-_logger = logging.getLogger(__name__)
 
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
 

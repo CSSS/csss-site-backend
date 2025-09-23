@@ -1,4 +1,7 @@
-class OfficerPosition:
+from enum import StrEnum
+
+
+class OfficerPositionEnum(StrEnum):
     PRESIDENT = "president"
     VICE_PRESIDENT = "vice-president"
     TREASURER = "treasurer"
@@ -14,7 +17,7 @@ class OfficerPosition:
     EXECUTIVE_AT_LARGE = "executive at large"
     FIRST_YEAR_REPRESENTATIVE = "first year representative"
 
-    ELECTIONS_OFFICER = "elections officer"
+    ELECTIONS_OFFICER = "election officer"
     SFSS_COUNCIL_REPRESENTATIVE = "sfss council representative"
     FROSH_WEEK_CHAIR = "frosh week chair"
 
@@ -22,12 +25,13 @@ class OfficerPosition:
     WEBMASTER = "webmaster"
     SOCIAL_MEDIA_MANAGER = "social media manager"
 
+class OfficerPosition:
     @staticmethod
-    def position_list() -> list[str]:
+    def position_list() -> list[OfficerPositionEnum]:
         return _OFFICER_POSITION_LIST
 
     @staticmethod
-    def length_in_semesters(position: str) -> int | None:
+    def length_in_semesters(position: OfficerPositionEnum) -> int | None:
         # TODO (#101): ask the committee to maintain a json file with all the important details from the constitution
         """How many semester position is active for, according to the CSSS Constitution"""
         if position not in _LENGTH_MAP:
@@ -37,7 +41,7 @@ class OfficerPosition:
             return _LENGTH_MAP[position]
 
     @staticmethod
-    def to_email(position: str) -> str | None:
+    def to_email(position: OfficerPositionEnum) -> str | None:
         return _EMAIL_MAP.get(position, None)
 
     @staticmethod
@@ -47,13 +51,13 @@ class OfficerPosition:
         """
         # None means there can be any number active
         if (
-            position == OfficerPosition.EXECUTIVE_AT_LARGE
-            or position == OfficerPosition.FIRST_YEAR_REPRESENTATIVE
+            position == OfficerPositionEnum.EXECUTIVE_AT_LARGE
+            or position == OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE
         ):
             return 2
         elif (
-            position == OfficerPosition.FROSH_WEEK_CHAIR
-            or position == OfficerPosition.SOCIAL_MEDIA_MANAGER
+            position == OfficerPositionEnum.FROSH_WEEK_CHAIR
+            or position == OfficerPositionEnum.SOCIAL_MEDIA_MANAGER
         ):
             return None
         else:
@@ -65,132 +69,132 @@ class OfficerPosition:
         If the officer is a signing authority of the CSSS
         """
         return (
-            position == OfficerPosition.PRESIDENT
-            or position == OfficerPosition.VICE_PRESIDENT
-            or position == OfficerPosition.TREASURER
-            or position == OfficerPosition.DIRECTOR_OF_RESOURCES
-            or position == OfficerPosition.DIRECTOR_OF_EVENTS
+            position == OfficerPositionEnum.PRESIDENT
+            or position == OfficerPositionEnum.VICE_PRESIDENT
+            or position == OfficerPositionEnum.TREASURER
+            or position == OfficerPositionEnum.DIRECTOR_OF_RESOURCES
+            or position == OfficerPositionEnum.DIRECTOR_OF_EVENTS
         )
 
     @staticmethod
     def expected_positions() -> list[str]:
         # TODO (#93): use this function in the daily cronjobs
         return [
-            OfficerPosition.PRESIDENT,
-            OfficerPosition.VICE_PRESIDENT,
-            OfficerPosition.TREASURER,
+            OfficerPositionEnum.PRESIDENT,
+            OfficerPositionEnum.VICE_PRESIDENT,
+            OfficerPositionEnum.TREASURER,
 
-            OfficerPosition.DIRECTOR_OF_RESOURCES,
-            OfficerPosition.DIRECTOR_OF_EVENTS,
-            OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
-            OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
-            OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
-            #OfficerPosition.DIRECTOR_OF_OUTREACH, # TODO (#101): when https://github.com/CSSS/documents/pull/9/files merged
-            OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
-            OfficerPosition.DIRECTOR_OF_ARCHIVES,
-            OfficerPosition.EXECUTIVE_AT_LARGE,
+            OfficerPositionEnum.DIRECTOR_OF_RESOURCES,
+            OfficerPositionEnum.DIRECTOR_OF_EVENTS,
+            OfficerPositionEnum.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+            OfficerPositionEnum.ASSISTANT_DIRECTOR_OF_EVENTS,
+            OfficerPositionEnum.DIRECTOR_OF_COMMUNICATIONS,
+            #OfficerPositionEnum.DIRECTOR_OF_OUTREACH, # TODO (#101): when https://github.com/CSSS/documents/pull/9/files merged
+            OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
+            OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+            OfficerPositionEnum.EXECUTIVE_AT_LARGE,
             # TODO (#101): expect these only during fall & spring semesters.
-            #OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+            #OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
 
             #ElectionsOfficer,
-            OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
-            OfficerPosition.FROSH_WEEK_CHAIR,
+            OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE,
+            OfficerPositionEnum.FROSH_WEEK_CHAIR,
 
-            OfficerPosition.SYSTEM_ADMINISTRATOR,
-            OfficerPosition.WEBMASTER,
+            OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
+            OfficerPositionEnum.WEBMASTER,
         ]
 
 _EMAIL_MAP = {
-    OfficerPosition.PRESIDENT: "csss-president-current@sfu.ca",
-    OfficerPosition.VICE_PRESIDENT: "csss-vp-current@sfu.ca",
-    OfficerPosition.TREASURER: "csss-treasurer-current@sfu.ca",
+    OfficerPositionEnum.PRESIDENT: "csss-president-current@sfu.ca",
+    OfficerPositionEnum.VICE_PRESIDENT: "csss-vp-current@sfu.ca",
+    OfficerPositionEnum.TREASURER: "csss-treasurer-current@sfu.ca",
 
-    OfficerPosition.DIRECTOR_OF_RESOURCES: "csss-dor-current@sfu.ca",
-    OfficerPosition.DIRECTOR_OF_EVENTS: "csss-doe-current@sfu.ca",
-    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS: "csss-doee-current@sfu.ca",
-    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS: "csss-adoe-current@sfu.ca",
-    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS: "csss-doc-current@sfu.ca",
-    #OfficerPosition.DIRECTOR_OF_OUTREACH,
-    OfficerPosition.DIRECTOR_OF_MULTIMEDIA: "csss-domm-current@sfu.ca",
-    OfficerPosition.DIRECTOR_OF_ARCHIVES: "csss-doa-current@sfu.ca",
-    OfficerPosition.EXECUTIVE_AT_LARGE: "csss-eal-current@sfu.ca",
-    OfficerPosition.FIRST_YEAR_REPRESENTATIVE: "csss-fyr-current@sfu.ca",
+    OfficerPositionEnum.DIRECTOR_OF_RESOURCES: "csss-dor-current@sfu.ca",
+    OfficerPositionEnum.DIRECTOR_OF_EVENTS: "csss-doe-current@sfu.ca",
+    OfficerPositionEnum.DIRECTOR_OF_EDUCATIONAL_EVENTS: "csss-doee-current@sfu.ca",
+    OfficerPositionEnum.ASSISTANT_DIRECTOR_OF_EVENTS: "csss-adoe-current@sfu.ca",
+    OfficerPositionEnum.DIRECTOR_OF_COMMUNICATIONS: "csss-doc-current@sfu.ca",
+    #OfficerPositionEnum.DIRECTOR_OF_OUTREACH,
+    OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA: "csss-domm-current@sfu.ca",
+    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES: "csss-doa-current@sfu.ca",
+    OfficerPositionEnum.EXECUTIVE_AT_LARGE: "csss-eal-current@sfu.ca",
+    OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE: "csss-fyr-current@sfu.ca",
 
-    OfficerPosition.ELECTIONS_OFFICER: "csss-elections@sfu.ca",
-    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE: "csss-councilrep@sfu.ca",
-    OfficerPosition.FROSH_WEEK_CHAIR: "csss-froshchair@sfu.ca",
+    OfficerPositionEnum.ELECTIONS_OFFICER: "csss-election@sfu.ca",
+    OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE: "csss-councilrep@sfu.ca",
+    OfficerPositionEnum.FROSH_WEEK_CHAIR: "csss-froshchair@sfu.ca",
 
-    OfficerPosition.SYSTEM_ADMINISTRATOR: "csss-sysadmin@sfu.ca",
-    OfficerPosition.WEBMASTER: "csss-webmaster@sfu.ca",
-    OfficerPosition.SOCIAL_MEDIA_MANAGER: "N/A",
+    OfficerPositionEnum.SYSTEM_ADMINISTRATOR: "csss-sysadmin@sfu.ca",
+    OfficerPositionEnum.WEBMASTER: "csss-webmaster@sfu.ca",
+    OfficerPositionEnum.SOCIAL_MEDIA_MANAGER: "N/A",
 }
 
 # None, means that the length of the position does not have a set length in semesters
 _LENGTH_MAP = {
-    OfficerPosition.PRESIDENT: 3,
-    OfficerPosition.VICE_PRESIDENT: 3,
-    OfficerPosition.TREASURER: 3,
+    OfficerPositionEnum.PRESIDENT: 3,
+    OfficerPositionEnum.VICE_PRESIDENT: 3,
+    OfficerPositionEnum.TREASURER: 3,
 
-    OfficerPosition.DIRECTOR_OF_RESOURCES: 3,
-    OfficerPosition.DIRECTOR_OF_EVENTS: 3,
-    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS: 3,
-    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS: 3,
-    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS: 3,
-    #OfficerPosition.DIRECTOR_OF_OUTREACH: 3,
-    OfficerPosition.DIRECTOR_OF_MULTIMEDIA: 3,
-    OfficerPosition.DIRECTOR_OF_ARCHIVES: 3,
-    OfficerPosition.EXECUTIVE_AT_LARGE: 1,
-    OfficerPosition.FIRST_YEAR_REPRESENTATIVE: 2,
+    OfficerPositionEnum.DIRECTOR_OF_RESOURCES: 3,
+    OfficerPositionEnum.DIRECTOR_OF_EVENTS: 3,
+    OfficerPositionEnum.DIRECTOR_OF_EDUCATIONAL_EVENTS: 3,
+    OfficerPositionEnum.ASSISTANT_DIRECTOR_OF_EVENTS: 3,
+    OfficerPositionEnum.DIRECTOR_OF_COMMUNICATIONS: 3,
+    #OfficerPositionEnum.DIRECTOR_OF_OUTREACH: 3,
+    OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA: 3,
+    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES: 3,
+    OfficerPositionEnum.EXECUTIVE_AT_LARGE: 1,
+    OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE: 2,
 
-    OfficerPosition.ELECTIONS_OFFICER: None,
-    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE: 3,
-    OfficerPosition.FROSH_WEEK_CHAIR: None,
+    OfficerPositionEnum.ELECTIONS_OFFICER: None,
+    OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE: 3,
+    OfficerPositionEnum.FROSH_WEEK_CHAIR: None,
 
-    OfficerPosition.SYSTEM_ADMINISTRATOR: None,
-    OfficerPosition.WEBMASTER: None,
-    OfficerPosition.SOCIAL_MEDIA_MANAGER: None,
+    OfficerPositionEnum.SYSTEM_ADMINISTRATOR: None,
+    OfficerPositionEnum.WEBMASTER: None,
+    OfficerPositionEnum.SOCIAL_MEDIA_MANAGER: None,
 }
 
 _OFFICER_POSITION_LIST = [
-    OfficerPosition.PRESIDENT,
-    OfficerPosition.VICE_PRESIDENT,
-    OfficerPosition.TREASURER,
+    OfficerPositionEnum.PRESIDENT,
+    OfficerPositionEnum.VICE_PRESIDENT,
+    OfficerPositionEnum.TREASURER,
 
-    OfficerPosition.DIRECTOR_OF_RESOURCES,
-    OfficerPosition.DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
-    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
-    #OfficerPosition.DIRECTOR_OF_OUTREACH,
-    OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
-    OfficerPosition.DIRECTOR_OF_ARCHIVES,
-    OfficerPosition.EXECUTIVE_AT_LARGE,
-    OfficerPosition.FIRST_YEAR_REPRESENTATIVE,
+    OfficerPositionEnum.DIRECTOR_OF_RESOURCES,
+    OfficerPositionEnum.DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+    OfficerPositionEnum.ASSISTANT_DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_COMMUNICATIONS,
+    #OfficerPositionEnum.DIRECTOR_OF_OUTREACH,
+    OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
+    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+    OfficerPositionEnum.EXECUTIVE_AT_LARGE,
+    OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
 
-    OfficerPosition.ELECTIONS_OFFICER,
-    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
-    OfficerPosition.FROSH_WEEK_CHAIR,
+    OfficerPositionEnum.ELECTIONS_OFFICER,
+    OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE,
+    OfficerPositionEnum.FROSH_WEEK_CHAIR,
 
-    OfficerPosition.SYSTEM_ADMINISTRATOR,
-    OfficerPosition.WEBMASTER,
-    OfficerPosition.SOCIAL_MEDIA_MANAGER,
+    OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
+    OfficerPositionEnum.WEBMASTER,
+    OfficerPositionEnum.SOCIAL_MEDIA_MANAGER,
 ]
 
 GENERAL_ELECTION_POSITIONS = [
-    OfficerPosition.PRESIDENT,
-    OfficerPosition.VICE_PRESIDENT,
-    OfficerPosition.TREASURER,
+    OfficerPositionEnum.PRESIDENT,
+    OfficerPositionEnum.VICE_PRESIDENT,
+    OfficerPositionEnum.TREASURER,
 
-    OfficerPosition.DIRECTOR_OF_RESOURCES,
-    OfficerPosition.DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_EDUCATIONAL_EVENTS,
-    OfficerPosition.ASSISTANT_DIRECTOR_OF_EVENTS,
-    OfficerPosition.DIRECTOR_OF_COMMUNICATIONS,
-    #OfficerPosition.DIRECTOR_OF_OUTREACH,
-    OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
-    OfficerPosition.DIRECTOR_OF_ARCHIVES,
+    OfficerPositionEnum.DIRECTOR_OF_RESOURCES,
+    OfficerPositionEnum.DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_EDUCATIONAL_EVENTS,
+    OfficerPositionEnum.ASSISTANT_DIRECTOR_OF_EVENTS,
+    OfficerPositionEnum.DIRECTOR_OF_COMMUNICATIONS,
+    #OfficerPositionEnum.DIRECTOR_OF_OUTREACH,
+    OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
+    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
 ]
 
 COUNCIL_REP_ELECTION_POSITIONS = [
-    OfficerPosition.SFSS_COUNCIL_REPRESENTATIVE,
+    OfficerPositionEnum.SFSS_COUNCIL_REPRESENTATIVE,
 ]

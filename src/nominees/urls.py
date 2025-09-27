@@ -9,11 +9,43 @@ from nominees.models import (
     NomineeInfoUpdateParams,
 )
 from nominees.tables import NomineeInfo
+from utils.shared_models import DetailModel
+from utils.urls import AdminTypeEnum, admin_or_raise
 
 router = APIRouter(
     prefix="/nominee",
     tags=["nominee"],
 )
+
+
+@router.post(
+    "",
+    description="Nominee info is always publically tied to election, so be careful!",
+    response_model=NomineeInfoModel,
+    responses={500: {"description": "failed to fetch new nominee", "model": DetailModel}},
+    operation_id="create_nominee",
+)
+async def create_nominee(request: Request, db_session: database.DBSession, body: NomineeInfoModel):
+    await admin_or_raise(request, db_session)
+    await nominees.crud.create_nominee_info(
+        db_session,
+        NomineeInfo(
+            computing_id=body.computing_id,
+            full_name=body.full_name,
+            linked_in=body.linked_in,
+            instagram=body.instagram,
+            email=body.email,
+            discord_username=body.discord_username,
+        ),
+    )
+
+    nominee_info = await nominees.crud.get_nominee_info(db_session, body.computing_id)
+    if nominee_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't fetch newly created nominee"
+        )
+
+    return JSONResponse(nominee_info)
 
 
 @router.get(
@@ -56,6 +88,7 @@ async def provide_nominee_info(db_session: database.DBSession, body: NomineeInfo
     if body.discord_username is not None:
         updated_data["discord_username"] = body.discord_username
 
+    # TODO: Look into using something built into SQLAlchemy/Pydantic for better entry updates
     existing_info = await nominees.crud.get_nominee_info(db_session, computing_id)
     # if not already existing, create it
     if not existing_info:

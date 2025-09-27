@@ -8,7 +8,7 @@ from nominees.models import (
     NomineeInfoUpdateParams,
 )
 from nominees.tables import NomineeInfo
-from utils.shared_models import DetailModel
+from utils.shared_models import DetailModel, SuccessResponse
 from utils.urls import admin_or_raise
 
 router = APIRouter(
@@ -94,6 +94,20 @@ async def get_nominee_info(
         )
 
     return JSONResponse(nominee_info.serialize())
+
+@router.delete(
+    "/{computing_id:str}",
+    description="Nominee info is always publically tied to election, so be careful!",
+    operation_id="delete_nominee"
+)
+async def delete_nominee_info(
+    request: Request,
+    db_session: database.DBSession,
+    computing_id: str
+):
+    await admin_or_raise(request, db_session)
+    await nominees.crud.delete_nominee_info(db_session, computing_id)
+    await db_session.commit()
 
 @router.patch(
     "/{computing_id:str}",

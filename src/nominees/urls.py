@@ -18,6 +18,24 @@ router = APIRouter(
 )
 
 
+@router.get(
+    "",
+    description="Get all nominees",
+    response_model=list[NomineeInfoModel],
+    responses={403: {"description": "need to be an admin", "model": DetailModel}},
+    operation_id="create_nominee",
+)
+async def get_all_nominees(
+    request: Request,
+    db_session: database.DBSession,
+):
+    # Putting this behind a wall since there is private information here
+    await admin_or_raise(request, db_session)
+    nominees_list = await nominees.crud.get_all_nominees(db_session)
+
+    return JSONResponse([item.serialize() for item in nominees_list])
+
+
 @router.post(
     "",
     description="Nominee info is always publically tied to election, so be careful!",

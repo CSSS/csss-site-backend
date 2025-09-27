@@ -1,8 +1,19 @@
+from collections.abc import Sequence
+
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nominees.tables import NomineeInfo
 
+
+async def get_all_nominees(
+    db_session: AsyncSession,
+) -> Sequence[NomineeInfo]:
+    nominees = (await db_session.scalars(
+        sqlalchemy
+        .select(NomineeInfo)
+    )).all()
+    return nominees
 
 async def get_nominee_info(
     db_session: AsyncSession,

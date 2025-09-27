@@ -7,6 +7,15 @@ from officers.constants import OfficerPositionEnum
 from registrations.tables import NomineeApplication
 
 
+async def get_all_registrations(
+    db_session: AsyncSession
+) -> Sequence[NomineeApplication]:
+    registrations = (await db_session.scalars(
+        sqlalchemy
+        .select(NomineeApplication)
+    )).all()
+    return registrations
+
 async def get_all_registrations_of_user(
     db_session: AsyncSession, computing_id: str, election_slug: str
 ) -> Sequence[NomineeApplication] | None:

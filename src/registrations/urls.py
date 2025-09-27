@@ -28,6 +28,17 @@ router = APIRouter(
 
 
 @router.get(
+    "",
+    description="get all the registrations",
+    response_model=list[NomineeApplicationModel],
+    operation_id="get_registrations"
+)
+async def get_all_registrations(
+    db_session: database.DBSession,
+):
+    return await registrations.crud.get_all_registrations(db_session)
+
+@router.get(
     "/{election_name:str}",
     description="get all the registrations of a single election",
     response_model=list[NomineeApplicationModel],

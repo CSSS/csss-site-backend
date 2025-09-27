@@ -38,3 +38,13 @@ async def update_nominee_info(
         .where(NomineeInfo.computing_id == info.computing_id)
         .values(info.to_update_dict())
     )
+
+async def delete_nominee_info(
+        db_session: AsyncSession,
+        computing_id: str,
+):
+    await db_session.execute(
+        sqlalchemy
+        .delete(NomineeInfo)
+        .where(NomineeInfo.computing_id == computing_id)
+    )

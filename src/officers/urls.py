@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -7,12 +5,12 @@ import auth.crud
 import database
 import officers.crud
 import utils
+from elections.urls import get_election_permissions
+from officers.models import PrivateOfficerResponse, PublicOfficerResponse
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
 from utils.urls import logged_in_or_raise
-
-_logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/officers",
@@ -25,32 +23,34 @@ router = APIRouter(
 async def _has_officer_private_info_access(
     request: Request,
     db_session: database.DBSession
-) -> tuple[None | str, None | str, bool]:
+) -> tuple[bool, str | None,]:
     """determine if the user has access to private officer info"""
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
-        return None, None, False
+        return False, None
 
     computing_id = await auth.crud.get_computing_id(db_session, session_id)
     if computing_id is None:
-        return session_id, None, False
+        return False, None
 
     has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
-    return session_id, computing_id, has_private_access
+    return has_private_access, computing_id
 
 # ---------------------------------------- #
 # endpoints
 
 @router.get(
     "/current",
-    description="Get information about all the officers. More information is given if you're authenticated & have access to private executive data.",
+    description="Get information about the current officers. With no authorization, only get basic info.",
+    response_model=list[PrivateOfficerResponse] | list[PublicOfficerResponse],
+    operation_id="get_current_officers"
 )
 async def current_officers(
     # the request headers
     request: Request,
     db_session: database.DBSession,
 ):
-    _, _, has_private_access = await _has_officer_private_info_access(request, db_session)
+    has_private_access, _ = await _has_officer_private_info_access(request, db_session)
     current_officers = await officers.crud.current_officers(db_session, has_private_access)
     return JSONResponse({
         position: [
@@ -71,7 +71,7 @@ async def all_officers(
     # and may only be accessed by that officer and executives. All other officer terms are public.
     include_future_terms: bool = False,
 ):
-    _, computing_id, has_private_access = await _has_officer_private_info_access(request, db_session)
+    has_private_access, computing_id = await _has_officer_private_info_access(request, db_session)
     if include_future_terms:
         is_website_admin = (computing_id is not None) and (await WebsiteAdmin.has_permission(db_session, computing_id))
         if not is_website_admin:

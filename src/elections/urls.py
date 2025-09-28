@@ -25,7 +25,7 @@ router = APIRouter(
     tags=["election"],
 )
 
-async def get_user_permissions(
+async def get_election_permissions(
     request: Request,
     db_session: database.DBSession,
 ) -> tuple[bool, str | None, str | None]:
@@ -96,7 +96,7 @@ async def list_elections(
     request: Request,
     db_session: database.DBSession,
 ):
-    is_admin, _, _ = await get_user_permissions(request, db_session)
+    is_admin, _, _ = await get_election_permissions(request, db_session)
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
@@ -145,7 +145,7 @@ async def get_election(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if current_time >= election.datetime_start_voting or is_valid_user:
 
         election_json = election.private_details(current_time)
@@ -233,7 +233,7 @@ async def create_election(
         available_positions
     )
 
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -293,7 +293,7 @@ async def update_election(
     db_session: database.DBSession,
     election_name: str,
 ):
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -349,7 +349,7 @@ async def delete_election(
     election_name: str
 ):
     slugified_name = slugify(election_name)
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

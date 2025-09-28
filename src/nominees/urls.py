@@ -8,7 +8,7 @@ from nominees.models import (
     NomineeInfoUpdateParams,
 )
 from nominees.tables import NomineeInfo
-from utils.shared_models import DetailModel, SuccessResponse
+from utils.shared_models import DetailModel
 from utils.urls import admin_or_raise
 
 router = APIRouter(
@@ -23,7 +23,7 @@ router = APIRouter(
     responses={
         403: { "description": "need to be an admin", "model": DetailModel }
     },
-    operation_id="create_nominee"
+    operation_id="get_all_nominees"
 )
 async def get_all_nominees(
     request: Request,
@@ -97,7 +97,7 @@ async def get_nominee_info(
 
 @router.delete(
     "/{computing_id:str}",
-    description="Nominee info is always publically tied to election, so be careful!",
+    description="Delete a nominee",
     operation_id="delete_nominee"
 )
 async def delete_nominee_info(

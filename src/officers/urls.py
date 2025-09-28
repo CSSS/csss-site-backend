@@ -46,7 +46,6 @@ async def _has_officer_private_info_access(
     operation_id="get_current_officers"
 )
 async def current_officers(
-    # the request headers
     request: Request,
     db_session: database.DBSession,
 ):
@@ -62,7 +61,9 @@ async def current_officers(
 
 @router.get(
     "/all",
-    description="Information for all execs from all exec terms"
+    description="Information for all execs from all exec terms",
+    response_model=list[PrivateOfficerResponse] | list[PublicOfficerResponse],
+    operation_id="get_all_officers"
 )
 async def all_officers(
     request: Request,
@@ -78,10 +79,16 @@ async def all_officers(
             raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
     all_officers = await officers.crud.all_officers(db_session, has_private_access, include_future_terms)
-    return JSONResponse([
-        officer_data.serializable_dict()
-        for officer_data in all_officers
-    ])
+    if has_private_access:
+        return JSONResponse([
+            PrivateOfficerResponse.model_validate(officer_data)
+            for officer_data in all_officers
+        ])
+    else:
+        return JSONResponse([
+            PublicOfficerResponse.model_validate(officer_data)
+            for officer_data in all_officers
+        ])
 
 @router.get(
     "/terms/{computing_id}",

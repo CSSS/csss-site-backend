@@ -11,7 +11,6 @@ class BaseOfficerModel(BaseModel):
     position: OfficerPositionEnum
     start_date: datetime
     end_date: str | None = None
-    csss_email: str
 
 class PublicOfficerResponse(BaseOfficerModel):
     """
@@ -22,6 +21,7 @@ class PublicOfficerResponse(BaseOfficerModel):
     discord_name: str | None = None
     discord_nickname: int | None = None
     biography: str | None = None
+    csss_email: str
 
 class PrivateOfficerResponse(PublicOfficerResponse):
     """
@@ -32,10 +32,17 @@ class PrivateOfficerResponse(PublicOfficerResponse):
     github_username: str | None = None
     google_drive_email: str | None = None
 
-class OfficerTermParams(BaseModel):
+class OfficerTermCreate(BaseOfficerModel):
     """
-    Create a new officer term
+    Create a new Officer term
     """
     computing_id: str
-    position: OfficerPositionEnum
-    start_date: str
+
+class OfficerTermUpdate(BaseModel):
+    """
+    Update an Officer Term
+    """
+    legal_name: str | None = None
+    position: OfficerPositionEnum | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None

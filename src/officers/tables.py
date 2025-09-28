@@ -8,6 +8,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -49,6 +50,8 @@ class OfficerTerm(Base):
     favourite_pl_1: Mapped[str] = mapped_column(String(64), nullable=True)
     biography: Mapped[str] = mapped_column(Text, nullable=True)
     photo_url: Mapped[str] = mapped_column(Text, nullable=True) # some urls get big, best to let it be a string
+
+    __table_args__ = (UniqueConstraint("computing_id", "position", "start_date"),) # This needs a comma to work
 
     def serializable_dict(self) -> dict:
         return {

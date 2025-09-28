@@ -23,7 +23,7 @@ router = APIRouter(
     description="Get all nominees",
     response_model=list[NomineeInfoModel],
     responses={403: {"description": "need to be an admin", "model": DetailModel}},
-    operation_id="create_nominee",
+    operation_id="get_all_nominees",
 )
 async def get_all_nominees(
     request: Request,
@@ -83,11 +83,7 @@ async def get_nominee_info(db_session: database.DBSession, computing_id: str):
     return JSONResponse(nominee_info.serialize())
 
 
-@router.delete(
-    "/{computing_id:str}",
-    description="Nominee info is always publically tied to election, so be careful!",
-    operation_id="delete_nominee",
-)
+@router.delete("/{computing_id:str}", description="Delete a nominee", operation_id="delete_nominee")
 async def delete_nominee_info(request: Request, db_session: database.DBSession, computing_id: str):
     await admin_or_raise(request, db_session)
     await nominees.crud.delete_nominee_info(db_session, computing_id)

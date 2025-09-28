@@ -298,6 +298,76 @@ async def load_sysadmin(db_session: AsyncSession):
     ))
     await db_session.commit()
 
+WEBMASTER_COMPUTING_ID = "jbriones"
+async def load_webmaster(db_session: AsyncSession):
+    # put your computing id here for testing purposes
+    print(f"loading new webmaster '{WEBMASTER_COMPUTING_ID}'")
+    await create_user_session(db_session, f"temp_id_{WEBMASTER_COMPUTING_ID}", WEBMASTER_COMPUTING_ID)
+    await create_new_officer_info(db_session, OfficerInfo(
+        legal_name="Jon Andre Briones",
+        discord_id=None,
+        discord_name=None,
+        discord_nickname=None,
+
+        computing_id=WEBMASTER_COMPUTING_ID,
+        phone_number=None,
+        github_username=None,
+        google_drive_email=None,
+    ))
+    await create_new_officer_term(db_session, OfficerTerm(
+        computing_id=WEBMASTER_COMPUTING_ID,
+
+        position=OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
+        start_date=date.today() - timedelta(days=(365*3)),
+        end_date=date.today() - timedelta(days=(365*2)),
+
+        nickname="Jon Andre Briones",
+        favourite_course_0="CMPT 379",
+        favourite_course_1="CMPT 371",
+
+        favourite_pl_0="TypeScript",
+        favourite_pl_1="C#",
+
+        biography="o hey fellow kids \n\n\n I can newline",
+        photo_url=None,
+    ))
+    await create_new_officer_term(db_session, OfficerTerm(
+        computing_id=WEBMASTER_COMPUTING_ID,
+
+        position=OfficerPositionEnum.WEBMASTER,
+        start_date=date.today() - timedelta(days=365),
+        end_date=None,
+
+        nickname="G2",
+        favourite_course_0="CMPT 379",
+        favourite_course_1="CMPT 295",
+
+        favourite_pl_0="Rust",
+        favourite_pl_1="C",
+
+        biography="The systems are good o7",
+        photo_url=None,
+    ))
+    # a future term
+    await create_new_officer_term(db_session, OfficerTerm(
+        computing_id=WEBMASTER_COMPUTING_ID,
+
+        position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+        start_date=date.today() + timedelta(days=365*1),
+        end_date=date.today() + timedelta(days=365*2),
+
+        nickname="G3",
+        favourite_course_0="MACM 102",
+        favourite_course_1="CMPT 127",
+
+        favourite_pl_0="C%",
+        favourite_pl_1="C$$",
+
+        biography="o hey fellow kids \n\n\n I will can newline .... !!",
+        photo_url=None,
+    ))
+    await db_session.commit()
+
 async def load_test_elections_data(db_session: AsyncSession):
     print("loading election data...")
     await create_election(db_session, Election(
@@ -385,6 +455,7 @@ async def async_main(sessionmanager):
         await load_test_auth_data(db_session)
         await load_test_officers_data(db_session)
         await load_sysadmin(db_session)
+        await load_webmaster(db_session)
         await load_test_elections_data(db_session)
         await load_test_election_nominee_application_data(db_session)
 

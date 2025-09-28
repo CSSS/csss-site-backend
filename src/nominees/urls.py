@@ -109,7 +109,7 @@ async def delete_nominee_info(
     await nominees.crud.delete_nominee_info(db_session, computing_id)
     await db_session.commit()
 
-@router.patch(
+@router.put(
     "/{computing_id:str}",
     description="Will create or update nominee info. Returns an updated copy of their nominee info.",
     response_model=NomineeInfoModel,

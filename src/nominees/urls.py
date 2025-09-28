@@ -90,7 +90,7 @@ async def delete_nominee_info(request: Request, db_session: database.DBSession, 
     await db_session.commit()
 
 
-@router.patch(
+@router.put(
     "/{computing_id:str}",
     description="Will create or update nominee info. Returns an updated copy of their nominee info.",
     response_model=NomineeInfoModel,

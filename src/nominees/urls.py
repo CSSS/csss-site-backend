@@ -8,7 +8,7 @@ from nominees.models import (
     NomineeInfoUpdateParams,
 )
 from nominees.tables import NomineeInfo
-from utils.urls import admin_or_raise
+from utils.urls import AdminTypeEnum, admin_or_raise
 
 router = APIRouter(
     prefix="/nominee",
@@ -30,7 +30,7 @@ async def get_nominee_info(
     computing_id: str
 ):
     # Putting this one behind the admin wall since it has contact information
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
     nominee_info = await nominees.crud.get_nominee_info(db_session, computing_id)
     if nominee_info is None:
         raise HTTPException(
@@ -56,7 +56,7 @@ async def provide_nominee_info(
     computing_id: str
 ):
     # TODO: There needs to be a lot more validation here.
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
 
     updated_data = {}
     # Only update fields that were provided

@@ -5,12 +5,19 @@ import auth.crud
 import database
 import officers.crud
 import utils
-from officers.models import OfficerTermResponse, PrivateOfficerResponse, PublicOfficerResponse
+from officers.models import (
+    OfficerSelfUpdate,
+    OfficerTermCreate,
+    OfficerTermResponse,
+    OfficerUpdate,
+    PrivateOfficerInfoResponse,
+    PublicOfficerInfoResponse,
+)
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
-from utils.shared_models import DetailModel
-from utils.urls import logged_in_or_raise
+from utils.shared_models import DetailModel, SuccessResponse
+from utils.urls import admin_or_raise, is_website_admin, logged_in_or_raise
 
 router = APIRouter(
     prefix="/officers",
@@ -42,7 +49,7 @@ async def _has_officer_private_info_access(
 @router.get(
     "/current",
     description="Get information about the current officers. With no authorization, only get basic info.",
-    response_model=list[PrivateOfficerResponse] | list[PublicOfficerResponse],
+    response_model=list[PrivateOfficerInfoResponse] | list[PublicOfficerInfoResponse],
     operation_id="get_current_officers"
 )
 async def current_officers(
@@ -62,9 +69,9 @@ async def current_officers(
 @router.get(
     "/all",
     description="Information for all execs from all exec terms",
-    response_model=list[PrivateOfficerResponse] | list[PublicOfficerResponse],
+    response_model=list[PrivateOfficerInfoResponse] | list[PublicOfficerInfoResponse],
     responses={
-        401: { "description": "not authorized to view private info", "model": DetailModel }
+        403: { "description": "not authorized to view private info", "model": DetailModel }
     },
     operation_id="get_all_officers"
 )
@@ -97,7 +104,7 @@ async def all_officers(
     responses={
         401: { "description": "not authorized to view private info", "model": DetailModel }
     },
-    operation_id="get_all_officers"
+    operation_id="get_officer_terms_by_id"
 )
 async def get_officer_terms(
     request: Request,
@@ -121,8 +128,13 @@ async def get_officer_terms(
     ])
 
 @router.get(
-    "/info/{computing_id}",
+    "/info/{computing_id:str}",
     description="Get officer info for the current user, if they've ever been an exec. Only admins can get info about another user.",
+    response_model=PrivateOfficerInfoResponse,
+    responses={
+        403: { "description": "not authorized to view author user info", "model": DetailModel }
+    },
+    operation_id="get_officer_info_by_id"
 )
 async def get_officer_info(
     request: Request,
@@ -145,20 +157,19 @@ async def get_officer_info(
         Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA.
         Updates the system with a new officer, and enables the user to login to the system to input their information.
     """,
+    response_model=SuccessResponse,
+    responses={
+        403: { "description": "must be a website admin", "model": DetailModel },
+        500: { "model": DetailModel },
+    },
+    operation_id="create_officer_term"
 )
 async def new_officer_term(
     request: Request,
     db_session: database.DBSession,
-    officer_info_list: list[InitialOfficerInfo] = Body(), # noqa: B008
+    officer_info_list: list[OfficerTermCreate],
 ):
-    """
-    If the current computing_id is not already an officer, officer_info will be created for them.
-    """
-    for officer_info in officer_info_list:
-        officer_info.valid_or_raise()
-
-    _, session_computing_id = await logged_in_or_raise(request, db_session)
-    await WebsiteAdmin.has_permission_or_raise(db_session, session_computing_id)
+    await admin_or_raise(request, db_session)
 
     for officer_info in officer_info_list:
         # if user with officer_info.computing_id has never logged into the website before,
@@ -166,7 +177,7 @@ async def new_officer_term(
         await officers.crud.create_new_officer_info(db_session, OfficerInfo(
             computing_id = officer_info.computing_id,
             # TODO (#71): use sfu api to get legal name from officer_info.computing_id
-            legal_name = "default name",
+            legal_name = officer_info.legal_name,
             phone_number = None,
 
             discord_id = None,
@@ -183,47 +194,43 @@ async def new_officer_term(
         ))
 
     await db_session.commit()
-    return PlainTextResponse("ok")
+    return JSONResponse({ "success": True })
 
 @router.patch(
-    "/info/{computing_id}",
+    "/info/{computing_id:str}",
     description="""
         After election, officer computing ids are input into our system.
         If you have been elected as a new officer, you may authenticate with SFU CAS,
         then input your information & the valid token for us. Admins may update this info.
-    """
+    """,
+    response_model=OfficerPrivateInfo,
+    responses={
+        403: { "description": "must be a website admin", "model": DetailModel },
+        500: { "description": "failed to fetch after update", "model": DetailModel },
+    },
+    operation_id="update_officer_info"
 )
 async def update_info(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
-    officer_info_upload: OfficerInfoUpload = Body() # noqa: B008
+    officer_info_upload: OfficerUpdate | OfficerSelfUpdate
 ):
-    officer_info_upload.valid_or_raise()
-    _, session_computing_id = await logged_in_or_raise(request, db_session)
+    is_site_admin, _, session_computing_id = await is_website_admin(request, db_session)
 
-    if computing_id != session_computing_id:
-        await WebsiteAdmin.has_permission_or_raise(
-            db_session, session_computing_id,
-            errmsg="must have website admin permissions to update another user"
-        )
+    if computing_id != session_computing_id and not is_site_admin:
+        raise HTTPException(status_code=403, detail="you may not update other officers")
 
     old_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
-    validation_failures, corrected_officer_info = await officer_info_upload.validate(computing_id, old_officer_info)
+    old_officer_info.update_from_params(officer_info_upload)
+    await officers.crud.update_officer_info(db_session, old_officer_info)
 
     # TODO (#27): log all important changes just to a .log file & persist them for a few years
 
-    success = await officers.crud.update_officer_info(db_session, corrected_officer_info)
-    if not success:
-        raise HTTPException(status_code=400, detail="officer_info does not exist yet, please create the officer info entry first")
-
     await db_session.commit()
 
-    updated_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
-    return JSONResponse({
-        "officer_info": updated_officer_info.serializable_dict(),
-        "validation_failures": validation_failures,
-    })
+    updated_officer_info = await officers.crud.get_new_officer_info_or_raise(db_session, computing_id)
+    return JSONResponse(updated_officer_info)
 
 @router.patch(
     "/term/{term_id}",

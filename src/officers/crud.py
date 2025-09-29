@@ -98,6 +98,19 @@ async def get_officer_info_or_raise(db_session: database.DBSession, computing_id
         raise HTTPException(status_code=404, detail=f"officer_info for computing_id={computing_id} does not exist yet")
     return officer_term
 
+async def get_new_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
+    """
+    This check is for after a create/update
+    """
+    officer_term = await db_session.scalar(
+        sqlalchemy
+        .select(OfficerInfo)
+        .where(OfficerInfo.computing_id == computing_id)
+    )
+    if officer_term is None:
+        raise HTTPException(status_code=500, detail=f"failed to fetch {computing_id} after update")
+    return officer_term
+
 async def get_officer_terms(
     db_session: database.DBSession,
     computing_id: str,

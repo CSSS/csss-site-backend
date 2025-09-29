@@ -18,7 +18,7 @@ from registrations.models import (
 )
 from registrations.tables import NomineeApplication
 from utils.shared_models import DetailModel, SuccessResponse
-from utils.urls import admin_or_raise, logged_in_or_raise, slugify
+from utils.urls import AdminTypeEnum, admin_or_raise, logged_in_or_raise, slugify
 
 router = APIRouter(
     prefix="/registration",
@@ -74,7 +74,7 @@ async def register_in_election(
     body: NomineeApplicationParams,
     election_name: str
 ):
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
 
     if body.position not in OfficerPositionEnum:
         raise HTTPException(
@@ -157,7 +157,7 @@ async def update_registration(
     computing_id: str,
     position: OfficerPositionEnum
 ):
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
 
     if body.position not in OfficerPositionEnum:
         raise HTTPException(
@@ -221,7 +221,7 @@ async def delete_registration(
     position: OfficerPositionEnum,
     computing_id: str
 ):
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
 
     if position not in OfficerPositionEnum:
         raise HTTPException(

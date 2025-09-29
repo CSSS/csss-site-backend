@@ -21,6 +21,7 @@ from constants import (
 )
 from database import Base
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, OfficerPositionEnum
+from officers.models import OfficerSelfUpdate, OfficerUpdate
 
 
 # A row represents an assignment of a person to a position.
@@ -148,6 +149,11 @@ class OfficerInfo(Base):
 
             "google_drive_email": self.google_drive_email,
         }
+
+    def update_from_params(self, params: OfficerUpdate | OfficerSelfUpdate):
+        update_data = params.model_dump(exclude_unset=True)
+        for k, v in update_data.items():
+            setattr(update_data, k, v)
 
     def is_filled_in(self):
         return (

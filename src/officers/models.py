@@ -5,14 +5,14 @@ from pydantic import BaseModel, Field
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPositionEnum
 
 
-class OfficerBaseModel(BaseModel):
+class OfficerInfoBaseModel(BaseModel):
     # TODO (#71): compute this using SFU's API & remove from being uploaded
     legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
     position: OfficerPositionEnum
     start_date: date
     end_date: date | None = None
 
-class PublicOfficerResponse(OfficerBaseModel):
+class PublicOfficerInfoResponse(OfficerInfoBaseModel):
     """
     Response when fetching public officer data
     """
@@ -24,7 +24,7 @@ class PublicOfficerResponse(OfficerBaseModel):
     biography: str | None = None
     csss_email: str
 
-class PrivateOfficerResponse(PublicOfficerResponse):
+class PrivateOfficerInfoResponse(PublicOfficerInfoResponse):
     """
     Response when fetching private officer data
     """
@@ -33,10 +33,39 @@ class PrivateOfficerResponse(PublicOfficerResponse):
     github_username: str | None = None
     google_drive_email: str | None = None
 
+class OfficerSelfUpdate(BaseModel):
+    """
+    Used when an Officer is updating their own information
+    """
+    nickname: str | None = None
+    discord_id: str | None = None
+    discord_name: str | None = None
+    discord_nickname: str | None = None
+    biography: str | None = None
+    phone_number: str | None = None
+    github_username: str | None = None
+    google_drive_email: str | None = None
+
+class OfficerUpdate(OfficerSelfUpdate):
+    """
+    Used when an admin is updating an Officer's info
+    """
+    legal_name: str | None = Field(None, max_length=OFFICER_LEGAL_NAME_MAX)
+    position: OfficerPositionEnum | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+
 class OfficerTermBaseModel(BaseModel):
     computing_id: str
     position: OfficerPositionEnum
     start_date: date
+
+class OfficerTermCreate(OfficerTermBaseModel):
+    """
+    Params to create a new Officer Term
+    """
+    legal_name: str
+
 
 class OfficerTermResponse(OfficerTermBaseModel):
     id: int

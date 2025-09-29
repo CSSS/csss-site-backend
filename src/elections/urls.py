@@ -104,7 +104,7 @@ async def list_elections(
             detail="no election found"
         )
 
-    current_time = datetime.datetime.now(tz=datetime.UTC)
+    current_time = datetime.datetime.now()
     if is_admin:
         election_metadata_list = [
             election.private_details(current_time)
@@ -136,7 +136,7 @@ async def get_election(
     db_session: database.DBSession,
     election_name: str
 ):
-    current_time = datetime.datetime.now(tz=datetime.UTC)
+    current_time = datetime.datetime.now()
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
@@ -218,7 +218,7 @@ async def create_election(
         available_positions = body.available_positions
 
     slugified_name = slugify(body.name)
-    current_time = datetime.datetime.now(tz=datetime.UTC)
+    current_time = datetime.datetime.now()
     start_nominations = datetime.datetime.fromisoformat(body.datetime_start_nominations)
     start_voting = datetime.datetime.fromisoformat(body.datetime_start_voting)
     end_voting = datetime.datetime.fromisoformat(body.datetime_end_voting)
@@ -332,7 +332,7 @@ async def update_election(
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
-    return JSONResponse(election.private_details(datetime.datetime.now(tz=datetime.UTC)))
+    return JSONResponse(election.private_details(datetime.datetime.now()))
 
 @router.delete(
     "/{election_name:str}",

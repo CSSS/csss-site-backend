@@ -28,7 +28,6 @@ from officers.constants import OfficerPositionEnum
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
-    # TODO (#98): create a unique constraint for (computing_id, position, start_date).
     id: Mapped[str] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     computing_id: Mapped[str] = mapped_column(
@@ -38,9 +37,9 @@ class OfficerTerm(Base):
     )
 
     position: Mapped[OfficerPositionEnum] = mapped_column(String(128), nullable=False)
-    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     nickname: Mapped[str] = mapped_column(String(128), nullable=True)
     favourite_course_0: Mapped[str] = mapped_column(String(64), nullable=True)

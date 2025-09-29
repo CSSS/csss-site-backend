@@ -14,11 +14,11 @@ class NomineeInfo(Base):
     __tablename__ = "election_nominee_info"
 
     computing_id: Mapped[str] = mapped_column(String(COMPUTING_ID_LEN), primary_key=True)
-    full_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    linked_in: Mapped[str] = mapped_column(String(128))
-    instagram: Mapped[str] = mapped_column(String(128))
-    email: Mapped[str] = mapped_column(String(64))
-    discord_username: Mapped[str] = mapped_column(String(DISCORD_NICKNAME_LEN))
+    full_name: Mapped[str] = mapped_column(String(64))
+    linked_in: Mapped[str] = mapped_column(String(128), nullable=True)
+    instagram: Mapped[str] = mapped_column(String(128), nullable=True)
+    email: Mapped[str] = mapped_column(String(64), nullable=True)
+    discord_username: Mapped[str] = mapped_column(String(DISCORD_NICKNAME_LEN), nullable=True)
 
     def to_update_dict(self) -> dict:
         return {

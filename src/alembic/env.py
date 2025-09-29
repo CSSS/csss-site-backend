@@ -9,7 +9,9 @@ import auth.tables
 import blog.tables
 import database
 import elections.tables
+import nominees.tables
 import officers.tables
+import registrations.tables
 from alembic import context
 
 # this is the Alembic Config object, which provides

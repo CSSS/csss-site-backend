@@ -1,6 +1,5 @@
 import re
 from datetime import date, datetime
-from typing import Tuple
 
 from sqlalchemy import Select
 

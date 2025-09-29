@@ -21,7 +21,7 @@ from constants import (
 )
 from database import Base
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, OfficerPositionEnum
-from officers.models import OfficerSelfUpdate, OfficerUpdate
+from officers.models import OfficerSelfUpdate, OfficerTermUpdate, OfficerUpdate
 
 
 # A row represents an assignment of a person to a position.
@@ -70,6 +70,15 @@ class OfficerTerm(Base):
             "biography": self.biography,
             "photo_url": self.photo_url,
         }
+
+    def update_from_params(self, params: OfficerTermUpdate, self_update: bool = True):
+        if self_update:
+            update_data = params.model_dump(exclude_unset=True, exclude={"position", "start_date", "end_date", "photo_url"})
+        else:
+            update_data = params.model_dump(exclude_unset=True)
+        for k, v in update_data.items():
+            setattr(update_data, k, v)
+
 
     def is_filled_in(self):
         return (

@@ -155,14 +155,17 @@ async def current_officer_positions(db_session: database.DBSession, computing_id
     officer_term_list = await get_active_officer_terms(db_session, computing_id)
     return [term.position for term in officer_term_list]
 
-async def get_officer_term_by_id(db_session: database.DBSession, term_id: int) -> OfficerTerm:
+async def get_officer_term_by_id_or_raise(db_session: database.DBSession, term_id: int, is_new: bool = False) -> OfficerTerm:
     officer_term = await db_session.scalar(
         sqlalchemy
         .select(OfficerTerm)
         .where(OfficerTerm.id == term_id)
     )
     if officer_term is None:
-        raise HTTPException(status_code=400, detail=f"Could not find officer_term with id={term_id}")
+        if is_new:
+            raise HTTPException(status_code=500, detail=f"could not find new officer_term with id={term_id}")
+        else:
+            raise HTTPException(status_code=400, detail=f"could not find officer_term with id={term_id}")
     return officer_term
 
 async def create_new_officer_info(

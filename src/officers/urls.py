@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 import auth.crud
 import database
@@ -9,12 +9,12 @@ from officers.models import (
     OfficerSelfUpdate,
     OfficerTermCreate,
     OfficerTermResponse,
+    OfficerTermUpdate,
     OfficerUpdate,
     PrivateOfficerInfoResponse,
     PublicOfficerInfoResponse,
 )
 from officers.tables import OfficerInfo, OfficerTerm
-from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessResponse
 from utils.urls import admin_or_raise, is_website_admin, logged_in_or_raise
@@ -203,7 +203,7 @@ async def new_officer_term(
         If you have been elected as a new officer, you may authenticate with SFU CAS,
         then input your information & the valid token for us. Admins may update this info.
     """,
-    response_model=OfficerPrivateInfo,
+    response_model=PrivateOfficerInfoResponse,
     responses={
         403: { "description": "must be a website admin", "model": DetailModel },
         500: { "description": "failed to fetch after update", "model": DetailModel },
@@ -234,59 +234,42 @@ async def update_info(
 
 @router.patch(
     "/term/{term_id}",
-    description=""
+    description="Update the information for an Officer's term",
+    response_model=OfficerTermResponse,
+    responses={
+        403: { "description": "must be a website admin", "model": DetailModel },
+        500: { "description": "failed to fetch after update", "model": DetailModel },
+    },
+    operation_id="update_officer_term"
 )
 async def update_term(
     request: Request,
     db_session: database.DBSession,
     term_id: int,
-    officer_term_upload: OfficerTermUpload = Body(), # noqa: B008
+    body: OfficerTermUpdate
 ):
     """
     A website admin may change the position & term length however they wish.
     """
-    officer_term_upload.valid_or_raise()
-    _, session_computing_id = await logged_in_or_raise(request, db_session)
+    is_site_admin, _, session_computing_id = await is_website_admin(request, db_session)
 
-    old_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
-    if old_officer_term.computing_id != session_computing_id:
-        await WebsiteAdmin.has_permission_or_raise(
-            db_session, session_computing_id,
-            errmsg="must have website admin permissions to update another user"
-        )
-    elif utils.is_past_term(old_officer_term):
-        await WebsiteAdmin.has_permission_or_raise(
-            db_session, session_computing_id,
-            errmsg="only website admins can update past terms"
-        )
+    old_officer_term = await officers.crud.get_officer_term_by_id_or_raise(db_session, term_id)
+    if not is_site_admin:
+        if old_officer_term.computing_id != session_computing_id:
+            raise HTTPException(status_code=403, detail="you may not update other officer terms")
 
-    if (
-        officer_term_upload.computing_id != old_officer_term.computing_id
-        or officer_term_upload.position != old_officer_term.position
-        or officer_term_upload.start_date != old_officer_term.start_date
-        or officer_term_upload.end_date != old_officer_term.end_date
-    ):
-        await WebsiteAdmin.has_permission_or_raise(
-            db_session, session_computing_id,
-            errmsg="only admins can write new versions of position, start_date, and end_date"
-        )
+        if utils.is_past_term(old_officer_term):
+            raise HTTPException(status_code=403, detail="you may not update past terms")
+
+    old_officer_term.update_from_params(body)
 
     # TODO (#27): log all important changes to a .log file
-    success = await officers.crud.update_officer_term(
-        db_session,
-        officer_term_upload.to_officer_term(term_id)
-    )
-    if not success:
-        raise HTTPException(status_code=400, detail="the associated officer_term does not exist yet, please create it first")
+    await officers.crud.update_officer_term(db_session, old_officer_term)
 
     await db_session.commit()
 
-    new_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
-    return JSONResponse({
-        "officer_term": new_officer_term.serializable_dict(),
-        # none for now, but may be added if frontend requests
-        "validation_failures": [],
-    })
+    new_officer_term = await officers.crud.get_officer_term_by_id_or_raise(db_session, term_id)
+    return JSONResponse(new_officer_term)
 
 @router.delete(
     "/term/{term_id}",
@@ -303,7 +286,7 @@ async def remove_officer(
         errmsg="must have website admin permissions to remove a term"
     )
 
-    deleted_officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
+    deleted_officer_term = await officers.crud.get_officer_term_by_id_or_raise(db_session, term_id)
 
     # TODO (#27): log all important changes to a .log file
 

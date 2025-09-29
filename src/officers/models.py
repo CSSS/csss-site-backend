@@ -66,8 +66,7 @@ class OfficerTermCreate(OfficerTermBaseModel):
     """
     legal_name: str
 
-
-class OfficerTermResponse(OfficerTermBaseModel):
+class OfficerTermResponse(OfficerTermCreate):
     id: int
     end_date: date | None = None
     favourite_course_0: str | None = None
@@ -76,3 +75,18 @@ class OfficerTermResponse(OfficerTermBaseModel):
     favourite_pl_1: str | None = None
     biography: str | None = None
     photo_url: str | None = None
+
+
+class OfficerTermUpdate(BaseModel):
+    nickname: str | None = None
+    favourite_course_0: str | None = None
+    favourite_course_1: str | None = None
+    favourite_pl_0: str | None = None
+    favourite_pl_1: str | None = None
+    biography: str | None = None
+
+    # Admin only
+    position: OfficerPositionEnum | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    photo_url: str | None = None # Block this, just in case

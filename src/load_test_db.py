@@ -348,24 +348,6 @@ async def load_webmaster(db_session: AsyncSession):
         biography="The systems are good o7",
         photo_url=None,
     ))
-    # a future term
-    await create_new_officer_term(db_session, OfficerTerm(
-        computing_id=WEBMASTER_COMPUTING_ID,
-
-        position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
-        start_date=date.today() + timedelta(days=365*1),
-        end_date=date.today() + timedelta(days=365*2),
-
-        nickname="G3",
-        favourite_course_0="MACM 102",
-        favourite_course_1="CMPT 127",
-
-        favourite_pl_0="C%",
-        favourite_pl_1="C$$",
-
-        biography="o hey fellow kids \n\n\n I will can newline .... !!",
-        photo_url=None,
-    ))
     await db_session.commit()
 
 async def load_test_elections_data(db_session: AsyncSession):

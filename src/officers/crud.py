@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 
 import sqlalchemy
 from fastapi import HTTPException
@@ -11,50 +11,49 @@ import database
 import utils
 from data import semesters
 from officers.constants import OfficerPosition
-from officers.models import OfficerInfoResponse, OfficerTermResponse
+from officers.models import OfficerInfoResponse
 from officers.tables import OfficerInfo, OfficerTerm
-from officers.types import (
-    OfficerData,
-)
 
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
 
 async def current_officers(
     db_session: database.DBSession,
-    include_private: bool
-) -> dict[str, list[OfficerData]]:
+) -> list[OfficerInfoResponse]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.
 
     Returns a mapping between officer position and officer terms
     """
-    query = (
-        sqlalchemy
-        .select(OfficerTerm)
-        .order_by(OfficerTerm.start_date.desc())
-    )
-    query = utils.is_active_officer(query)
+    curr_time = date.today()
+    query = (sqlalchemy.select(OfficerTerm, OfficerInfo)
+             .join(OfficerInfo, OfficerTerm.computing_id == OfficerInfo.computing_id)
+             .where((OfficerTerm.start_date <= curr_time) & (OfficerTerm.end_date >= curr_time))
+             .order_by(OfficerTerm.start_date.desc())
+             )
 
-    officer_terms = (await db_session.scalars(query)).all()
-    officer_data = {}
-    for term in officer_terms:
-        officer_info_query = (
-            sqlalchemy
-            .select(OfficerInfo)
-            .where(OfficerInfo.computing_id == term.computing_id)
-        )
-        officer_info = (await db_session.scalars(officer_info_query)).first()
-        if officer_info is None:
-            # TODO (#93): make sure there are daily checks that this data actually exists
-            continue
-        elif term.position not in officer_data:
-            officer_data[term.position] = []
+    result: Sequence[sqlalchemy.Row[tuple[OfficerTerm, OfficerInfo]]] = (await db_session.execute(query)).all()
+    officer_list = []
+    for term, officer in result:
+        officer_list.append(OfficerInfoResponse(
+            legal_name = officer.legal_name,
+            is_active = True,
+            position = term.position,
+            start_date = term.start_date,
+            end_date = term.end_date,
+            biography = term.biography,
+            csss_email = OfficerPosition.to_email(term.position),
 
-        officer_data[term.position] += [
-            OfficerData.from_data(term, officer_info, include_private, is_active=True)
-        ]
+            discord_id = officer.discord_id,
+            discord_name = officer.discord_name,
+            discord_nickname = officer.discord_nickname,
+            computing_id = officer.computing_id,
+            phone_number = officer.phone_number,
+            github_username = officer.github_username,
+            google_drive_email = officer.google_drive_email,
+            photo_url = term.photo_url
+        ))
 
-    return officer_data
+    return officer_list
 
 async def all_officers(
     db_session: AsyncSession,

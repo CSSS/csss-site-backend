@@ -4,6 +4,16 @@ from pydantic import BaseModel, Field
 
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPositionEnum
 
+OFFICER_PRIVATE_INFO = {
+    "discord_id",
+    "discord_name",
+    "discord_nickname",
+    "computing_id",
+    "phone_number",
+    "github_username",
+    "google_drive_email",
+    "photo_url"
+}
 
 class OfficerInfoBaseModel(BaseModel):
     # TODO (#71): compute this using SFU's API & remove from being uploaded

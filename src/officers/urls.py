@@ -6,6 +6,7 @@ import database
 import officers.crud
 import utils
 from officers.models import (
+    OFFICER_PRIVATE_INFO,
     OfficerInfoResponse,
     OfficerSelfUpdate,
     OfficerTermCreate,
@@ -56,14 +57,14 @@ async def current_officers(
     db_session: database.DBSession,
 ):
     has_private_access, _ = await _has_officer_private_info_access(request, db_session)
-    current_officers = await officers.crud.current_officers(db_session, has_private_access)
-    return JSONResponse({
-        position: [
-            officer_data.serializable_dict()
-            for officer_data in officer_data_list
-        ]
-        for position, officer_data_list in current_officers.items()
-    })
+
+    curr_officers = await officers.crud.current_officers(db_session)
+    exclude = OFFICER_PRIVATE_INFO if not has_private_access else {}
+
+    return JSONResponse(content=[
+        officer_data.model_dump(exclude=exclude, mode="json")
+        for officer_data in curr_officers
+    ])
 
 @router.get(
     "/all",
@@ -88,16 +89,7 @@ async def all_officers(
             raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
     all_officers = await officers.crud.all_officers(db_session, include_future_terms)
-    exclude = {
-        "discord_id",
-        "discord_name",
-        "discord_nickname",
-        "computing_id",
-        "phone_number",
-        "github_username",
-        "google_drive_email",
-        "photo_url"
-    } if not has_private_access else {}
+    exclude = OFFICER_PRIVATE_INFO if not has_private_access else {}
 
     return JSONResponse(content=[
         officer_data.model_dump(exclude=exclude, mode="json")

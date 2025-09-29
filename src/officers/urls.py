@@ -233,14 +233,14 @@ async def update_info(
     return JSONResponse(updated_officer_info)
 
 @router.patch(
-    "/term/{term_id}",
+    "/term/{term_id:int}",
     description="Update the information for an Officer's term",
     response_model=OfficerTermResponse,
     responses={
         403: { "description": "must be a website admin", "model": DetailModel },
         500: { "description": "failed to fetch after update", "model": DetailModel },
     },
-    operation_id="update_officer_term"
+    operation_id="update_officer_term_by_id"
 )
 async def update_term(
     request: Request,
@@ -272,28 +272,26 @@ async def update_term(
     return JSONResponse(new_officer_term)
 
 @router.delete(
-    "/term/{term_id}",
+    "/term/{term_id:int}",
     description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!",
+    response_model=SuccessResponse,
+    responses={
+        401: { "description": "must be logged in", "model": DetailModel },
+        403: { "description": "must be a website admin", "model": DetailModel },
+        500: { "description": "server error", "model": DetailModel },
+    },
+    operation_id="delete_officer_term_by_id"
 )
-async def remove_officer(
+async def remove_officer_term(
     request: Request,
     db_session: database.DBSession,
     term_id: int,
 ):
-    _, session_computing_id = await logged_in_or_raise(request, db_session)
-    await WebsiteAdmin.has_permission_or_raise(
-        db_session, session_computing_id,
-        errmsg="must have website admin permissions to remove a term"
-    )
-
-    deleted_officer_term = await officers.crud.get_officer_term_by_id_or_raise(db_session, term_id)
+    await admin_or_raise(request, db_session)
 
     # TODO (#27): log all important changes to a .log file
 
-    # TODO (#100): return whether the deletion succeeded or not
     await officers.crud.delete_officer_term_by_id(db_session, term_id)
     await db_session.commit()
 
-    return JSONResponse({
-        "officer_term": deleted_officer_term.serializable_dict(),
-    })
+    return SuccessResponse(success=True)

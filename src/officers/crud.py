@@ -165,7 +165,7 @@ async def get_officer_term_by_id_or_raise(db_session: database.DBSession, term_i
         if is_new:
             raise HTTPException(status_code=500, detail=f"could not find new officer_term with id={term_id}")
         else:
-            raise HTTPException(status_code=400, detail=f"could not find officer_term with id={term_id}")
+            raise HTTPException(status_code=404, detail=f"could not find officer_term with id={term_id}")
     return officer_term
 
 async def create_new_officer_info(

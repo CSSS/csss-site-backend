@@ -4,7 +4,6 @@ from datetime import datetime
 
 from sqlalchemy import (
     Date,
-    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -21,7 +20,7 @@ from constants import (
     GITHUB_USERNAME_LEN,
 )
 from database import Base
-from officers.constants import OfficerPositionEnum
+from officers.constants import OFFICER_POSITION_MAX_LENGTH, OfficerPositionEnum
 
 
 # A row represents an assignment of a person to a position.
@@ -37,7 +36,7 @@ class OfficerTerm(Base):
         nullable=False,
     )
 
-    position: Mapped[OfficerPositionEnum] = mapped_column(String(128), nullable=False)
+    position: Mapped[OfficerPositionEnum] = mapped_column(String(OFFICER_POSITION_MAX_LENGTH), nullable=False)
     start_date: Mapped[datetime] = mapped_column(Date, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
     end_date: Mapped[datetime] = mapped_column(Date, nullable=True)

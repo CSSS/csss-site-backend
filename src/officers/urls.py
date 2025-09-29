@@ -5,7 +5,6 @@ import auth.crud
 import database
 import officers.crud
 import utils
-from elections.urls import get_election_permissions
 from officers.models import PrivateOfficerResponse, PublicOfficerResponse
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload

@@ -1,5 +1,6 @@
 from enum import StrEnum
 
+OFFICER_POSITION_MAX_LENGTH = 128
 
 class OfficerPositionEnum(StrEnum):
     PRESIDENT = "president"

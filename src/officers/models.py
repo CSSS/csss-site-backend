@@ -18,8 +18,9 @@ class PublicOfficerResponse(BaseOfficerModel):
     """
     is_active: bool
     nickname: str | None = None
+    discord_id: str | None = None
     discord_name: str | None = None
-    discord_nickname: int | None = None
+    discord_nickname: str | None = None
     biography: str | None = None
     csss_email: str
 

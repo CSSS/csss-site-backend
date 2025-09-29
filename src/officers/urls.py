@@ -9,6 +9,7 @@ from officers.models import PrivateOfficerResponse, PublicOfficerResponse
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
+from utils.shared_models import DetailModel
 from utils.urls import logged_in_or_raise
 
 router = APIRouter(
@@ -62,6 +63,9 @@ async def current_officers(
     "/all",
     description="Information for all execs from all exec terms",
     response_model=list[PrivateOfficerResponse] | list[PublicOfficerResponse],
+    responses={
+        401: { "description": "not authorized to view private info", "model": DetailModel }
+    },
     operation_id="get_all_officers"
 )
 async def all_officers(

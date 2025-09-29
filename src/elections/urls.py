@@ -88,7 +88,7 @@ def _raise_if_bad_election_data(
     description="Returns a list of all election & their status",
     response_model=list[ElectionResponse],
     responses={
-        404: { "description": "No election found" }
+        404: { "description": "No election found", "model": DetailModel }
     },
     operation_id="get_all_elections"
 )

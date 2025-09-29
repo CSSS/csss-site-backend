@@ -24,7 +24,7 @@ class Election(Base):
     # Slugs are unique identifiers
     slug: Mapped[str] = mapped_column(String(MAX_ELECTION_SLUG), primary_key=True)
     name: Mapped[str] = mapped_column(String(MAX_ELECTION_NAME), nullable=False)
-    type: Mapped[ElectionTypeEnum] = mapped_column(String(64), default=ElectionTypeEnum.GENERAL)
+    type: Mapped[ElectionTypeEnum] = mapped_column(String(32), default=ElectionTypeEnum.GENERAL)
     datetime_start_nominations: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     datetime_start_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     datetime_end_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)

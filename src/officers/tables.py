@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -37,9 +38,9 @@ class OfficerTerm(Base):
     )
 
     position: Mapped[OfficerPositionEnum] = mapped_column(String(128), nullable=False)
-    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    start_date: Mapped[datetime] = mapped_column(Date, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    end_date: Mapped[datetime] = mapped_column(Date, nullable=True)
 
     nickname: Mapped[str] = mapped_column(String(128), nullable=True)
     favourite_course_0: Mapped[str] = mapped_column(String(64), nullable=True)

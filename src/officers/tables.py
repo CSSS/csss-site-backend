@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Date,
@@ -20,7 +20,7 @@ from constants import (
     GITHUB_USERNAME_LEN,
 )
 from database import Base
-from officers.constants import OFFICER_POSITION_MAX_LENGTH, OfficerPositionEnum
+from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, OfficerPositionEnum
 
 
 # A row represents an assignment of a person to a position.
@@ -36,10 +36,10 @@ class OfficerTerm(Base):
         nullable=False,
     )
 
-    position: Mapped[OfficerPositionEnum] = mapped_column(String(OFFICER_POSITION_MAX_LENGTH), nullable=False)
-    start_date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    position: Mapped[OfficerPositionEnum] = mapped_column(String(OFFICER_POSITION_MAX), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date: Mapped[datetime] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date] = mapped_column(Date, nullable=True)
 
     nickname: Mapped[str] = mapped_column(String(128), nullable=True)
     favourite_course_0: Mapped[str] = mapped_column(String(64), nullable=True)
@@ -113,7 +113,7 @@ class OfficerInfo(Base):
     )
 
     # TODO (#71): we'll need to use SFU's API to get the legal name for users
-    legal_name: Mapped[str] = mapped_column(String(128), nullable=False) # some people have long names, you never know
+    legal_name: Mapped[str] = mapped_column(String(OFFICER_LEGAL_NAME_MAX), nullable=False) # some people have long names, you never know
     phone_number: Mapped[str] = mapped_column(String(24), nullable=True)
 
     # TODO (#99): add unique constraints to discord_id (stops users from stealing the username of someone else)

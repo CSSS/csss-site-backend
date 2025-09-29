@@ -5,7 +5,7 @@ import auth.crud
 import database
 import officers.crud
 import utils
-from officers.models import PrivateOfficerResponse, PublicOfficerResponse
+from officers.models import OfficerTermResponse, PrivateOfficerResponse, PublicOfficerResponse
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import InitialOfficerInfo, OfficerInfoUpload, OfficerTermUpload
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
@@ -82,16 +82,10 @@ async def all_officers(
             raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
     all_officers = await officers.crud.all_officers(db_session, has_private_access, include_future_terms)
-    if has_private_access:
-        return JSONResponse([
-            PrivateOfficerResponse.model_validate(officer_data)
-            for officer_data in all_officers
-        ])
-    else:
-        return JSONResponse([
-            PublicOfficerResponse.model_validate(officer_data)
-            for officer_data in all_officers
-        ])
+    return JSONResponse([
+        officer_data.serializable_dict()
+        for officer_data in all_officers
+    ])
 
 @router.get(
     "/terms/{computing_id}",
@@ -99,6 +93,11 @@ async def all_officers(
         Get term info for an executive. All term info is public for all past or active terms.
         Future terms can only be accessed by website admins.
     """,
+    response_model=list[OfficerTermResponse],
+    responses={
+        401: { "description": "not authorized to view private info", "model": DetailModel }
+    },
+    operation_id="get_all_officers"
 )
 async def get_officer_terms(
     request: Request,
@@ -118,7 +117,7 @@ async def get_officer_terms(
         include_future_terms
     )
     return JSONResponse([
-        term.serializable_dict() for term in officer_terms
+        OfficerTermResponse.model_validate(term) for term in officer_terms
     ])
 
 @router.get(

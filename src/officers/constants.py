@@ -1,6 +1,8 @@
 from enum import StrEnum
 
-OFFICER_POSITION_MAX_LENGTH = 128
+# OFFICER FIELD CONSTRAINTS
+OFFICER_POSITION_MAX = 128
+OFFICER_LEGAL_NAME_MAX = 128
 
 class OfficerPositionEnum(StrEnum):
     PRESIDENT = "president"

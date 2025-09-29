@@ -33,7 +33,7 @@ class OfficerTerm(Base):
 
     computing_id: Mapped[str] = mapped_column(
         String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id"),
+        ForeignKey("officer_info.computing_id"),
         nullable=False,
     )
 

@@ -1,5 +1,6 @@
 import re
 from datetime import date, datetime
+from typing import Tuple
 
 from sqlalchemy import Select
 
@@ -34,7 +35,7 @@ def is_active_officer(query: Select) -> Select:
         )
     )
 
-def has_started_term(query: Select) -> bool:
+def has_started_term(query: Select) -> Select[tuple[OfficerTerm]]:
     return query.where(
         OfficerTerm.start_date <= date.today()
     )

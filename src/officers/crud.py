@@ -1,7 +1,9 @@
+from collections.abc import Sequence
 from datetime import datetime
 
 import sqlalchemy
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import auth.crud
 import auth.tables
@@ -9,6 +11,7 @@ import database
 import utils
 from data import semesters
 from officers.constants import OfficerPosition
+from officers.models import OfficerInfoResponse, OfficerTermResponse
 from officers.tables import OfficerInfo, OfficerTerm
 from officers.types import (
     OfficerData,
@@ -54,39 +57,43 @@ async def current_officers(
     return officer_data
 
 async def all_officers(
-    db_session: database.DBSession,
-    include_private_data: bool,
+    db_session: AsyncSession,
     include_future_terms: bool
-) -> list[OfficerData]:
+) -> list[OfficerInfoResponse]:
     """
     This could be a lot of data, so be careful
     """
     # NOTE: paginate data if needed
-    query = (
-        sqlalchemy
-        .select(OfficerTerm)
-        # Ordered recent first
-        .order_by(OfficerTerm.start_date.desc())
-    )
+    query = (sqlalchemy.select(OfficerTerm, OfficerInfo)
+             .join(OfficerInfo, OfficerTerm.computing_id == OfficerInfo.computing_id)
+             .order_by(OfficerTerm.start_date.desc())
+             )
+
     if not include_future_terms:
         query = utils.has_started_term(query)
+    result: Sequence[sqlalchemy.Row[tuple[OfficerTerm, OfficerInfo]]] = (await db_session.execute(query)).all()
+    officer_list = []
+    for term, officer in result:
+        officer_list.append(OfficerInfoResponse(
+            legal_name = officer.legal_name,
+            is_active = utils.is_active_term(term),
+            position = term.position,
+            start_date = term.start_date,
+            end_date = term.end_date,
+            biography = term.biography,
+            csss_email = OfficerPosition.to_email(term.position),
 
-    officer_data_list = []
-    officer_terms = (await db_session.scalars(query)).all()
-    for term in officer_terms:
-        officer_info = await db_session.scalar(
-            sqlalchemy
-            .select(OfficerInfo)
-            .where(OfficerInfo.computing_id == term.computing_id)
-        )
-        officer_data_list += [OfficerData.from_data(
-            term,
-            officer_info,
-            include_private_data,
-            utils.is_active_term(term)
-        )]
+            discord_id = officer.discord_id,
+            discord_name = officer.discord_name,
+            discord_nickname = officer.discord_nickname,
+            computing_id = officer.computing_id,
+            phone_number = officer.phone_number,
+            github_username = officer.github_username,
+            google_drive_email = officer.google_drive_email,
+            photo_url = term.photo_url
+        ))
 
-    return officer_data_list
+    return officer_list
 
 async def get_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
     officer_term = await db_session.scalar(

@@ -12,26 +12,24 @@ class OfficerInfoBaseModel(BaseModel):
     start_date: date
     end_date: date | None = None
 
-class PublicOfficerInfoResponse(OfficerInfoBaseModel):
+class OfficerInfoResponse(OfficerInfoBaseModel):
     """
     Response when fetching public officer data
     """
     is_active: bool
     nickname: str | None = None
+    biography: str | None = None
+    csss_email: str | None = None
+
+    # Private data
     discord_id: str | None = None
     discord_name: str | None = None
     discord_nickname: str | None = None
-    biography: str | None = None
-    csss_email: str
-
-class PrivateOfficerInfoResponse(PublicOfficerInfoResponse):
-    """
-    Response when fetching private officer data
-    """
-    computing_id: str
+    computing_id: str | None = None
     phone_number: str | None = None
     github_username: str | None = None
     google_drive_email: str | None = None
+    photo_url: str | None = None
 
 class OfficerSelfUpdate(BaseModel):
     """

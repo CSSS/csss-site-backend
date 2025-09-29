@@ -5,12 +5,12 @@ from datetime import date, timedelta
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-import load_test_db
-from auth.crud import create_user_session
-from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
-from main import app
-from officers.constants import OfficerPosition
-from officers.crud import all_officers, current_officers, get_active_officer_terms
+from src import load_test_db
+from src.auth.crud import create_user_session
+from src.database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
+from src.main import app
+from src.officers.constants import OfficerPosition, OfficerPositionEnum
+from src.officers.crud import all_officers, current_officers, get_active_officer_terms
 
 # TODO: setup a database on the CI machine & run this as a unit test then (since
 # this isn't really an integration test)
@@ -51,7 +51,7 @@ async def test__read_execs(database_setup):
         abc11_officer_terms = await get_active_officer_terms(db_session, "abc11")
         assert len(abc11_officer_terms) == 1
         assert abc11_officer_terms[0].computing_id == "abc11"
-        assert abc11_officer_terms[0].position == OfficerPosition.EXECUTIVE_AT_LARGE
+        assert abc11_officer_terms[0].position == OfficerPositionEnum.EXECUTIVE_AT_LARGE
         assert abc11_officer_terms[0].start_date is not None
         assert abc11_officer_terms[0].nickname == "the holy A"
         assert abc11_officer_terms[0].favourite_course_0 == "CMPT 361"
@@ -59,18 +59,18 @@ async def test__read_execs(database_setup):
 
         current_exec_team = await current_officers(db_session, include_private=False)
         assert current_exec_team is not None
-        assert len(current_exec_team.keys()) == 4
-        assert next(iter(current_exec_team.keys())) == OfficerPosition.EXECUTIVE_AT_LARGE
+        assert len(current_exec_team.keys()) == 5
+        assert next(iter(current_exec_team.keys())) == OfficerPositionEnum.EXECUTIVE_AT_LARGE
         assert next(iter(current_exec_team.values()))[0].favourite_course_0 == "CMPT 361"
-        assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.to_email(OfficerPosition.EXECUTIVE_AT_LARGE)
+        assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.to_email(OfficerPositionEnum.EXECUTIVE_AT_LARGE)
         assert next(iter(current_exec_team.values()))[0].private_data is None
 
         current_exec_team = await current_officers(db_session, include_private=True)
         assert current_exec_team is not None
-        assert len(current_exec_team) == 4
-        assert next(iter(current_exec_team.keys())) == OfficerPosition.EXECUTIVE_AT_LARGE
+        assert len(current_exec_team) == 5
+        assert next(iter(current_exec_team.keys())) == OfficerPositionEnum.EXECUTIVE_AT_LARGE
         assert next(iter(current_exec_team.values()))[0].favourite_course_0 == "CMPT 361"
-        assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.to_email(OfficerPosition.EXECUTIVE_AT_LARGE)
+        assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.to_email(OfficerPositionEnum.EXECUTIVE_AT_LARGE)
         assert next(iter(current_exec_team.values()))[0].private_data is not None
         assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc11"
 
@@ -91,7 +91,7 @@ async def test__endpoints(client, database_setup):
     response = await client.get("/officers/current")
     assert response.status_code == 200
     assert response.json() != {}
-    assert len(response.json().values()) == 4
+    assert len(response.json().values()) == 5
     assert not response.json()["executive at large"][0]["private_data"]
 
     response = await client.get("/officers/all?include_future_terms=false")
@@ -124,7 +124,7 @@ async def test__endpoints(client, database_setup):
 
     response = await client.post("officers/term", content=json.dumps([{
         "computing_id": "ehbc12",
-        "position": OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+        "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
         "start_date": "2025-12-29"
     }]))
     assert response.status_code == 401
@@ -147,7 +147,7 @@ async def test__endpoints(client, database_setup):
 
     response = await client.patch("officers/term/1", content=json.dumps({
         "computing_id": "abc11",
-        "position": OfficerPosition.VICE_PRESIDENT,
+        "position": OfficerPositionEnum.VICE_PRESIDENT,
         "start_date": (date.today() - timedelta(days=365)).isoformat(),
         "end_date": (date.today() - timedelta(days=1)).isoformat(),
 
@@ -177,15 +177,15 @@ async def test__endpoints_admin(client, database_setup):
     response = await client.get("/officers/current")
     assert response.status_code == 200
     assert response.json() != {}
-    assert len(response.json().values()) == 4
+    assert len(response.json().values()) == 5
     assert response.json()["executive at large"][0]["private_data"]
 
     response = await client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() != []
-    print(len(response.json()))
-    assert len(response.json()) == 7
-    assert response.json()[1]["private_data"]["phone_number"] == "1234567890"
+    assert len(response.json()) == 9
+    print(response.json()[1])
+    assert response.json()[1]["phone_number"] == "1234567890"
 
     response = await client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false")
     assert response.status_code == 200
@@ -213,7 +213,7 @@ async def test__endpoints_admin(client, database_setup):
 
     response = await client.post("officers/term", content=json.dumps([{
         "computing_id": "ehbc12",
-        "position": OfficerPosition.DIRECTOR_OF_MULTIMEDIA,
+        "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
         "start_date": "2025-12-29"
     }]))
     assert response.status_code == 200
@@ -245,7 +245,7 @@ async def test__endpoints_admin(client, database_setup):
 
     response = await client.patch("officers/term/1", content=json.dumps({
         "computing_id": "abc11",
-        "position": OfficerPosition.TREASURER,
+        "position": OfficerPositionEnum.TREASURER,
         "start_date": (date.today() - timedelta(days=365)).isoformat(),
         "end_date": (date.today() - timedelta(days=1)).isoformat(),
         "nickname": "1",
@@ -260,7 +260,7 @@ async def test__endpoints_admin(client, database_setup):
     response = await client.get("/officers/terms/abc11?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() != []
-    assert response.json()[1]["position"] == OfficerPosition.TREASURER
+    assert response.json()[1]["position"] == OfficerPositionEnum.TREASURER
     assert response.json()[0]["favourite_course_0"] != "2"
     assert response.json()[1]["biography"] == "hello o77"
 

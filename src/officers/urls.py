@@ -6,13 +6,12 @@ import database
 import officers.crud
 import utils
 from officers.models import (
+    OfficerInfoResponse,
     OfficerSelfUpdate,
     OfficerTermCreate,
     OfficerTermResponse,
     OfficerTermUpdate,
     OfficerUpdate,
-    PrivateOfficerInfoResponse,
-    PublicOfficerInfoResponse,
 )
 from officers.tables import OfficerInfo, OfficerTerm
 from permission.types import OfficerPrivateInfo, WebsiteAdmin
@@ -49,7 +48,7 @@ async def _has_officer_private_info_access(
 @router.get(
     "/current",
     description="Get information about the current officers. With no authorization, only get basic info.",
-    response_model=list[PrivateOfficerInfoResponse] | list[PublicOfficerInfoResponse],
+    response_model=list[OfficerInfoResponse],
     operation_id="get_current_officers"
 )
 async def current_officers(
@@ -69,7 +68,7 @@ async def current_officers(
 @router.get(
     "/all",
     description="Information for all execs from all exec terms",
-    response_model=list[PrivateOfficerInfoResponse] | list[PublicOfficerInfoResponse],
+    response_model=list[OfficerInfoResponse],
     responses={
         403: { "description": "not authorized to view private info", "model": DetailModel }
     },
@@ -88,9 +87,20 @@ async def all_officers(
         if not is_website_admin:
             raise HTTPException(status_code=401, detail="only website admins can view all executive terms that have not started yet")
 
-    all_officers = await officers.crud.all_officers(db_session, has_private_access, include_future_terms)
-    return JSONResponse([
-        officer_data.serializable_dict()
+    all_officers = await officers.crud.all_officers(db_session, include_future_terms)
+    exclude = {
+        "discord_id",
+        "discord_name",
+        "discord_nickname",
+        "computing_id",
+        "phone_number",
+        "github_username",
+        "google_drive_email",
+        "photo_url"
+    } if not has_private_access else {}
+
+    return JSONResponse(content=[
+        officer_data.model_dump(exclude=exclude, mode="json")
         for officer_data in all_officers
     ])
 
@@ -130,7 +140,7 @@ async def get_officer_terms(
 @router.get(
     "/info/{computing_id:str}",
     description="Get officer info for the current user, if they've ever been an exec. Only admins can get info about another user.",
-    response_model=PrivateOfficerInfoResponse,
+    response_model=OfficerInfoResponse,
     responses={
         403: { "description": "not authorized to view author user info", "model": DetailModel }
     },
@@ -203,7 +213,7 @@ async def new_officer_term(
         If you have been elected as a new officer, you may authenticate with SFU CAS,
         then input your information & the valid token for us. Admins may update this info.
     """,
-    response_model=PrivateOfficerInfoResponse,
+    response_model=OfficerInfoResponse,
     responses={
         403: { "description": "must be a website admin", "model": DetailModel },
         500: { "description": "failed to fetch after update", "model": DetailModel },

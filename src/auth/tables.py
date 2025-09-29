@@ -37,16 +37,21 @@ class SiteUser(Base):
     )
 
     # first and last time logged into the CSSS API
-    first_logged_in: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
-    last_logged_in: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    first_logged_in: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_logged_in: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # optional user information for display purposes
     profile_picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def serialize(self) -> dict[str, str | int | bool | None]:
-        return {
+
+        res = {
             "computing_id": self.computing_id,
-            "first_logged_in": self.first_logged_in.isoformat(),
-            "last_logged_in": self.last_logged_in.isoformat(),
             "profile_picture_url": self.profile_picture_url
         }
+        if self.first_logged_in is not None:
+            res["first_logged_in"] = self.first_logged_in.isoformat()
+        if self.last_logged_in is not None:
+            res["last_logged_in"] = self.last_logged_in.isoformat()
+
+        return res

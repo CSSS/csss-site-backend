@@ -161,8 +161,8 @@ async def create_new_officer_info(
         # if computing_id has not been created as a site_user yet, add them
         db_session.add(auth.tables.SiteUser(
             computing_id=new_officer_info.computing_id,
-            first_logged_in=datetime.now(),
-            last_logged_in=datetime.now()
+            first_logged_in=None,
+            last_logged_in=None
         ))
 
     existing_officer_info = await db_session.scalar(

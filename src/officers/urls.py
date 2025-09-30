@@ -5,6 +5,7 @@ import auth.crud
 import database
 import officers.crud
 import utils
+from officers.constants import OfficerPositionEnum
 from officers.models import (
     OFFICER_PRIVATE_INFO,
     OfficerInfoResponse,
@@ -49,7 +50,7 @@ async def _has_officer_private_info_access(
 @router.get(
     "/current",
     description="Get information about the current officers. With no authorization, only get basic info.",
-    response_model=list[OfficerInfoResponse],
+    response_model=dict[OfficerPositionEnum, OfficerInfoResponse],
     operation_id="get_current_officers"
 )
 async def current_officers(
@@ -61,10 +62,11 @@ async def current_officers(
     curr_officers = await officers.crud.current_officers(db_session)
     exclude = OFFICER_PRIVATE_INFO if not has_private_access else {}
 
-    return JSONResponse(content=[
-        officer_data.model_dump(exclude=exclude, mode="json")
-        for officer_data in curr_officers
-    ])
+    res = {}
+    for officer in curr_officers:
+        res[officer.position] = officer.model_dump(exclude=exclude, mode="json")
+
+    return JSONResponse(res)
 
 @router.get(
     "/all",
@@ -126,7 +128,7 @@ async def get_officer_terms(
         include_future_terms
     )
     return JSONResponse([
-        OfficerTermResponse.model_validate(term) for term in officer_terms
+        term.serializable_dict() for term in officer_terms
     ])
 
 @router.get(
@@ -232,7 +234,7 @@ async def update_info(
     await db_session.commit()
 
     updated_officer_info = await officers.crud.get_new_officer_info_or_raise(db_session, computing_id)
-    return JSONResponse(updated_officer_info)
+    return JSONResponse(updated_officer_info.serializable_dict())
 
 @router.patch(
     "/term/{term_id:int}",
@@ -271,7 +273,7 @@ async def update_term(
     await db_session.commit()
 
     new_officer_term = await officers.crud.get_officer_term_by_id_or_raise(db_session, term_id)
-    return JSONResponse(new_officer_term)
+    return JSONResponse(new_officer_term.serializable_dict())
 
 @router.delete(
     "/term/{term_id:int}",

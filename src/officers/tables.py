@@ -77,7 +77,7 @@ class OfficerTerm(Base):
         else:
             update_data = params.model_dump(exclude_unset=True)
         for k, v in update_data.items():
-            setattr(update_data, k, v)
+            setattr(self, k, v)
 
 
     def is_filled_in(self):
@@ -162,7 +162,7 @@ class OfficerInfo(Base):
     def update_from_params(self, params: OfficerUpdate | OfficerSelfUpdate):
         update_data = params.model_dump(exclude_unset=True)
         for k, v in update_data.items():
-            setattr(update_data, k, v)
+            setattr(self, k, v)
 
     def is_filled_in(self):
         return (

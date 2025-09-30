@@ -12,7 +12,8 @@ log_cli = true
 log_cli_level = "INFO"
 testpaths = [
     "tests",
-]
+  ]
+norecursedirs = "tests/wip"
 
 [tool.ruff]
 line-length = 120

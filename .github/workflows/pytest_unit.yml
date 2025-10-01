@@ -30,5 +30,6 @@ jobs:
 
       - name: Run unit tests
         run: |
+          export PYTHONPATH=src
           source ./venv/bin/activate
           pytest ./tests/unit -v

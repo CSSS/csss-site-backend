@@ -1,5 +1,4 @@
 # Configuration of Pytest
-import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from typing import Any

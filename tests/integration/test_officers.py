@@ -1,4 +1,3 @@
-import asyncio  # NOTE: don't comment this out; it's required
 import json
 from datetime import date, timedelta
 
@@ -16,7 +15,6 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 async def test__read_execs(db_session):
     # test that reads from the database succeeded as expected
-    print(type(db_session))
     assert (await get_active_officer_terms(db_session, "blarg")) == []
     assert (await get_active_officer_terms(db_session, "abc22")) != []
 
@@ -55,8 +53,7 @@ async def test__read_execs(db_session):
 #    pass
 
 async def test__get_officers(client):
-    # private data shoudn't be leaked
-    print(f"[DEBUG] Loop ID in {__name__}: {id(asyncio.get_running_loop())}")
+    # private data shouldn't be leaked
     response = await client.get("/officers/current")
     assert response.status_code == 200
     assert response.json() != {}
@@ -172,20 +169,15 @@ async def test__patch_officer_terms(client: AsyncClient):
     response = await client.delete("officers/term/1")
     assert response.status_code == 401
 
-@pytest.mark.skip
-async def test__endpoints_admin(client, database_setup, admin_session):
-    # login as website admin
-    session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
-
-    client.cookies = { "session_id": session_id }
-
+async def test__get_current_officers_admin(admin_client):
     # test that more info is given if logged in & with access to it
-    response = await client.get("/officers/current")
+    response = await admin_client.get("/officers/current")
     assert response.status_code == 200
     curr_officers = response.json()
     assert len(curr_officers) == 3
     assert curr_officers["executive at large"]["computing_id"] is not None
 
+async def test__get_all_officers_admin(client):
     response = await client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 200
     assert len(response.json()) == 9

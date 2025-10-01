@@ -21,7 +21,7 @@ def suppress_sqlalchemy_logs():
     yield
     logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
-@pytest_asyncio.fixture(scope="session", loop_scope="session")
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def database_setup():
     # reset the database again, just in case
     print("Resetting DB...")
@@ -32,7 +32,7 @@ async def database_setup():
     yield sessionmanager
     await sessionmanager.close()
 
-@pytest_asyncio.fixture(scope="function", loop_scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def client() -> AsyncGenerator[Any, None]:
     # base_url is just a random placeholder url
     # ASGITransport is just telling the async client to pass all requests to app
@@ -45,12 +45,13 @@ async def db_session(database_setup):
     async with database_setup.session() as session:
         yield session
 
-@pytest_asyncio.fixture(scope="function", loop_scope="session")
-async def admin_session(database_setup):
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def admin_client(database_setup, client):
     session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
+    client.cookies = { "session_id": session_id }
     async with database_setup.session() as session:
         await create_user_session(session, session_id, load_test_db.SYSADMIN_COMPUTING_ID)
-        yield
+        yield client
         await remove_user_session(session, session_id)
 
 

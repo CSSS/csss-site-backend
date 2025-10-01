@@ -11,7 +11,7 @@ import database
 import utils
 from data import semesters
 from officers.constants import OfficerPosition
-from officers.models import OfficerInfoResponse
+from officers.models import OfficerInfoResponse, OfficerTermCreate
 from officers.tables import OfficerInfo, OfficerTerm
 
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer

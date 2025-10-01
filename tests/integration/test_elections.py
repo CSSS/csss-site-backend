@@ -61,7 +61,6 @@ async def test_read_elections(database_setup):
            election_false = await get_election(db_session, "this-not-a-election")
            assert election_false is None
 
-
            # Test getting specific election
            election = await get_election(db_session, "test-election-1")
            assert election is not None

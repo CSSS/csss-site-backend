@@ -168,7 +168,7 @@ async def get_officer_info(
     },
     operation_id="create_officer_term"
 )
-async def new_officer_term(
+async def create_officer_term(
     request: Request,
     db_session: database.DBSession,
     officer_info_list: list[OfficerTermCreate],
@@ -214,7 +214,7 @@ async def new_officer_term(
     },
     operation_id="update_officer_info"
 )
-async def update_info(
+async def update_officer_info(
     request: Request,
     db_session: database.DBSession,
     computing_id: str,
@@ -246,7 +246,7 @@ async def update_info(
     },
     operation_id="update_officer_term_by_id"
 )
-async def update_term(
+async def update_officer_term(
     request: Request,
     db_session: database.DBSession,
     term_id: int,
@@ -265,7 +265,7 @@ async def update_term(
         if utils.is_past_term(old_officer_term):
             raise HTTPException(status_code=403, detail="you may not update past terms")
 
-    old_officer_term.update_from_params(body)
+    old_officer_term.update_from_params(body, is_site_admin)
 
     # TODO (#27): log all important changes to a .log file
     await officers.crud.update_officer_term(db_session, old_officer_term)
@@ -286,7 +286,7 @@ async def update_term(
     },
     operation_id="delete_officer_term_by_id"
 )
-async def remove_officer_term(
+async def delete_officer_term(
     request: Request,
     db_session: database.DBSession,
     term_id: int,

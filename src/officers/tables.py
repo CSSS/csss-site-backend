@@ -71,11 +71,11 @@ class OfficerTerm(Base):
             "photo_url": self.photo_url,
         }
 
-    def update_from_params(self, params: OfficerTermUpdate, self_update: bool = True):
-        if self_update:
-            update_data = params.model_dump(exclude_unset=True, exclude={"position", "start_date", "end_date", "photo_url"})
-        else:
+    def update_from_params(self, params: OfficerTermUpdate, admin_update: bool = True):
+        if admin_update:
             update_data = params.model_dump(exclude_unset=True)
+        else:
+            update_data = params.model_dump(exclude_unset=True, exclude={"position", "start_date", "end_date", "photo_url"})
         for k, v in update_data.items():
             setattr(self, k, v)
 

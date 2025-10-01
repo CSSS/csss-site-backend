@@ -177,37 +177,38 @@ async def test__get_current_officers_admin(admin_client):
     assert len(curr_officers) == 3
     assert curr_officers["executive at large"]["computing_id"] is not None
 
-async def test__get_all_officers_admin(client):
-    response = await client.get("/officers/all?include_future_terms=true")
+async def test__get_all_officers_admin(admin_client):
+    response = await admin_client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 200
     assert len(response.json()) == 9
     assert response.json()[1]["phone_number"] == "1234567890"
 
-    response = await client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false")
+async def test__get_officer_term(admin_client):
+    response = await admin_client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false")
     assert response.status_code == 200
     assert response.json() != []
     assert len(response.json()) == 2
 
-    response = await client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=true")
+    response = await admin_client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() != []
     assert len(response.json()) == 3
 
-    response = await client.get("/officers/info/abc11")
+    response = await admin_client.get("/officers/info/abc11")
     assert response.status_code == 200
     assert response.json() != {}
     assert response.json()["legal_name"] == "Person A"
-    response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    response = await admin_client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200
     assert response.json() != {}
-    response = await client.get("/officers/info/balargho")
+    response = await admin_client.get("/officers/info/balargho")
     assert response.status_code == 404
 
-    response = await client.get("/officers/terms/ehbc12?include_future_terms=true")
+    response = await admin_client.get("/officers/terms/ehbc12?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() == []
 
-    response = await client.post("officers/term", content=json.dumps([{
+    response = await admin_client.post("officers/term", content=json.dumps([{
         "computing_id": "ehbc12",
         "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
         "start_date": "2025-12-29",
@@ -215,12 +216,12 @@ async def test__get_all_officers_admin(client):
     }]))
     assert response.status_code == 200
 
-    response = await client.get("/officers/terms/ehbc12?include_future_terms=true")
+    response = await admin_client.get("/officers/terms/ehbc12?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() != []
     assert len(response.json()) == 1
 
-    response = await client.patch("officers/info/abc11", content=json.dumps({
+    response = await admin_client.patch("officers/info/abc11", content=json.dumps({
         "legal_name": "Person A2",
         "phone_number": "12345asdab67890",
         "discord_name": "person_a_yeah",
@@ -235,7 +236,7 @@ async def test__get_all_officers_admin(client):
     assert resJson["github_username"] == "person_a"
     assert resJson["google_drive_email"] == "person_a@gmail.com"
 
-    response = await client.patch("officers/info/aaabbbc", content=json.dumps({
+    response = await admin_client.patch("officers/info/aaabbbc", content=json.dumps({
         "legal_name": "Person AABBCC",
         "phone_number": "1234567890",
         "discord_name": None,
@@ -244,7 +245,7 @@ async def test__get_all_officers_admin(client):
     }))
     assert response.status_code == 404
 
-    response = await client.patch("officers/term/1", content=json.dumps({
+    response = await admin_client.patch("officers/term/1", content=json.dumps({
         "position": OfficerPositionEnum.TREASURER,
         "start_date": (date.today() - timedelta(days=365)).isoformat(),
         "end_date": (date.today() - timedelta(days=1)).isoformat(),
@@ -257,7 +258,7 @@ async def test__get_all_officers_admin(client):
     }))
     assert response.status_code == 200
 
-    response = await client.get("/officers/terms/abc11?include_future_terms=true")
+    response = await admin_client.get("/officers/terms/abc11?include_future_terms=true")
     assert response.status_code == 200
     resJson = response.json()
     assert resJson[1]["position"] == OfficerPositionEnum.TREASURER
@@ -274,13 +275,13 @@ async def test__get_all_officers_admin(client):
         all_terms = await all_officers(db_session, include_future_terms=True)
         assert len(all_terms) == 10
 
-    response = await client.delete("officers/term/1")
+    response = await admin_client.delete("officers/term/1")
     assert response.status_code == 200
-    response = await client.delete("officers/term/2")
+    response = await admin_client.delete("officers/term/2")
     assert response.status_code == 200
-    response = await client.delete("officers/term/3")
+    response = await admin_client.delete("officers/term/3")
     assert response.status_code == 200
-    response = await client.delete("officers/term/4")
+    response = await admin_client.delete("officers/term/4")
     assert response.status_code == 200
 
     async with database_setup.session() as db_session:

@@ -21,7 +21,7 @@ def suppress_sqlalchemy_logs():
     yield
     logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
-@pytest_asyncio.fixture(scope="module", loop_scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def database_setup():
     # reset the database again, just in case
     print("Resetting DB...")
@@ -45,7 +45,7 @@ async def db_session(database_setup):
     async with database_setup.session() as session:
         yield session
 
-@pytest_asyncio.fixture(scope="session", loop_scope="session")
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def admin_client(database_setup, client):
     session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
     client.cookies = { "session_id": session_id }

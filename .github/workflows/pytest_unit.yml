@@ -29,7 +29,4 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run unit tests
-        run: |
-          export PYTHONPATH=src
-          source ./venv/bin/activate
-          pytest ./tests/unit -v
+        run: PYTHONPATH=src ./venv/bin/python -m pytest ./tests/unit -v

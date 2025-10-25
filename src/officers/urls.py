@@ -106,7 +106,8 @@ async def all_officers(
     """,
     response_model=list[OfficerTermResponse],
     responses={
-        401: { "description": "not authorized to view private info", "model": DetailModel }
+        401: { "description": "not logged in", "model": DetailModel },
+        403: { "description": "not authorized to view private info", "model": DetailModel }
     },
     operation_id="get_officer_terms_by_id"
 )
@@ -201,7 +202,7 @@ async def create_officer_term(
     return JSONResponse({ "success": True })
 
 @router.patch(
-    "/info/{computing_id:str}",
+    "/info/{computing_id}",
     description="""
         After election, officer computing ids are input into our system.
         If you have been elected as a new officer, you may authenticate with SFU CAS,
@@ -237,7 +238,7 @@ async def update_officer_info(
     return JSONResponse(updated_officer_info.serializable_dict())
 
 @router.patch(
-    "/term/{term_id:int}",
+    "/term/{term_id}",
     description="Update the information for an Officer's term",
     response_model=OfficerTermResponse,
     responses={

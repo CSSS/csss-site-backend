@@ -102,7 +102,7 @@ def setup_database():
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
     sessionmanager = DatabaseSessionManager(
         SQLALCHEMY_TEST_DATABASE_URL if os.environ.get("LOCAL") else SQLALCHEMY_DATABASE_URL,
-        { "echo": True },
+        { "echo": False },
     )
 
 @contextlib.asynccontextmanager
@@ -116,10 +116,9 @@ async def lifespan(app: FastAPI):
         await sessionmanager.close()
 
 
-async def _db_session():
+async def get_db_session():
     async with sessionmanager.session() as session:
         yield session
 
 
-# TODO: what does this do again?
-DBSession = Annotated[AsyncSession, Depends(_db_session)]
+DBSession = Annotated[AsyncSession, Depends(get_db_session)]

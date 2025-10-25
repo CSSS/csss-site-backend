@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
-    DateTime,
+    Date,
     ForeignKey,
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,7 +20,8 @@ from constants import (
     GITHUB_USERNAME_LEN,
 )
 from database import Base
-from officers.constants import OfficerPositionEnum
+from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, OfficerPositionEnum
+from officers.models import OfficerSelfUpdate, OfficerTermUpdate, OfficerUpdate
 
 
 # A row represents an assignment of a person to a position.
@@ -27,7 +29,6 @@ from officers.constants import OfficerPositionEnum
 class OfficerTerm(Base):
     __tablename__ = "officer_term"
 
-    # TODO (#98): create a unique constraint for (computing_id, position, start_date).
     id: Mapped[str] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     computing_id: Mapped[str] = mapped_column(
@@ -36,10 +37,10 @@ class OfficerTerm(Base):
         nullable=False,
     )
 
-    position: Mapped[OfficerPositionEnum] = mapped_column(String(128), nullable=False)
-    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    position: Mapped[OfficerPositionEnum] = mapped_column(String(OFFICER_POSITION_MAX), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
     # end_date is only not-specified for positions that don't have a length (ie. webmaster)
-    end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_date: Mapped[date] = mapped_column(Date, nullable=True)
 
     nickname: Mapped[str] = mapped_column(String(128), nullable=True)
     favourite_course_0: Mapped[str] = mapped_column(String(64), nullable=True)
@@ -49,6 +50,8 @@ class OfficerTerm(Base):
     favourite_pl_1: Mapped[str] = mapped_column(String(64), nullable=True)
     biography: Mapped[str] = mapped_column(Text, nullable=True)
     photo_url: Mapped[str] = mapped_column(Text, nullable=True) # some urls get big, best to let it be a string
+
+    __table_args__ = (UniqueConstraint("computing_id", "position", "start_date"),) # This needs a comma to work
 
     def serializable_dict(self) -> dict:
         return {
@@ -67,6 +70,15 @@ class OfficerTerm(Base):
             "biography": self.biography,
             "photo_url": self.photo_url,
         }
+
+    def update_from_params(self, params: OfficerTermUpdate, admin_update: bool = True):
+        if admin_update:
+            update_data = params.model_dump(exclude_unset=True)
+        else:
+            update_data = params.model_dump(exclude_unset=True, exclude={"position", "start_date", "end_date", "photo_url"})
+        for k, v in update_data.items():
+            setattr(self, k, v)
+
 
     def is_filled_in(self):
         return (
@@ -111,7 +123,7 @@ class OfficerInfo(Base):
     )
 
     # TODO (#71): we'll need to use SFU's API to get the legal name for users
-    legal_name: Mapped[str] = mapped_column(String(128), nullable=False) # some people have long names, you never know
+    legal_name: Mapped[str] = mapped_column(String(OFFICER_LEGAL_NAME_MAX), nullable=False) # some people have long names, you never know
     phone_number: Mapped[str] = mapped_column(String(24), nullable=True)
 
     # TODO (#99): add unique constraints to discord_id (stops users from stealing the username of someone else)
@@ -146,6 +158,11 @@ class OfficerInfo(Base):
 
             "google_drive_email": self.google_drive_email,
         }
+
+    def update_from_params(self, params: OfficerUpdate | OfficerSelfUpdate):
+        update_data = params.model_dump(exclude_unset=True)
+        for k, v in update_data.items():
+            setattr(self, k, v)
 
     def is_filled_in(self):
         return (

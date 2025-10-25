@@ -1,4 +1,5 @@
 import re
+from enum import Enum
 
 from fastapi import HTTPException, Request, status
 
@@ -6,6 +7,11 @@ import auth
 import auth.crud
 import database
 from permission.types import ElectionOfficer, WebsiteAdmin
+
+
+class AdminTypeEnum(Enum):
+    Full = 1
+    Election = 2
 
 
 # TODO: move other utils into this module
@@ -49,7 +55,8 @@ async def get_current_user(request: Request, db_session: database.DBSession) -> 
 
     return session_id, session_computing_id
 
-async def admin_or_raise(request: Request, db_session: database.DBSession) -> tuple[str, str]:
+# TODO: Add an election admin version that checks the election attempting to be modified as well
+async def admin_or_raise(request: Request, db_session: database.DBSession, admintype: AdminTypeEnum = AdminTypeEnum.Full) -> tuple[str, str]:
     session_id, computing_id = await get_current_user(request, db_session)
     if not session_id or not computing_id:
         raise HTTPException(
@@ -58,11 +65,20 @@ async def admin_or_raise(request: Request, db_session: database.DBSession) -> tu
         )
 
     # where valid means election officer or website admin
-    if (await ElectionOfficer.has_permission(db_session, computing_id)) or (await WebsiteAdmin.has_permission(db_session, computing_id)):
+    if (await WebsiteAdmin.has_permission(db_session, computing_id)) or (admintype is AdminTypeEnum.Election and await ElectionOfficer.has_permission(db_session, computing_id)):
         return session_id, computing_id
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="must be an admin"
-        )
 
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="must be an admin"
+    )
+
+async def is_website_admin(request: Request, db_session: database.DBSession) -> tuple[bool, str | None, str | None]:
+    session_id, computing_id = await get_current_user(request, db_session)
+    if session_id is None or computing_id is None:
+        return False, session_id, computing_id
+
+    if (await WebsiteAdmin.has_permission(db_session, computing_id)):
+        return True, session_id, computing_id
+
+    return False, session_id, computing_id

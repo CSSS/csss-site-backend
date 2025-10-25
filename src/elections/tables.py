@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     DateTime,
@@ -24,10 +24,10 @@ class Election(Base):
     # Slugs are unique identifiers
     slug: Mapped[str] = mapped_column(String(MAX_ELECTION_SLUG), primary_key=True)
     name: Mapped[str] = mapped_column(String(MAX_ELECTION_NAME), nullable=False)
-    type: Mapped[ElectionTypeEnum] = mapped_column(String(64), default=ElectionTypeEnum.GENERAL)
-    datetime_start_nominations: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    datetime_start_voting: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    datetime_end_voting: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    type: Mapped[ElectionTypeEnum] = mapped_column(String(32), default=ElectionTypeEnum.GENERAL)
+    datetime_start_nominations: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    datetime_start_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    datetime_end_voting: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     # a comma-separated string of positions which must be elements of OfficerPosition
     # By giving it the type `StringList`, the database entry will automatically be marshalled to the correct form

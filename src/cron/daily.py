@@ -6,7 +6,7 @@ import logging
 import github
 import google_api
 import utils
-from database import _db_session
+from database import get_db_session
 from officers.crud import all_officers, get_user_by_username
 
 _logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ async def update_github_permissions(db_session):
     _logger.info("updated github permissions")
 
 async def update_permissions():
-    db_session = _db_session()
+    db_session = get_db_session()
 
     update_google_permissions(db_session)
     db_session.commit()

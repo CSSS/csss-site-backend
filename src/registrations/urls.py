@@ -18,7 +18,7 @@ from registrations.models import (
 )
 from registrations.tables import NomineeApplication
 from utils.shared_models import DetailModel, SuccessResponse
-from utils.urls import admin_or_raise, logged_in_or_raise, slugify
+from utils.urls import AdminTypeEnum, admin_or_raise, logged_in_or_raise, slugify
 
 router = APIRouter(
     prefix="/registration",
@@ -74,7 +74,7 @@ async def register_in_election(
     body: NomineeApplicationParams,
     election_name: str
 ):
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
 
     if body.position not in OfficerPositionEnum:
         raise HTTPException(
@@ -105,7 +105,7 @@ async def register_in_election(
             detail=f"{body.position} is not available to register for in this election"
         )
 
-    if election.status(datetime.datetime.now(tz=datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
+    if election.status(datetime.datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registrations can only be made during the nomination period"
@@ -157,7 +157,7 @@ async def update_registration(
     computing_id: str,
     position: OfficerPositionEnum
 ):
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
 
     if body.position not in OfficerPositionEnum:
         raise HTTPException(
@@ -174,7 +174,7 @@ async def update_registration(
         )
 
     # self updates can only be done during nomination period. Officer updates can be done whenever
-    if election.status(datetime.datetime.now(tz=datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
+    if election.status(datetime.datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="speeches can only be updated during the nomination period"
@@ -221,7 +221,7 @@ async def delete_registration(
     position: OfficerPositionEnum,
     computing_id: str
 ):
-    await admin_or_raise(request, db_session)
+    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
 
     if position not in OfficerPositionEnum:
         raise HTTPException(
@@ -237,7 +237,7 @@ async def delete_registration(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    if election.status(datetime.datetime.now(tz=datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
+    if election.status(datetime.datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="registration can only be revoked during the nomination period"

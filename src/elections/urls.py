@@ -25,7 +25,7 @@ router = APIRouter(
     tags=["election"],
 )
 
-async def get_user_permissions(
+async def get_election_permissions(
     request: Request,
     db_session: database.DBSession,
 ) -> tuple[bool, str | None, str | None]:
@@ -88,7 +88,7 @@ def _raise_if_bad_election_data(
     description="Returns a list of all election & their status",
     response_model=list[ElectionResponse],
     responses={
-        404: { "description": "No election found" }
+        404: { "description": "No election found", "model": DetailModel }
     },
     operation_id="get_all_elections"
 )
@@ -96,7 +96,7 @@ async def list_elections(
     request: Request,
     db_session: database.DBSession,
 ):
-    is_admin, _, _ = await get_user_permissions(request, db_session)
+    is_admin, _, _ = await get_election_permissions(request, db_session)
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(
@@ -104,7 +104,7 @@ async def list_elections(
             detail="no election found"
         )
 
-    current_time = datetime.datetime.now(tz=datetime.UTC)
+    current_time = datetime.datetime.now()
     if is_admin:
         election_metadata_list = [
             election.private_details(current_time)
@@ -136,7 +136,7 @@ async def get_election(
     db_session: database.DBSession,
     election_name: str
 ):
-    current_time = datetime.datetime.now(tz=datetime.UTC)
+    current_time = datetime.datetime.now()
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
@@ -145,7 +145,7 @@ async def get_election(
             detail=f"election with slug {slugified_name} does not exist"
         )
 
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if current_time >= election.datetime_start_voting or is_valid_user:
 
         election_json = election.private_details(current_time)
@@ -218,7 +218,7 @@ async def create_election(
         available_positions = body.available_positions
 
     slugified_name = slugify(body.name)
-    current_time = datetime.datetime.now(tz=datetime.UTC)
+    current_time = datetime.datetime.now()
     start_nominations = datetime.datetime.fromisoformat(body.datetime_start_nominations)
     start_voting = datetime.datetime.fromisoformat(body.datetime_start_voting)
     end_voting = datetime.datetime.fromisoformat(body.datetime_end_voting)
@@ -233,7 +233,7 @@ async def create_election(
         available_positions
     )
 
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -293,7 +293,7 @@ async def update_election(
     db_session: database.DBSession,
     election_name: str,
 ):
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -332,7 +332,7 @@ async def update_election(
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
-    return JSONResponse(election.private_details(datetime.datetime.now(tz=datetime.UTC)))
+    return JSONResponse(election.private_details(datetime.datetime.now()))
 
 @router.delete(
     "/{election_name:str}",
@@ -349,7 +349,7 @@ async def delete_election(
     election_name: str
 ):
     slugified_name = slugify(election_name)
-    is_valid_user, _, _ = await get_user_permissions(request, db_session)
+    is_valid_user, _, _ = await get_election_permissions(request, db_session)
     if not is_valid_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

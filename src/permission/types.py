@@ -76,5 +76,5 @@ class WebsiteAdmin:
         errmsg:str = "must have website admin permissions"
     ) -> bool:
         if not await WebsiteAdmin.has_permission(db_session, computing_id):
-            raise HTTPException(status_code=401, detail=errmsg)
+            raise HTTPException(status_code=403, detail=errmsg)
         return True

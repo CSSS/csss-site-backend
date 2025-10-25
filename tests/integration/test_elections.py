@@ -61,7 +61,6 @@ async def test_read_elections(database_setup):
            election_false = await get_election(db_session, "this-not-a-election")
            assert election_false is None
 
-
            # Test getting specific election
            election = await get_election(db_session, "test-election-1")
            assert election is not None
@@ -198,9 +197,9 @@ async def test_endpoints_admin(client, database_setup):
     response = await client.post("/election", json={
         "name": "testElection4",
         "type": "general_election",
-        "datetime_start_nominations": (datetime.datetime.now(tz=datetime.UTC) - timedelta(days=1)).isoformat(),
-        "datetime_start_voting": (datetime.datetime.now(tz=datetime.UTC) + timedelta(days=7)).isoformat(),
-        "datetime_end_voting": (datetime.datetime.now(tz=datetime.UTC) + timedelta(days=14)).isoformat(),
+        "datetime_start_nominations": (datetime.datetime.now() - timedelta(days=1)).isoformat(),
+        "datetime_start_voting": (datetime.datetime.now() + timedelta(days=7)).isoformat(),
+        "datetime_end_voting": (datetime.datetime.now() + timedelta(days=14)).isoformat(),
         "available_positions": ["president", "treasurer"],
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
@@ -209,9 +208,9 @@ async def test_endpoints_admin(client, database_setup):
     response = await client.post("/election", json={
         "name": "byElection4",
         "type": "by_election",
-        "datetime_start_nominations": (datetime.datetime.now(tz=datetime.UTC) - timedelta(days=1)).isoformat(),
-        "datetime_start_voting": (datetime.datetime.now(tz=datetime.UTC) + timedelta(days=7)).isoformat(),
-        "datetime_end_voting": (datetime.datetime.now(tz=datetime.UTC) + timedelta(days=14)).isoformat(),
+        "datetime_start_nominations": (datetime.datetime.now() - timedelta(days=1)).isoformat(),
+        "datetime_start_voting": (datetime.datetime.now() + timedelta(days=7)).isoformat(),
+        "datetime_end_voting": (datetime.datetime.now() + timedelta(days=14)).isoformat(),
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })
     assert response.status_code == 200
@@ -276,9 +275,9 @@ async def test_endpoints_admin(client, database_setup):
     # update the above election
     response = await client.patch("/election/testElection4", json={
         "election_type": "general_election",
-        "datetime_start_nominations": (datetime.datetime.now(tz=datetime.UTC) - timedelta(days=1)).isoformat(),
-        "datetime_start_voting": (datetime.datetime.now(tz=datetime.UTC) + timedelta(days=7)).isoformat(),
-        "datetime_end_voting": (datetime.datetime.now(tz=datetime.UTC) + timedelta(days=14)).isoformat(),
+        "datetime_start_nominations": (datetime.datetime.now() - timedelta(days=1)).isoformat(),
+        "datetime_start_voting": (datetime.datetime.now() + timedelta(days=7)).isoformat(),
+        "datetime_end_voting": (datetime.datetime.now() + timedelta(days=14)).isoformat(),
         "available_positions": ["president", "vice-president", "treasurer"],  # update this
         "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
     })

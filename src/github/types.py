@@ -7,6 +7,7 @@ class GithubUser:
     id: int
     name: str
 
+
 @dataclass
 class GithubTeam:
     id: int
@@ -14,6 +15,7 @@ class GithubTeam:
     name: str
     # slugs are the space-free special names that github likes to use
     slug: str
+
 
 @dataclass
 class GithubUserPermissions:

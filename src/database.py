@@ -15,15 +15,17 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 convention = {
-    "ix": "ix_%(column_0_label)s", # index
-    "uq": "uq_%(table_name)s_%(column_0_name)s", # unique
-    "ck": "ck_%(table_name)s_%(constraint_name)s", # check
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s", # foreign key
-    "pk": "pk_%(table_name)s", # primary key
+    "ix": "ix_%(column_0_label)s",  # index
+    "uq": "uq_%(table_name)s_%(column_0_name)s",  # unique
+    "ck": "ck_%(table_name)s_%(constraint_name)s",  # check
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",  # foreign key
+    "pk": "pk_%(table_name)s",  # primary key
 }
+
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=convention)
+
 
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
@@ -44,7 +46,9 @@ class DatabaseSessionManager:
             conn = await asyncpg.connect(asyncpg_db_url)
             await conn.close()
         except Exception as e:
-            raise Exception(f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}") from e
+            raise Exception(
+                f"Could not connect to {sqlalchemy_db_url}. Postgres database might not exist. Got: {e}"
+            ) from e
 
         # TODO: setup logging
         print(f"successful connection test to {sqlalchemy_db_url}")
@@ -102,8 +106,9 @@ def setup_database():
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
     sessionmanager = DatabaseSessionManager(
         SQLALCHEMY_TEST_DATABASE_URL if os.environ.get("LOCAL") else SQLALCHEMY_DATABASE_URL,
-        { "echo": False },
+        {"echo": False},
     )
+
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):

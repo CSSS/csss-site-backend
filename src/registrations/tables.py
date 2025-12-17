@@ -15,16 +15,13 @@ class NomineeApplication(Base):
 
     speech: Mapped[str | None] = mapped_column(Text)
 
-    __table_args__ = (
-        PrimaryKeyConstraint(computing_id, nominee_election, position),
-    )
+    __table_args__ = (PrimaryKeyConstraint(computing_id, nominee_election, position),)
 
     def serialize(self) -> dict:
         return {
             "computing_id": self.computing_id,
             "nominee_election": self.nominee_election,
             "position": self.position,
-
             "speech": self.speech,
         }
 
@@ -33,7 +30,6 @@ class NomineeApplication(Base):
             "computing_id": self.computing_id,
             "nominee_election": self.nominee_election,
             "position": self.position,
-
             "speech": self.speech,
         }
 
@@ -41,5 +37,3 @@ class NomineeApplication(Base):
         update_data = params.model_dump(exclude_unset=True)
         for k, v in update_data.items():
             setattr(self, k, v)
-
-

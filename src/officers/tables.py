@@ -49,19 +49,17 @@ class OfficerTerm(Base):
     favourite_pl_0: Mapped[str] = mapped_column(String(64), nullable=True)
     favourite_pl_1: Mapped[str] = mapped_column(String(64), nullable=True)
     biography: Mapped[str] = mapped_column(Text, nullable=True)
-    photo_url: Mapped[str] = mapped_column(Text, nullable=True) # some urls get big, best to let it be a string
+    photo_url: Mapped[str] = mapped_column(Text, nullable=True)  # some urls get big, best to let it be a string
 
-    __table_args__ = (UniqueConstraint("computing_id", "position", "start_date"),) # This needs a comma to work
+    __table_args__ = (UniqueConstraint("computing_id", "position", "start_date"),)  # This needs a comma to work
 
     def serializable_dict(self) -> dict:
         return {
             "id": self.id,
             "computing_id": self.computing_id,
-
             "position": self.position,
             "start_date": self.start_date.isoformat() if self.start_date is not None else None,
             "end_date": self.end_date.isoformat() if self.end_date is not None else None,
-
             "nickname": self.nickname,
             "favourite_course_0": self.favourite_course_0,
             "favourite_course_1": self.favourite_course_1,
@@ -75,10 +73,11 @@ class OfficerTerm(Base):
         if admin_update:
             update_data = params.model_dump(exclude_unset=True)
         else:
-            update_data = params.model_dump(exclude_unset=True, exclude={"position", "start_date", "end_date", "photo_url"})
+            update_data = params.model_dump(
+                exclude_unset=True, exclude={"position", "start_date", "end_date", "photo_url"}
+            )
         for k, v in update_data.items():
             setattr(self, k, v)
-
 
     def is_filled_in(self):
         return (
@@ -97,11 +96,9 @@ class OfficerTerm(Base):
     def to_update_dict(self) -> dict:
         return {
             "computing_id": self.computing_id,
-
             "position": self.position,
             "start_date": self.start_date,
             "end_date": self.end_date,
-
             "nickname": self.nickname,
             "favourite_course_0": self.favourite_course_0,
             "favourite_course_1": self.favourite_course_1,
@@ -110,6 +107,7 @@ class OfficerTerm(Base):
             "biography": self.biography,
             "photo_url": self.photo_url,
         }
+
 
 # this table contains information that we only need a most up-to-date version of, and
 # don't need to keep a history of. However, it also can't be easily updated.
@@ -123,7 +121,9 @@ class OfficerInfo(Base):
     )
 
     # TODO (#71): we'll need to use SFU's API to get the legal name for users
-    legal_name: Mapped[str] = mapped_column(String(OFFICER_LEGAL_NAME_MAX), nullable=False) # some people have long names, you never know
+    legal_name: Mapped[str] = mapped_column(
+        String(OFFICER_LEGAL_NAME_MAX), nullable=False
+    )  # some people have long names, you never know
     phone_number: Mapped[str] = mapped_column(String(24), nullable=True)
 
     # TODO (#99): add unique constraints to discord_id (stops users from stealing the username of someone else)
@@ -146,16 +146,13 @@ class OfficerInfo(Base):
     def serializable_dict(self) -> dict:
         return {
             "is_filled_in": self.is_filled_in(),
-
             "legal_name": self.legal_name,
             "discord_id": self.discord_id,
             "discord_name": self.discord_name,
             "discord_nickname": self.discord_nickname,
-
             "computing_id": self.computing_id,
             "phone_number": self.phone_number,
             "github_username": self.github_username,
-
             "google_drive_email": self.google_drive_email,
         }
 
@@ -181,11 +178,9 @@ class OfficerInfo(Base):
             # TODO (#71): if the API call to SFU's api to get legal name fails, we want to fail & not insert the entry.
             # for now, we should insert a default value
             "legal_name": "default name" if self.legal_name is None else self.legal_name,
-
             "discord_id": self.discord_id,
             "discord_name": self.discord_name,
             "discord_nickname": self.discord_nickname,
-
             "phone_number": self.phone_number,
             "github_username": self.github_username,
             "google_drive_email": self.google_drive_email,

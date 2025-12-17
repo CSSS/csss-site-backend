@@ -13,5 +13,5 @@ class SiteUserData:
             "computing_id": self.computing_id,
             "first_logged_in": self.first_logged_in,
             "last_logged_in": self.last_logged_in,
-            "profile_picture_url": self.profile_picture_url
+            "profile_picture_url": self.profile_picture_url,
         }

@@ -19,10 +19,8 @@ def slugify(text: str) -> str:
     """Creates a unique slug based on text passed in. Assumes non-unicode text."""
     return re.sub(r"[\W_]+", "-", text.strip().replace("/", "").replace("&", ""))
 
-async def logged_in_or_raise(
-    request: Request,
-    db_session: database.DBSession
-) -> tuple[str, str]:
+
+async def logged_in_or_raise(request: Request, db_session: database.DBSession) -> tuple[str, str]:
     """gets the user's computing_id, or raises an exception if the current request is not logged in"""
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
@@ -33,6 +31,7 @@ async def logged_in_or_raise(
         raise HTTPException(status_code=401, detail="no computing id")
 
     return session_id, session_computing_id
+
 
 async def get_current_user(request: Request, db_session: database.DBSession) -> tuple[str, str] | tuple[None, None]:
     """
@@ -55,30 +54,30 @@ async def get_current_user(request: Request, db_session: database.DBSession) -> 
 
     return session_id, session_computing_id
 
+
 # TODO: Add an election admin version that checks the election attempting to be modified as well
-async def admin_or_raise(request: Request, db_session: database.DBSession, admintype: AdminTypeEnum = AdminTypeEnum.Full) -> tuple[str, str]:
+async def admin_or_raise(
+    request: Request, db_session: database.DBSession, admintype: AdminTypeEnum = AdminTypeEnum.Full
+) -> tuple[str, str]:
     session_id, computing_id = await get_current_user(request, db_session)
     if not session_id or not computing_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="must be logged in"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="must be logged in")
 
     # where valid means election officer or website admin
-    if (await WebsiteAdmin.has_permission(db_session, computing_id)) or (admintype is AdminTypeEnum.Election and await ElectionOfficer.has_permission(db_session, computing_id)):
+    if (await WebsiteAdmin.has_permission(db_session, computing_id)) or (
+        admintype is AdminTypeEnum.Election and await ElectionOfficer.has_permission(db_session, computing_id)
+    ):
         return session_id, computing_id
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="must be an admin"
-    )
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
+
 
 async def is_website_admin(request: Request, db_session: database.DBSession) -> tuple[bool, str | None, str | None]:
     session_id, computing_id = await get_current_user(request, db_session)
     if session_id is None or computing_id is None:
         return False, session_id, computing_id
 
-    if (await WebsiteAdmin.has_permission(db_session, computing_id)):
+    if await WebsiteAdmin.has_permission(db_session, computing_id):
         return True, session_id, computing_id
 
     return False, session_id, computing_id

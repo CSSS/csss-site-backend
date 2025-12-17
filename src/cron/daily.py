@@ -11,6 +11,7 @@ from officers.crud import all_officers, get_user_by_username
 
 _logger = logging.getLogger(__name__)
 
+
 async def update_google_permissions(db_session):
     # TODO: implement this function
     # google_permissions = google_api.all_permissions()
@@ -27,6 +28,7 @@ async def update_google_permissions(db_session):
             pass
 
     _logger.info("updated google permissions")
+
 
 async def update_github_permissions(db_session):
     github_permissions, team_id_map = github.all_permissions()
@@ -46,13 +48,10 @@ async def update_github_permissions(db_session):
                 [team_id_map[team] for team in new_teams],
             )
         else:
-            github.set_user_teams(
-                term.username,
-                github_permissions[term.username].teams,
-                new_teams
-            )
+            github.set_user_teams(term.username, github_permissions[term.username].teams, new_teams)
 
     _logger.info("updated github permissions")
+
 
 async def update_permissions():
     db_session = get_db_session()
@@ -64,6 +63,6 @@ async def update_permissions():
 
     _logger.info("all permissions updated")
 
+
 if __name__ == "__main__":
     asyncio.run(update_permissions())
-

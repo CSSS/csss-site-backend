@@ -27,6 +27,7 @@ class InitialOfficerInfo:
         elif self.position not in OfficerPosition.position_list():
             raise HTTPException(status_code=400, detail=f"invalid position={self.position}")
 
+
 @dataclass
 class OfficerInfoUpload:
     # TODO (#71): compute this using SFU's API & remove from being uploaded
@@ -43,16 +44,14 @@ class OfficerInfoUpload:
 
     def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
         return OfficerInfo(
-            computing_id = computing_id,
-            legal_name = self.legal_name,
-
-            discord_id = discord_id,
-            discord_name = self.discord_name,
-            discord_nickname = discord_nickname,
-
-            phone_number = self.phone_number,
-            github_username = self.github_username,
-            google_drive_email = self.google_drive_email,
+            computing_id=computing_id,
+            legal_name=self.legal_name,
+            discord_id=discord_id,
+            discord_name=self.discord_name,
+            discord_nickname=discord_nickname,
+            phone_number=self.phone_number,
+            github_username=self.github_username,
+            google_drive_email=self.google_drive_email,
         )
 
     async def validate(self, computing_id: str, old_officer_info: OfficerInfo) -> tuple[list[str], OfficerInfo]:
@@ -123,6 +122,7 @@ class OfficerInfoUpload:
 
         return validation_failures, corrected_officer_info
 
+
 @dataclass
 class OfficerTermUpload:
     # only admins can change:
@@ -150,23 +150,23 @@ class OfficerTermUpload:
 
     def to_officer_term(self, term_id: str) -> OfficerTerm:
         return OfficerTerm(
-            id = term_id,
-
-            computing_id = self.computing_id,
-            position = self.position,
-            start_date = self.start_date,
-            end_date = self.end_date,
-
-            nickname = self.nickname,
-            favourite_course_0 = self.favourite_course_0,
-            favourite_course_1 = self.favourite_course_1,
-            favourite_pl_0 = self.favourite_pl_0,
-            favourite_pl_1 = self.favourite_pl_1,
-            biography = self.biography,
-            photo_url = self.photo_url,
+            id=term_id,
+            computing_id=self.computing_id,
+            position=self.position,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            nickname=self.nickname,
+            favourite_course_0=self.favourite_course_0,
+            favourite_course_1=self.favourite_course_1,
+            favourite_pl_0=self.favourite_pl_0,
+            favourite_pl_1=self.favourite_pl_1,
+            biography=self.biography,
+            photo_url=self.photo_url,
         )
 
+
 # -------------------------------------------- #
+
 
 @dataclass
 class OfficerPrivateData:
@@ -174,6 +174,7 @@ class OfficerPrivateData:
     phone_number: str | None
     github_username: str | None
     google_drive_email: str | None
+
 
 @dataclass
 class OfficerData:
@@ -216,30 +217,27 @@ class OfficerData:
         is_active: bool,
     ) -> OfficerData:
         return OfficerData(
-            is_active = is_active,
-
-            position = term.position,
-            start_date = term.start_date,
-            end_date = term.end_date,
-
-            legal_name = officer_info.legal_name,
-            nickname = term.nickname,
-            discord_name = officer_info.discord_name,
-            discord_nickname = officer_info.discord_nickname,
-
-            favourite_course_0 = term.favourite_course_0,
-            favourite_course_1 = term.favourite_course_1,
-            favourite_language_0 = term.favourite_pl_0,
-            favourite_language_1 = term.favourite_pl_1,
-
-            csss_email = OfficerPosition.to_email(term.position),
-            biography = term.biography,
-            photo_url = term.photo_url,
-
-            private_data = OfficerPrivateData(
-                computing_id = term.computing_id,
-                phone_number = officer_info.phone_number,
-                github_username = officer_info.github_username,
-                google_drive_email = officer_info.google_drive_email,
-            ) if include_private_data else None,
+            is_active=is_active,
+            position=term.position,
+            start_date=term.start_date,
+            end_date=term.end_date,
+            legal_name=officer_info.legal_name,
+            nickname=term.nickname,
+            discord_name=officer_info.discord_name,
+            discord_nickname=officer_info.discord_nickname,
+            favourite_course_0=term.favourite_course_0,
+            favourite_course_1=term.favourite_course_1,
+            favourite_language_0=term.favourite_pl_0,
+            favourite_language_1=term.favourite_pl_1,
+            csss_email=OfficerPosition.to_email(term.position),
+            biography=term.biography,
+            photo_url=term.photo_url,
+            private_data=OfficerPrivateData(
+                computing_id=term.computing_id,
+                phone_number=officer_info.phone_number,
+                github_username=officer_info.github_username,
+                google_drive_email=officer_info.google_drive_email,
+            )
+            if include_private_data
+            else None,
         )

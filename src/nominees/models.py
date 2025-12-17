@@ -9,10 +9,10 @@ class NomineeInfoModel(BaseModel):
     email: str
     discord_username: str
 
+
 class NomineeInfoUpdateParams(BaseModel):
     full_name: str | None = None
     linked_in: str | None = None
     instagram: str | None = None
     email: str | None = None
     discord_username: str | None = None
-

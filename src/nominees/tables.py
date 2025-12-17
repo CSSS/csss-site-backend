@@ -23,7 +23,6 @@ class NomineeInfo(Base):
     def to_update_dict(self) -> dict:
         return {
             "full_name": self.full_name,
-
             "linked_in": self.linked_in,
             "instagram": self.instagram,
             "email": self.email,
@@ -38,10 +37,8 @@ class NomineeInfo(Base):
         return {
             "computing_id": self.computing_id,
             "full_name": self.full_name,
-
             "linked_in": self.linked_in,
             "instagram": self.instagram,
             "email": self.email,
             "discord_username": self.discord_username,
         }
-

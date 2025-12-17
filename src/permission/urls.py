@@ -10,10 +10,8 @@ router = APIRouter(
     tags=["permission"],
 )
 
-@router.get(
-    "/is_admin",
-    description="checks if the current user has the admin permission"
-)
+
+@router.get("/is_admin", description="checks if the current user has the admin permission")
 async def is_admin(
     request: Request,
     db_session: database.DBSession,

@@ -6,6 +6,7 @@ GMAIL_PASSWORD = os.environ.get("GMAIL_PASSWORD")
 GMAIL_ADDRESS = "csss-site@gmail.com"
 GMAIL_USERNAME = ""
 
+
 # TODO: look into sending emails from an sfu maillist (this might be painful)
 def send_email(
     recipient_address: str,
@@ -22,4 +23,3 @@ def send_email(
 
     mail.sendmail(GMAIL_ADDRESS, recipient_address, content)
     mail.quit()
-

@@ -16,6 +16,7 @@ def is_iso_format(date_str: str) -> bool:
     except ValueError:
         return False
 
+
 def is_active_officer(query: Select) -> Select:
     """
     An active officer is one who is currently part of the CSSS officer team.
@@ -30,14 +31,14 @@ def is_active_officer(query: Select) -> Select:
                 OfficerTerm.end_date.is_(None),
                 # check that today's timestamp is before (smaller than) the term's end date
                 date.today() <= OfficerTerm.end_date,
-            )
+            ),
         )
     )
 
+
 def has_started_term(query: Select) -> Select[tuple[OfficerTerm]]:
-    return query.where(
-        OfficerTerm.start_date <= date.today()
-    )
+    return query.where(OfficerTerm.start_date <= date.today())
+
 
 def is_active_term(term: OfficerTerm) -> bool:
     return (
@@ -51,6 +52,7 @@ def is_active_term(term: OfficerTerm) -> bool:
         )
     )
 
+
 def is_past_term(term: OfficerTerm) -> bool:
     """Any term which has concluded"""
     return (
@@ -60,12 +62,10 @@ def is_past_term(term: OfficerTerm) -> bool:
         and date.today() > term.end_date
     )
 
+
 def is_valid_phone_number(phone_number: str) -> bool:
-    return (
-        len(phone_number) == 10
-        and phone_number.isnumeric()
-    )
+    return len(phone_number) == 10 and phone_number.isnumeric()
+
 
 def is_valid_email(email: str):
     return re.match(r"^[^@]+@[^@]+\.[a-zA-Z]*$", email)
-

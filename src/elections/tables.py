@@ -18,6 +18,7 @@ from utils.types import StringList
 MAX_ELECTION_NAME = 64
 MAX_ELECTION_SLUG = 64
 
+
 class Election(Base):
     __tablename__ = "election"
 
@@ -33,7 +34,10 @@ class Election(Base):
     # By giving it the type `StringList`, the database entry will automatically be marshalled to the correct form
     # DB -> Python: str -> list[str]
     # Python -> DB: list[str] -> str
-    available_positions: Mapped[list[OfficerPositionEnum]] = mapped_column(StringList(), nullable=False,)
+    available_positions: Mapped[list[OfficerPositionEnum]] = mapped_column(
+        StringList(),
+        nullable=False,
+    )
     survey_link: Mapped[str | None] = mapped_column(String(300))
 
     def private_details(self, at_time: datetime) -> dict:
@@ -42,11 +46,9 @@ class Election(Base):
             "slug": self.slug,
             "name": self.name,
             "type": self.type,
-
             "datetime_start_nominations": self.datetime_start_nominations.isoformat(),
             "datetime_start_voting": self.datetime_start_voting.isoformat(),
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
-
             "status": self.status(at_time),
             "available_positions": self.available_positions,
             "survey_link": self.survey_link,
@@ -58,11 +60,9 @@ class Election(Base):
             "slug": self.slug,
             "name": self.name,
             "type": self.type,
-
             "datetime_start_nominations": self.datetime_start_nominations.isoformat(),
             "datetime_start_voting": self.datetime_start_voting.isoformat(),
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
-
             "status": self.status(at_time),
             "available_positions": self.available_positions,
         }
@@ -73,11 +73,9 @@ class Election(Base):
             "slug": self.slug,
             "name": self.name,
             "type": self.type,
-
             "datetime_start_nominations": self.datetime_start_nominations.isoformat(),
             "datetime_start_voting": self.datetime_start_voting.isoformat(),
             "datetime_end_voting": self.datetime_end_voting.isoformat(),
-
             "status": self.status(at_time),
         }
 
@@ -86,19 +84,16 @@ class Election(Base):
             "slug": self.slug,
             "name": self.name,
             "type": self.type,
-
             "datetime_start_nominations": self.datetime_start_nominations,
             "datetime_start_voting": self.datetime_start_voting,
             "datetime_end_voting": self.datetime_end_voting,
-
             "available_positions": self.available_positions,
             "survey_link": self.survey_link,
         }
 
     def update_from_params(self, params: ElectionUpdateParams):
         update_data = params.model_dump(
-            exclude_unset=True,
-            exclude={"datetime_start_nominations", "datetime_start_voting", "datetime_end_voting"}
+            exclude_unset=True, exclude={"datetime_start_nominations", "datetime_start_voting", "datetime_end_voting"}
         )
         for k, v in update_data.items():
             setattr(self, k, v)
@@ -118,4 +113,3 @@ class Election(Base):
             return ElectionStatusEnum.VOTING
         else:
             return ElectionStatusEnum.AFTER_VOTING
-

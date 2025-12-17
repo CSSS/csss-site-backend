@@ -41,17 +41,14 @@ router = APIRouter(
     response_description="Successfully validated with SFU's CAS",
     response_model=str,
     responses={
-        307: { "description": "Successful validation, with redirect" },
-        400: { "description": "Origin is missing.", "model": DetailModel },
-        401: { "description": "Failed to validate ticket with SFU's CAS", "model": DetailModel }
+        307: {"description": "Successful validation, with redirect"},
+        400: {"description": "Origin is missing.", "model": DetailModel},
+        401: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
     },
     operation_id="login",
 )
 async def login_user(
-    request: Request,
-    db_session: database.DBSession,
-    background_tasks: BackgroundTasks,
-    body: LoginBodyParams
+    request: Request, db_session: database.DBSession, background_tasks: BackgroundTasks, body: LoginBodyParams
 ):
     # verify the ticket is valid
     service_url = body.service
@@ -82,12 +79,7 @@ async def login_user(
             response = Response()
 
         response.set_cookie(
-            key="session_id",
-            value=session_id,
-            secure=IS_PROD,
-            httponly=True,
-            samesite=SAMESITE,
-            domain=DOMAIN
+            key="session_id", value=session_id, secure=IS_PROD, httponly=True, samesite=SAMESITE, domain=DOMAIN
         )  # this overwrites any past, possibly invalid, session_id
         return response
 
@@ -96,7 +88,7 @@ async def login_user(
     "/logout",
     description="Logs out the current user by invalidating the session_id cookie",
     operation_id="logout",
-    response_model=MessageModel
+    response_model=MessageModel,
 )
 async def logout_user(
     request: Request,
@@ -121,9 +113,7 @@ async def logout_user(
     operation_id="get_user",
     description="Get info about the current user. Only accessible by that user",
     response_model=SiteUserModel,
-    responses={
-        401: { "description": "Not logged in.", "model": DetailModel }
-    },
+    responses={401: {"description": "Not logged in.", "model": DetailModel}},
 )
 async def get_user(
     request: Request,
@@ -149,9 +139,7 @@ async def get_user(
     operation_id="update_user",
     description="Update information for the currently logged in user. Only accessible by that user",
     response_model=str,
-    responses={
-        401: { "description": "Not logged in.", "model": DetailModel }
-    },
+    responses={401: {"description": "Not logged in.", "model": DetailModel}},
 )
 async def update_user(
     body: UpdateUserParams,

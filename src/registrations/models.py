@@ -12,17 +12,19 @@ class RegistrationModel(BaseModel):
     discord_username: str
     speech: str
 
+
 class NomineeApplicationParams(BaseModel):
     computing_id: str
     position: OfficerPositionEnum
 
+
 class NomineeApplicationUpdateParams(BaseModel):
     position: OfficerPositionEnum | None = None
     speech: str | None = None
+
 
 class NomineeApplicationModel(BaseModel):
     computing_id: str
     nominee_election: str
     position: OfficerPositionEnum
     speech: str | None = None
-

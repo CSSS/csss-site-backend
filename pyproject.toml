@@ -3,6 +3,30 @@ name = "csss-site-backend"
 version = "0.1"
 requires-python = ">= 3.11" # older versions untested, but we use new features often
 
+dependencies = [
+    # major
+    "fastapi==0.115.6",
+    "gunicorn==21.2.0",
+    "uvicorn[standard]==0.27.1",
+    "sqlalchemy[asyncio]==2.0.27",
+    "asyncpg==0.29.0",
+    "alembic==1.13.1",
+    "google-api-python-client==2.143.0",
+
+    # minor
+    "pyOpenSSL==24.0.0", # for generating cryptographically secure random numbers
+    "xmltodict==0.13.0",
+    "requests==2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.6.9", # linting and formatter
+    "pytest", # test framework
+    "pytest-asyncio",
+    "httpx",
+]
+
 [project.urls]
 Homepage = "https://api.sfucsss.org/"
 
@@ -12,7 +36,7 @@ log_cli = true
 log_cli_level = "INFO"
 testpaths = [
     "tests",
-  ]
+]
 norecursedirs = "tests/wip"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -34,3 +58,6 @@ ignore = ["E501", "F401", "N806"]
 [tool.pyright]
 executionEnvironments = [{ root = "src" }]
 typeCheckingMode = "standard"
+reportAny = "none"
+reportExplicitAny = "none"
+disableOrganizeImports = true

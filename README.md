@@ -15,6 +15,7 @@ If you're planning to read through the source code, please check out this projec
 ### Quickstart
 
 1. Install [Python 3.11](https://www.python.org/downloads/), [git](https://git-scm.com/install/), and (optionally) [Docker](https://www.docker.com/get-started/)
+    Note: This may fail if you're using Python 3.12+
 2. Clone this repository
 3. Create and activate a virtual environment for this project. This has been tested with `pip` and `uv`
 4. Install developer dependencies

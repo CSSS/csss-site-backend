@@ -26,6 +26,11 @@ pip install .        # or: uv pip install .
 # Install with dev dependencies
 pip install ".[dev]" # or: uv pip install ".[dev]"
 
+# Install with test dependencies
+pip install ".[test]" # or: uv pip install ".[test]"
+
+# Install with all dependencies
+pip install ".[dev, test]" # or: uv pip install ".[dev, test]"
 ```
 
 5. Follow the database setup instructions on the [wiki](https://github.com/CSSS/csss-site-backend/wiki/1.-Local-Setup#database-setup). The recommended way is to do it through Docker, but both should work.

@@ -22,6 +22,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff==0.6.9", # linting and formatter
+]
+
+test = [
     "pytest", # test framework
     "pytest-asyncio",
     "httpx",
@@ -68,4 +71,3 @@ executionEnvironments = [
 typeCheckingMode = "standard"
 reportAny = "none" # Allow the use of `Any` type
 reportExplicitAny = "none" # Allow the declaration of `Any` type
-disableOrganizeImports = true # Let ruff to handle this

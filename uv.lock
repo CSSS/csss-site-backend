@@ -207,10 +207,12 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "ruff" },
+]
+test = [
     { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -220,17 +222,17 @@ requires-dist = [
     { name = "fastapi", specifier = "==0.115.6" },
     { name = "google-api-python-client", specifier = "==2.143.0" },
     { name = "gunicorn", specifier = "==21.2.0" },
-    { name = "httpx", marker = "extra == 'dev'" },
+    { name = "httpx", marker = "extra == 'test'" },
     { name = "pyopenssl", specifier = "==24.0.0" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'" },
+    { name = "pytest-asyncio", marker = "extra == 'test'" },
     { name = "requests", specifier = "==2.31.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.6.9" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = "==2.0.27" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.27.1" },
     { name = "xmltodict", specifier = "==0.13.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "test"]
 
 [[package]]
 name = "fastapi"

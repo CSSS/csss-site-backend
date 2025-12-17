@@ -56,8 +56,10 @@ select = ["E", "F", "B", "I", "N", "UP", "A", "PTH", "W", "RUF", "C4", "PIE", "Q
 ignore = ["E501", "F401", "N806"]
 
 [tool.pyright]
-executionEnvironments = [{ root = "src" }]
+executionEnvironments = [
+    { root = "src", pythonVersion = "3.11" }
+]
 typeCheckingMode = "standard"
-reportAny = "none"
-reportExplicitAny = "none"
-disableOrganizeImports = true
+reportAny = "none" # Allow the use of `Any` type
+reportExplicitAny = "none" # Allow the declaration of `Any` type
+disableOrganizeImports = true # Let ruff to handle this

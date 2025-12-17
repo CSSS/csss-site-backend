@@ -30,6 +30,7 @@ dev = [
 [project.urls]
 Homepage = "https://api.sfucsss.org/"
 
+# Pytest: Test framework
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 log_cli = true
@@ -41,10 +42,14 @@ norecursedirs = "tests/wip"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
+# Ruff: Formatter and linter
 [tool.ruff]
 line-length = 120
 indent-width = 4
 target-version = "py311"
+exclude = [
+    "src/alembic/*"
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -55,6 +60,7 @@ line-ending = "lf"
 select = ["E", "F", "B", "I", "N", "UP", "A", "PTH", "W", "RUF", "C4", "PIE", "Q", "FLY"] # "ANN"
 ignore = ["E501", "F401", "N806"]
 
+# [Based]Pyright: Type checker/LSP
 [tool.pyright]
 executionEnvironments = [
     { root = "src", pythonVersion = "3.11" }

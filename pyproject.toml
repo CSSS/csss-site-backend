@@ -66,7 +66,8 @@ ignore = ["E501", "F401", "N806"]
 # [Based]Pyright: Type checker/LSP
 [tool.pyright]
 executionEnvironments = [
-    { root = "src", pythonVersion = "3.11" }
+    { root = "src", pythonVersion = "3.11" },
+    { root = "tests", extraPaths=["src"], pythonVersion = "3.11" }
 ]
 typeCheckingMode = "standard"
 reportAny = "none" # Allow the use of `Any` type

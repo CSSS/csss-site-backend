@@ -17,7 +17,7 @@ from officers.tables import OfficerInfoDB, OfficerTermDB
 
 
 async def current_officers(
-    db_session: database.DBSession, include_private: bool
+    db_session: database.DBSession, include_private: bool = False
 ) -> list[OfficerPrivate] | list[OfficerPublic]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.

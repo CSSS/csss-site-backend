@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 from datetime import date
 
-import sqlalchemy
 from fastapi import HTTPException
+from sqlalchemy import Row, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import auth.crud
@@ -12,7 +12,7 @@ import utils
 from data import semesters
 from officers.constants import OfficerPosition
 from officers.models import OfficerInfoResponse
-from officers.tables import OfficerInfo, OfficerTerm
+from officers.tables import OfficerInfo, OfficerTermDB
 
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
 
@@ -27,13 +27,13 @@ async def current_officers(
     """
     curr_time = date.today()
     query = (
-        sqlalchemy.select(OfficerTerm, OfficerInfo)
-        .join(OfficerInfo, OfficerTerm.computing_id == OfficerInfo.computing_id)
-        .where((OfficerTerm.start_date <= curr_time) & (OfficerTerm.end_date >= curr_time))
-        .order_by(OfficerTerm.start_date.desc())
+        select(OfficerTermDB, OfficerInfo)
+        .join(OfficerInfo, OfficerTermDB.computing_id == OfficerInfo.computing_id)
+        .where((OfficerTermDB.start_date <= curr_time) & (OfficerTermDB.end_date >= curr_time))
+        .order_by(OfficerTermDB.start_date.desc())
     )
 
-    result: Sequence[sqlalchemy.Row[tuple[OfficerTerm, OfficerInfo]]] = (await db_session.execute(query)).all()
+    result: Sequence[Row[tuple[OfficerTermDB, OfficerInfo]]] = (await db_session.execute(query)).all()
     officer_list = []
     for term, officer in result:
         officer_list.append(
@@ -59,27 +59,23 @@ async def current_officers(
     return officer_list
 
 
-async def get_current_terms_by_position(db_session: database.DBSession, position: str) -> list[OfficerInfoResponse]:
+async def get_current_terms_by_position(db_session: database.DBSession, position: str) -> list[OfficerTermDB]:
     """
     Get current officer that holds a position
     """
     curr_time = date.today()
     query = (
-        sqlalchemy.select(OfficerTerm)
-        .join(OfficerInfo, OfficerTerm.computing_id)
+        select(OfficerTermDB)
         .where(
-            (OfficerTerm.start_date <= curr_time) & (OfficerTerm.end_date >= curr_time) & OfficerTerm.position
+            (OfficerTermDB.start_date <= curr_time) & (OfficerTermDB.end_date >= curr_time) & OfficerTermDB.position
             == position
         )
-        .order_by(OfficerTerm.start_date.desc())
+        .order_by(OfficerTermDB.start_date.desc())
     )
 
-    result = (await db_session.execute(query)).all()
-    officer_list = []
-    for term in result:
-        officer_list.append(OfficerTerm(*term))
+    result = list((await db_session.scalars(query)).all())
 
-    return officer_list
+    return result
 
 
 async def all_officers(db_session: AsyncSession, include_future_terms: bool) -> list[OfficerInfoResponse]:
@@ -88,14 +84,14 @@ async def all_officers(db_session: AsyncSession, include_future_terms: bool) -> 
     """
     # NOTE: paginate data if needed
     query = (
-        sqlalchemy.select(OfficerTerm, OfficerInfo)
-        .join(OfficerInfo, OfficerTerm.computing_id == OfficerInfo.computing_id)
-        .order_by(OfficerTerm.start_date.desc())
+        select(OfficerTermDB, OfficerInfo)
+        .join(OfficerInfo, OfficerTermDB.computing_id == OfficerInfo.computing_id)
+        .order_by(OfficerTermDB.start_date.desc())
     )
 
     if not include_future_terms:
         query = utils.has_started_term(query)
-    result: Sequence[sqlalchemy.Row[tuple[OfficerTerm, OfficerInfo]]] = (await db_session.execute(query)).all()
+    result: Sequence[Row[tuple[OfficerTermDB, OfficerInfo]]] = (await db_session.execute(query)).all()
     officer_list = []
     for term, officer in result:
         officer_list.append(
@@ -122,9 +118,7 @@ async def all_officers(db_session: AsyncSession, include_future_terms: bool) -> 
 
 
 async def get_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
-    officer_term = await db_session.scalar(
-        sqlalchemy.select(OfficerInfo).where(OfficerInfo.computing_id == computing_id)
-    )
+    officer_term = await db_session.scalar(select(OfficerInfo).where(OfficerInfo.computing_id == computing_id))
     if officer_term is None:
         raise HTTPException(status_code=404, detail=f"officer_info for computing_id={computing_id} does not exist yet")
     return officer_term
@@ -134,9 +128,7 @@ async def get_new_officer_info_or_raise(db_session: database.DBSession, computin
     """
     This check is for after a create/update
     """
-    officer_term = await db_session.scalar(
-        sqlalchemy.select(OfficerInfo).where(OfficerInfo.computing_id == computing_id)
-    )
+    officer_term = await db_session.scalar(select(OfficerInfo).where(OfficerInfo.computing_id == computing_id))
     if officer_term is None:
         raise HTTPException(status_code=500, detail=f"failed to fetch {computing_id} after update")
     return officer_term
@@ -146,34 +138,33 @@ async def get_officer_terms(
     db_session: database.DBSession,
     computing_id: str,
     include_future_terms: bool,
-) -> list[OfficerTerm]:
+) -> list[OfficerTermDB]:
     query = (
-        sqlalchemy.select(OfficerTerm)
-        .where(OfficerTerm.computing_id == computing_id)
+        select(OfficerTermDB)
+        .where(OfficerTermDB.computing_id == computing_id)
         # In order of most recent start date first
-        .order_by(OfficerTerm.start_date.desc())
+        .order_by(OfficerTermDB.start_date.desc())
     )
     if not include_future_terms:
         query = utils.has_started_term(query)
 
-    return (await db_session.scalars(query)).all()
+    return list((await db_session.scalars(query)).all())
 
 
-async def get_active_officer_terms(db_session: database.DBSession, computing_id: str) -> list[OfficerTerm]:
+async def get_active_officer_terms(db_session: database.DBSession, computing_id: str) -> list[OfficerTermDB]:
     """
     Returns the list of active officer terms for a user. Returns [] if the user is not currently an officer.
     An officer can have multiple positions at once, such as Webmaster, Frosh chair, and DoEE.
     """
     query = (
-        sqlalchemy.select(OfficerTerm)
-        .where(OfficerTerm.computing_id == computing_id)
+        select(OfficerTermDB)
+        .where(OfficerTermDB.computing_id == computing_id)
         # In order of most recent start date first
-        .order_by(OfficerTerm.start_date.desc())
+        .order_by(OfficerTermDB.start_date.desc())
     )
     query = utils.is_active_officer(query)
 
-    officer_term_list = (await db_session.scalars(query)).all()
-    return officer_term_list
+    return list((await db_session.scalars(query)).all())
 
 
 async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
@@ -186,8 +177,8 @@ async def current_officer_positions(db_session: database.DBSession, computing_id
 
 async def get_officer_term_by_id_or_raise(
     db_session: database.DBSession, term_id: int, is_new: bool = False
-) -> OfficerTerm:
-    officer_term = await db_session.scalar(sqlalchemy.select(OfficerTerm).where(OfficerTerm.id == term_id))
+) -> OfficerTermDB:
+    officer_term = await db_session.scalar(select(OfficerTermDB).where(OfficerTermDB.id == term_id))
     if officer_term is None:
         if is_new:
             raise HTTPException(status_code=500, detail=f"could not find new officer_term with id={term_id}")
@@ -205,7 +196,7 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
         )
 
     existing_officer_info = await db_session.scalar(
-        sqlalchemy.select(OfficerInfo).where(OfficerInfo.computing_id == new_officer_info.computing_id)
+        select(OfficerInfo).where(OfficerInfo.computing_id == new_officer_info.computing_id)
     )
     if existing_officer_info is not None:
         return False
@@ -214,7 +205,7 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     return True
 
 
-async def create_new_officer_term(db_session: database.DBSession, new_officer_term: OfficerTerm):
+async def create_new_officer_term(db_session: database.DBSession, new_officer_term: OfficerTermDB):
     position_length = OfficerPosition.length_in_semesters(new_officer_term.position)
     if position_length is not None:
         # when creating a new position, assign a default end date if one exists
@@ -230,7 +221,7 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
     Return False if the officer doesn't exist yet
     """
     officer_info = await db_session.scalar(
-        sqlalchemy.select(OfficerInfo).where(OfficerInfo.computing_id == new_officer_info.computing_id)
+        select(OfficerInfo).where(OfficerInfo.computing_id == new_officer_info.computing_id)
     )
     if officer_info is None:
         return False
@@ -238,7 +229,7 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
     # NOTE: if there's ever an insert entry error, it will raise SQLAlchemyError
     # see: https://stackoverflow.com/questions/2136739/how-to-check-and-handle-errors-in-sqlalchemy
     await db_session.execute(
-        sqlalchemy.update(OfficerInfo)
+        update(OfficerInfo)
         .where(OfficerInfo.computing_id == officer_info.computing_id)
         .values(new_officer_info.to_update_dict())
     )
@@ -247,23 +238,21 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
 
 async def update_officer_term(
     db_session: database.DBSession,
-    new_officer_term: OfficerTerm,
+    new_officer_term: OfficerTermDB,
 ) -> bool:
     """
     Update all officer term data in `new_officer_term` based on the term id.
     Returns false if the above entry does not exist.
     """
-    officer_term = await db_session.scalar(sqlalchemy.select(OfficerTerm).where(OfficerTerm.id == new_officer_term.id))
+    officer_term = await db_session.scalar(select(OfficerTermDB).where(OfficerTermDB.id == new_officer_term.id))
     if officer_term is None:
         return False
 
     await db_session.execute(
-        sqlalchemy.update(OfficerTerm)
-        .where(OfficerTerm.id == new_officer_term.id)
-        .values(new_officer_term.to_update_dict())
+        update(OfficerTermDB).where(OfficerTermDB.id == new_officer_term.id).values(new_officer_term.to_update_dict())
     )
     return True
 
 
 async def delete_officer_term_by_id(db_session: database.DBSession, term_id: int):
-    await db_session.execute(sqlalchemy.delete(OfficerTerm).where(OfficerTerm.id == term_id))
+    await db_session.execute(delete(OfficerTermDB).where(OfficerTermDB.id == term_id))

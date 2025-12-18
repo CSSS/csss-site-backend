@@ -8,6 +8,7 @@ import elections.crud
 import elections.tables
 import nominees.crud
 import registrations.crud
+from dependencies import SessionUser
 from elections.models import (
     ElectionParams,
     ElectionResponse,
@@ -18,7 +19,7 @@ from elections.tables import Election
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
 from permission.types import ElectionOfficer, WebsiteAdmin
 from utils.shared_models import DetailModel, SuccessResponse
-from utils.urls import get_current_user, slugify
+from utils.urls import slugify
 
 router = APIRouter(
     prefix="/election",
@@ -27,10 +28,10 @@ router = APIRouter(
 
 
 async def get_election_permissions(
-    request: Request,
+    session_user: SessionUser,
     db_session: database.DBSession,
 ) -> tuple[bool, str | None, str | None]:
-    session_id, computing_id = await get_current_user(request, db_session)
+    session_id, computing_id = session_user
     if not session_id or not computing_id:
         return False, None, None
 
@@ -90,14 +91,14 @@ def _raise_if_bad_election_data(
     "",
     description="Returns a list of all election & their status",
     response_model=list[ElectionResponse],
-    responses={404: {"description": "No election found", "model": DetailModel}},
+    responses={status.HTTP_404_NOT_FOUND: {"description": "No election found", "model": DetailModel}},
     operation_id="get_all_elections",
 )
 async def list_elections(
-    request: Request,
+    session_user: SessionUser,
     db_session: database.DBSession,
 ):
-    is_admin, _, _ = await get_election_permissions(request, db_session)
+    is_admin, _, _ = await get_election_permissions(session_user, db_session)
     election_list = await elections.crud.get_all_elections(db_session)
     if election_list is None or len(election_list) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")

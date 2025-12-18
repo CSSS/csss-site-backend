@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date
 
 import sqlalchemy
 from fastapi import HTTPException
@@ -11,7 +11,7 @@ import database
 import utils
 from data import semesters
 from officers.constants import OfficerPosition
-from officers.models import OfficerInfoResponse, OfficerTermCreate
+from officers.models import OfficerInfoResponse
 from officers.tables import OfficerInfo, OfficerTerm
 
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
@@ -55,6 +55,29 @@ async def current_officers(
                 photo_url=term.photo_url,
             )
         )
+
+    return officer_list
+
+
+async def get_current_terms_by_position(db_session: database.DBSession, position: str) -> list[OfficerInfoResponse]:
+    """
+    Get current officer that holds a position
+    """
+    curr_time = date.today()
+    query = (
+        sqlalchemy.select(OfficerTerm)
+        .join(OfficerInfo, OfficerTerm.computing_id)
+        .where(
+            (OfficerTerm.start_date <= curr_time) & (OfficerTerm.end_date >= curr_time) & OfficerTerm.position
+            == position
+        )
+        .order_by(OfficerTerm.start_date.desc())
+    )
+
+    result = (await db_session.execute(query)).all()
+    officer_list = []
+    for term in result:
+        officer_list.append(OfficerTerm(*term))
 
     return officer_list
 

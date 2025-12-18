@@ -1,7 +1,8 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
+from constants import COMPUTING_ID_LEN
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPositionEnum
 
 OFFICER_PRIVATE_INFO = {

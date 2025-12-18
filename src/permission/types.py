@@ -10,6 +10,14 @@ import utils
 from data.semesters import step_semesters
 from officers.constants import OfficerPositionEnum
 
+WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
+    OfficerPositionEnum.PRESIDENT,
+    OfficerPositionEnum.VICE_PRESIDENT,
+    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+    OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
+    OfficerPositionEnum.WEBMASTER,
+]
+
 
 class OfficerPrivateInfo:
     @staticmethod
@@ -29,47 +37,3 @@ class OfficerPrivateInfo:
                 return True
 
         return False
-
-
-class ElectionOfficer:
-    @staticmethod
-    async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
-        """
-        An current election officer has access to all election, prior election officers have no access.
-        """
-        officer_terms = await officers.crud.current_officers(db_session, True)
-        current_election_officer = officer_terms.get(officers.constants.OfficerPositionEnum.ELECTIONS_OFFICER)
-        if current_election_officer is not None:
-            for election_officer in current_election_officer[1]:
-                if election_officer.private_data.computing_id == computing_id and election_officer.is_current_officer:
-                    return True
-
-        return False
-
-
-class WebsiteAdmin:
-    WEBSITE_ADMIN_POSITIONS: ClassVar[list[OfficerPositionEnum]] = [
-        OfficerPositionEnum.PRESIDENT,
-        OfficerPositionEnum.VICE_PRESIDENT,
-        OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
-        OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
-        OfficerPositionEnum.WEBMASTER,
-    ]
-
-    @staticmethod
-    async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:
-        """
-        A website admin has to be an active officer who has one of the above positions
-        """
-        for position in await officers.crud.current_officer_positions(db_session, computing_id):
-            if position in WebsiteAdmin.WEBSITE_ADMIN_POSITIONS:
-                return True
-        return False
-
-    @staticmethod
-    async def has_permission_or_raise(
-        db_session: database.DBSession, computing_id: str, errmsg: str = "must have website admin permissions"
-    ) -> bool:
-        if not await WebsiteAdmin.has_permission(db_session, computing_id):
-            raise HTTPException(status_code=403, detail=errmsg)
-        return True

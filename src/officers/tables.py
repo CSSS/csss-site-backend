@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
+from typing import Any
 
 from sqlalchemy import (
     Date,
@@ -21,12 +22,12 @@ from constants import (
 )
 from database import Base
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, OfficerPositionEnum
-from officers.models import OfficerSelfUpdate, OfficerTermUpdate, OfficerUpdate
+from officers.models import OfficerInfo, OfficerTermUpdate, OfficerUpdate
 
 
 # A row represents an assignment of a person to a position.
 # An officer with multiple positions, such as Frosh Chair & DoE, is broken up into multiple assignments.
-class OfficerTerm(Base):
+class OfficerTermDB(Base):
     __tablename__ = "officer_term"
 
     id: Mapped[str] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -111,7 +112,7 @@ class OfficerTerm(Base):
 
 # this table contains information that we only need a most up-to-date version of, and
 # don't need to keep a history of. However, it also can't be easily updated.
-class OfficerInfo(Base):
+class OfficerInfoDB(Base):
     __tablename__ = "officer_info"
 
     computing_id: Mapped[str] = mapped_column(
@@ -143,20 +144,10 @@ class OfficerInfo(Base):
     # TODO (#22): add support for giving executives bitwarden access automagically
     # has_signed_into_bitwarden: Mapped[str] = mapped_column(Boolean)
 
-    def serializable_dict(self) -> dict:
-        return {
-            "is_filled_in": self.is_filled_in(),
-            "legal_name": self.legal_name,
-            "discord_id": self.discord_id,
-            "discord_name": self.discord_name,
-            "discord_nickname": self.discord_nickname,
-            "computing_id": self.computing_id,
-            "phone_number": self.phone_number,
-            "github_username": self.github_username,
-            "google_drive_email": self.google_drive_email,
-        }
+    def serializable_dict(self) -> dict[str, Any]:
+        return OfficerInfo.model_validate(self).model_dump(mode="json")
 
-    def update_from_params(self, params: OfficerUpdate | OfficerSelfUpdate):
+    def update_from_params(self, params: OfficerUpdate | OfficerUpdate):
         update_data = params.model_dump(exclude_unset=True)
         for k, v in update_data.items():
             setattr(self, k, v)

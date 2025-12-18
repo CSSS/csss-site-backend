@@ -1,25 +1,24 @@
-from collections.abc import Sequence
 from datetime import date
 
 from fastapi import HTTPException
-from sqlalchemy import Row, delete, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import auth.crud
-import auth.tables
 import database
 import utils
+from auth.tables import SiteUserDB
 from data import semesters
 from officers.constants import OfficerPosition
-from officers.models import OfficerInfoResponse
-from officers.tables import OfficerInfo, OfficerTermDB
+from officers.models import OfficerCreate, OfficerPrivate, OfficerPublic
+from officers.tables import OfficerInfoDB, OfficerTermDB
 
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
 
 
 async def current_officers(
-    db_session: database.DBSession,
-) -> list[OfficerInfoResponse]:
+    db_session: database.DBSession, include_private: bool
+) -> list[OfficerPrivate] | list[OfficerPublic]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.
 
@@ -27,34 +26,48 @@ async def current_officers(
     """
     curr_time = date.today()
     query = (
-        select(OfficerTermDB, OfficerInfo)
-        .join(OfficerInfo, OfficerTermDB.computing_id == OfficerInfo.computing_id)
+        select(OfficerTermDB, OfficerInfoDB)
+        .join(OfficerInfoDB, OfficerTermDB.computing_id == OfficerInfoDB.computing_id)
         .where((OfficerTermDB.start_date <= curr_time) & (OfficerTermDB.end_date >= curr_time))
         .order_by(OfficerTermDB.start_date.desc())
     )
 
-    result: Sequence[Row[tuple[OfficerTermDB, OfficerInfo]]] = (await db_session.execute(query)).all()
+    result = (await db_session.execute(query)).all()
     officer_list = []
-    for term, officer in result:
-        officer_list.append(
-            OfficerInfoResponse(
-                legal_name=officer.legal_name,
-                is_active=True,
-                position=term.position,
-                start_date=term.start_date,
-                end_date=term.end_date,
-                biography=term.biography,
-                csss_email=OfficerPosition.to_email(term.position),
-                discord_id=officer.discord_id,
-                discord_name=officer.discord_name,
-                discord_nickname=officer.discord_nickname,
-                computing_id=officer.computing_id,
-                phone_number=officer.phone_number,
-                github_username=officer.github_username,
-                google_drive_email=officer.google_drive_email,
-                photo_url=term.photo_url,
+    if include_private:
+        for term, officer in result:
+            officer_list.append(
+                OfficerPrivate(
+                    legal_name=officer.legal_name,
+                    is_active=True,
+                    position=term.position,
+                    start_date=term.start_date,
+                    end_date=term.end_date,
+                    biography=term.biography,
+                    csss_email=OfficerPosition.to_email(term.position),
+                    discord_id=officer.discord_id,
+                    discord_name=officer.discord_name,
+                    discord_nickname=officer.discord_nickname,
+                    computing_id=officer.computing_id,
+                    phone_number=officer.phone_number,
+                    github_username=officer.github_username,
+                    google_drive_email=officer.google_drive_email,
+                    photo_url=term.photo_url,
+                )
             )
-        )
+    else:
+        for term, officer in result:
+            officer_list.append(
+                OfficerPublic(
+                    legal_name=officer.legal_name,
+                    is_active=True,
+                    position=term.position,
+                    start_date=term.start_date,
+                    end_date=term.end_date,
+                    biography=term.biography,
+                    csss_email=OfficerPosition.to_email(term.position),
+                )
+            )
 
     return officer_list
 
@@ -78,57 +91,73 @@ async def get_current_terms_by_position(db_session: database.DBSession, position
     return result
 
 
-async def all_officers(db_session: AsyncSession, include_future_terms: bool) -> list[OfficerInfoResponse]:
+async def get_all_officers(
+    db_session: AsyncSession, include_future_terms: bool, include_private: bool
+) -> list[OfficerPrivate] | list[OfficerPublic]:
     """
     This could be a lot of data, so be careful
     """
-    # NOTE: paginate data if needed
     query = (
-        select(OfficerTermDB, OfficerInfo)
-        .join(OfficerInfo, OfficerTermDB.computing_id == OfficerInfo.computing_id)
+        select(OfficerTermDB, OfficerInfoDB)
+        .join(OfficerInfoDB, OfficerTermDB.computing_id == OfficerInfoDB.computing_id)
         .order_by(OfficerTermDB.start_date.desc())
     )
-
     if not include_future_terms:
         query = utils.has_started_term(query)
-    result: Sequence[Row[tuple[OfficerTermDB, OfficerInfo]]] = (await db_session.execute(query)).all()
     officer_list = []
-    for term, officer in result:
-        officer_list.append(
-            OfficerInfoResponse(
-                legal_name=officer.legal_name,
-                is_active=utils.is_active_term(term),
-                position=term.position,
-                start_date=term.start_date,
-                end_date=term.end_date,
-                biography=term.biography,
-                csss_email=OfficerPosition.to_email(term.position),
-                discord_id=officer.discord_id,
-                discord_name=officer.discord_name,
-                discord_nickname=officer.discord_nickname,
-                computing_id=officer.computing_id,
-                phone_number=officer.phone_number,
-                github_username=officer.github_username,
-                google_drive_email=officer.google_drive_email,
-                photo_url=term.photo_url,
+    # NOTE: paginate data if needed
+    result = (await db_session.execute(query)).all()
+
+    if include_private:
+        for term, officer in result:
+            officer_list.append(
+                OfficerPrivate(
+                    legal_name=officer.legal_name,
+                    is_active=utils.is_active_term(term),
+                    position=term.position,
+                    start_date=term.start_date,
+                    end_date=term.end_date,
+                    biography=term.biography,
+                    csss_email=OfficerPosition.to_email(term.position),
+                    discord_id=officer.discord_id,
+                    discord_name=officer.discord_name,
+                    discord_nickname=officer.discord_nickname,
+                    computing_id=officer.computing_id,
+                    phone_number=officer.phone_number,
+                    github_username=officer.github_username,
+                    google_drive_email=officer.google_drive_email,
+                    photo_url=term.photo_url,
+                )
             )
-        )
+    else:
+        for term, officer in result:
+            officer_list.append(
+                OfficerPublic(
+                    legal_name=officer.legal_name,
+                    is_active=utils.is_active_term(term),
+                    position=term.position,
+                    start_date=term.start_date,
+                    end_date=term.end_date,
+                    biography=term.biography,
+                    csss_email=OfficerPosition.to_email(term.position),
+                )
+            )
 
     return officer_list
 
 
-async def get_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
-    officer_term = await db_session.scalar(select(OfficerInfo).where(OfficerInfo.computing_id == computing_id))
+async def get_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfoDB:
+    officer_term = await db_session.scalar(select(OfficerInfoDB).where(OfficerInfoDB.computing_id == computing_id))
     if officer_term is None:
         raise HTTPException(status_code=404, detail=f"officer_info for computing_id={computing_id} does not exist yet")
     return officer_term
 
 
-async def get_new_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfo:
+async def get_new_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfoDB:
     """
     This check is for after a create/update
     """
-    officer_term = await db_session.scalar(select(OfficerInfo).where(OfficerInfo.computing_id == computing_id))
+    officer_term = await db_session.scalar(select(OfficerInfoDB).where(OfficerInfoDB.computing_id == computing_id))
     if officer_term is None:
         raise HTTPException(status_code=500, detail=f"failed to fetch {computing_id} after update")
     return officer_term
@@ -187,16 +216,16 @@ async def get_officer_term_by_id_or_raise(
     return officer_term
 
 
-async def create_new_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
+async def create_new_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfoDB) -> bool:
     """Return False if the officer already exists & don't do anything."""
     if not await auth.crud.site_user_exists(db_session, new_officer_info.computing_id):
         # if computing_id has not been created as a site_user yet, add them
         db_session.add(
-            auth.tables.SiteUser(computing_id=new_officer_info.computing_id, first_logged_in=None, last_logged_in=None)
+            SiteUserDB(computing_id=new_officer_info.computing_id, first_logged_in=None, last_logged_in=None)
         )
 
     existing_officer_info = await db_session.scalar(
-        select(OfficerInfo).where(OfficerInfo.computing_id == new_officer_info.computing_id)
+        select(OfficerInfoDB).where(OfficerInfoDB.computing_id == new_officer_info.computing_id)
     )
     if existing_officer_info is not None:
         return False
@@ -216,12 +245,95 @@ async def create_new_officer_term(db_session: database.DBSession, new_officer_te
     db_session.add(new_officer_term)
 
 
-async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfo) -> bool:
+async def create_multiple_officers(db_session: database.DBSession, new_officers: list[OfficerCreate]):
+    computing_ids = {term.computing_id for term in new_officers}
+
+    # Prepare new officer info
+    # If it's someone's first time being added as an officer, we need to create their Officer Info entry first
+    existing_officer_infos = set(
+        (
+            await db_session.scalars(
+                select(OfficerInfoDB.computing_id).where(OfficerInfoDB.computing_id.in_(computing_ids))
+            )
+        ).all()
+    )
+
+    new_officer_infos = []
+    seen_computing_ids: set[str] = set()  # Just in case duplicate slips through
+    for off in new_officers:
+        if off.computing_id not in existing_officer_infos and off.computing_id not in seen_computing_ids:
+            new_officer_infos.append(
+                OfficerInfoDB(
+                    computing_id=off.computing_id,
+                    legal_name=off.legal_name,
+                    phone_number=off.phone_number,
+                    discord_id=off.discord_id,
+                    discord_name=off.discord_name,
+                    discord_nickname=off.discord_nickname,
+                    google_drive_email=off.google_drive_email,
+                    github_username=off.github_username,
+                )
+            )
+            seen_computing_ids.add(off.computing_id)
+
+    # Get existing site users and create ones that are missing
+    existing_site_users = set(
+        (
+            await db_session.scalars(select(SiteUserDB.computing_id).where(SiteUserDB.computing_id.in_(computing_ids)))
+        ).all()
+    )
+    new_site_users = [
+        SiteUserDB(computing_id=cid, first_logged_in=None, last_logged_in=None)
+        for cid in computing_ids
+        if cid not in existing_site_users
+    ]
+
+    # Prepare officer terms with computed end dates
+    new_officer_terms: list[OfficerTermDB] = []
+    for off in new_officers:
+        end_date = off.end_date
+        if end_date is None:
+            position_length = OfficerPosition.length_in_semesters(off.position)
+            if position_length is not None:
+                end_date = semesters.step_semesters(
+                    semesters.current_semester_start(off.start_date),
+                    position_length,
+                )
+        new_officer_terms.append(
+            OfficerTermDB(
+                computing_id=off.computing_id,
+                position=off.position,
+                start_date=off.start_date,
+                end_date=end_date,
+                nickname=off.nickname,
+                favourite_course_0=off.favourite_course_0,
+                favourite_course_1=off.favourite_course_1,
+                favourite_pl_0=off.favourite_pl_0,
+                favourite_pl_1=off.favourite_pl_1,
+                biography=off.biography,
+                photo_url=off.photo_url,
+            )
+        )
+
+    # Create all the new entries
+    if new_site_users:
+        db_session.add_all(new_site_users)
+    if new_officer_infos:
+        db_session.add_all(new_officer_infos)
+    db_session.add_all(new_officer_terms)
+
+    # Flush gets the generated IDs, but does not commit
+    await db_session.flush()
+
+    return new_officer_terms
+
+
+async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfoDB) -> bool:
     """
     Return False if the officer doesn't exist yet
     """
     officer_info = await db_session.scalar(
-        select(OfficerInfo).where(OfficerInfo.computing_id == new_officer_info.computing_id)
+        select(OfficerInfoDB).where(OfficerInfoDB.computing_id == new_officer_info.computing_id)
     )
     if officer_info is None:
         return False
@@ -229,8 +341,8 @@ async def update_officer_info(db_session: database.DBSession, new_officer_info: 
     # NOTE: if there's ever an insert entry error, it will raise SQLAlchemyError
     # see: https://stackoverflow.com/questions/2136739/how-to-check-and-handle-errors-in-sqlalchemy
     await db_session.execute(
-        update(OfficerInfo)
-        .where(OfficerInfo.computing_id == officer_info.computing_id)
+        update(OfficerInfoDB)
+        .where(OfficerInfoDB.computing_id == officer_info.computing_id)
         .values(new_officer_info.to_update_dict())
     )
     return True

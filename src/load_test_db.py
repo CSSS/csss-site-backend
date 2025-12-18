@@ -23,7 +23,7 @@ from officers.crud import (
     update_officer_info,
     update_officer_term,
 )
-from officers.tables import OfficerInfo, OfficerTerm
+from officers.tables import OfficerInfoDB, OfficerTermDB
 from registrations.crud import add_registration
 from registrations.tables import NomineeApplication
 
@@ -86,7 +86,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     # this person has uploaded all of their info
     await create_new_officer_info(
         db_session,
-        OfficerInfo(
+        OfficerInfoDB(
             legal_name="Person A",
             discord_id=str(88_1234_7182_4877_1111),
             discord_name="person_a_yeah",
@@ -100,7 +100,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     # this person has not joined the CSSS discord, so their discord name & nickname could not be found
     await create_new_officer_info(
         db_session,
-        OfficerInfo(
+        OfficerInfoDB(
             computing_id="abc22",
             legal_name="Person B",
             phone_number="1112223333",
@@ -114,7 +114,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     # this person has uploaded the minimal amount of information
     await create_new_officer_info(
         db_session,
-        OfficerInfo(
+        OfficerInfoDB(
             legal_name="Person C",
             discord_id=None,
             discord_name=None,
@@ -129,7 +129,7 @@ async def load_test_officers_data(db_session: AsyncSession):
 
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id="abc11",
             position=OfficerPositionEnum.VICE_PRESIDENT,
             start_date=date.today() - timedelta(days=365),
@@ -145,7 +145,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     )
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id="abc11",
             position=OfficerPositionEnum.EXECUTIVE_AT_LARGE,
             start_date=date.today(),
@@ -161,7 +161,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     )
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id="abc33",
             position=OfficerPositionEnum.PRESIDENT,
             start_date=date.today(),
@@ -178,7 +178,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     # this officer term is not fully filled in
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id="abc22",
             position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
             start_date=date.today(),
@@ -196,7 +196,7 @@ async def load_test_officers_data(db_session: AsyncSession):
 
     await update_officer_info(
         db_session,
-        OfficerInfo(
+        OfficerInfoDB(
             legal_name="Person C ----",
             discord_id=None,
             discord_name=None,
@@ -210,7 +210,7 @@ async def load_test_officers_data(db_session: AsyncSession):
     )
     await update_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id="abc33",
             position=OfficerPositionEnum.PRESIDENT,
             start_date=date.today(),
@@ -236,7 +236,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_user_session(db_session, f"temp_id_{SYSADMIN_COMPUTING_ID}", SYSADMIN_COMPUTING_ID)
     await create_new_officer_info(
         db_session,
-        OfficerInfo(
+        OfficerInfoDB(
             legal_name="Puneet North",
             discord_id=None,
             discord_name=None,
@@ -249,7 +249,7 @@ async def load_sysadmin(db_session: AsyncSession):
     )
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id=SYSADMIN_COMPUTING_ID,
             position=OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
             start_date=date.today() - timedelta(days=(365 * 3)),
@@ -265,7 +265,7 @@ async def load_sysadmin(db_session: AsyncSession):
     )
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id=SYSADMIN_COMPUTING_ID,
             position=OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
             start_date=date.today() - timedelta(days=365),
@@ -282,7 +282,7 @@ async def load_sysadmin(db_session: AsyncSession):
     # a future term
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id=SYSADMIN_COMPUTING_ID,
             position=OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
             start_date=date.today() + timedelta(days=365 * 1),
@@ -308,7 +308,7 @@ async def load_webmaster(db_session: AsyncSession):
     await create_user_session(db_session, f"temp_id_{WEBMASTER_COMPUTING_ID}", WEBMASTER_COMPUTING_ID)
     await create_new_officer_info(
         db_session,
-        OfficerInfo(
+        OfficerInfoDB(
             legal_name="Jon Andre Briones",
             discord_id=None,
             discord_name=None,
@@ -321,7 +321,7 @@ async def load_webmaster(db_session: AsyncSession):
     )
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id=WEBMASTER_COMPUTING_ID,
             position=OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
             start_date=date.today() - timedelta(days=(365 * 3)),
@@ -337,7 +337,7 @@ async def load_webmaster(db_session: AsyncSession):
     )
     await create_new_officer_term(
         db_session,
-        OfficerTerm(
+        OfficerTermDB(
             computing_id=WEBMASTER_COMPUTING_ID,
             position=OfficerPositionEnum.WEBMASTER,
             start_date=date.today() - timedelta(days=365),

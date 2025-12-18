@@ -1,12 +1,13 @@
 import datetime
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 import database
 import elections.crud
 import nominees.crud
 import registrations.crud
+from dependencies import logged_in_user, perm_election
 from elections.models import (
     ElectionStatusEnum,
 )
@@ -18,7 +19,7 @@ from registrations.models import (
 )
 from registrations.tables import NomineeApplication
 from utils.shared_models import DetailModel, SuccessResponse
-from utils.urls import AdminTypeEnum, admin_or_raise, logged_in_or_raise, slugify
+from utils.urls import slugify
 
 router = APIRouter(
     prefix="/registration",
@@ -35,10 +36,9 @@ router = APIRouter(
         404: {"description": "Election with slug does not exist", "model": DetailModel},
     },
     operation_id="get_election_registrations",
+    dependencies=[Depends(logged_in_user)],
 )
-async def get_election_registrations(request: Request, db_session: database.DBSession, election_name: str):
-    await logged_in_or_raise(request, db_session)
-
+async def get_election_registrations(db_session: database.DBSession, election_name: str):
     slugified_name = slugify(election_name)
     if await elections.crud.get_election(db_session, slugified_name) is None:
         raise HTTPException(
@@ -62,12 +62,9 @@ async def get_election_registrations(request: Request, db_session: database.DBSe
         404: {"description": "No election found", "model": DetailModel},
     },
     operation_id="register",
+    dependencies=[Depends(perm_election)],
 )
-async def register_in_election(
-    request: Request, db_session: database.DBSession, body: NomineeApplicationParams, election_name: str
-):
-    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
-
+async def register_in_election(db_session: database.DBSession, body: NomineeApplicationParams, election_name: str):
     if body.position not in OfficerPositionEnum:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
 
@@ -132,17 +129,15 @@ async def register_in_election(
         404: {"description": "No election found", "model": DetailModel},
     },
     operation_id="update_registration",
+    dependencies=[Depends(perm_election)],
 )
 async def update_registration(
-    request: Request,
     db_session: database.DBSession,
     body: NomineeApplicationUpdateParams,
     election_name: str,
     computing_id: str,
     position: OfficerPositionEnum,
 ):
-    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
-
     if body.position not in OfficerPositionEnum:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
 
@@ -191,16 +186,14 @@ async def update_registration(
         404: {"description": "No election or registrant found", "model": DetailModel},
     },
     operation_id="delete_registration",
+    dependencies=[Depends(perm_election)],
 )
 async def delete_registration(
-    request: Request,
     db_session: database.DBSession,
     election_name: str,
     position: OfficerPositionEnum,
     computing_id: str,
 ):
-    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
-
     if position not in OfficerPositionEnum:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {position}")
 

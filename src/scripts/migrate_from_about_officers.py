@@ -10,11 +10,11 @@ import sqlalchemy
 sys.path.append(str(Path(__file__).parent.parent.resolve()))
 
 from auth.crud import site_user_exists
-from auth.tables import SiteUser
+from auth.tables import SiteUserDB
 from data import semesters
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.types import OfficerInfo, OfficerTerm
+from officers.types import OfficerInfoDB, OfficerTermDB
 
 # This loads officer data from the https://github.com/CSSS/csss-site database into the provided database
 
@@ -146,7 +146,7 @@ async def main():
             if not await site_user_exists(db_session, officer["sfu_computing_id"]):
                 # if computing_id has not been created as a site_user yet, add them
                 db_session.add(
-                    SiteUser(
+                    SiteUserDB(
                         computing_id=officer["sfu_computing_id"],
                         first_logged_in=datetime.now(),
                         last_logged_in=datetime.now(),
@@ -156,7 +156,7 @@ async def main():
             # use the most up to date officer info
             # --------------------------------
 
-            new_officer_info = OfficerInfo(
+            new_officer_info = OfficerInfoDB(
                 computing_id=officer["sfu_computing_id"],
                 legal_name=officer["full_name"],
                 phone_number=str(officer["phone_number"]),
@@ -168,14 +168,14 @@ async def main():
             )
 
             existing_officer_info = await db_session.scalar(
-                sqlalchemy.select(OfficerInfo).where(OfficerInfo.computing_id == new_officer_info.computing_id)
+                sqlalchemy.select(OfficerInfoDB).where(OfficerInfoDB.computing_id == new_officer_info.computing_id)
             )
             if existing_officer_info is None:
                 db_session.add(new_officer_info)
             else:
                 await db_session.execute(
-                    sqlalchemy.update(OfficerInfo)
-                    .where(OfficerInfo.computing_id == new_officer_info.computing_id)
+                    sqlalchemy.update(OfficerInfoDB)
+                    .where(OfficerInfoDB.computing_id == new_officer_info.computing_id)
                     .values(new_officer_info.to_update_dict())
                 )
 
@@ -213,7 +213,7 @@ async def main():
                     num_semesters,
                 )
 
-            new_officer_term = OfficerTerm(
+            new_officer_term = OfficerTermDB(
                 computing_id=officer["sfu_computing_id"],
                 position=corrected_position_name,
                 start_date=officer["start_date"],

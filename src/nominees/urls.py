@@ -1,14 +1,14 @@
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
 import database
 import nominees.crud
+from dependencies import perm_election
 from nominees.models import (
     NomineeInfoModel,
     NomineeInfoUpdateParams,
 )
 from nominees.tables import NomineeInfo
-from utils.urls import AdminTypeEnum, admin_or_raise
 
 router = APIRouter(
     prefix="/nominee",
@@ -22,10 +22,10 @@ router = APIRouter(
     response_model=NomineeInfoModel,
     responses={404: {"description": "nominee doesn't exist"}},
     operation_id="get_nominee",
+    dependencies=[Depends(perm_election)],
 )
-async def get_nominee_info(request: Request, db_session: database.DBSession, computing_id: str):
+async def get_nominee_info(db_session: database.DBSession, computing_id: str):
     # Putting this one behind the admin wall since it has contact information
-    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
     nominee_info = await nominees.crud.get_nominee_info(db_session, computing_id)
     if nominee_info is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="nominee doesn't exist")
@@ -39,13 +39,10 @@ async def get_nominee_info(request: Request, db_session: database.DBSession, com
     response_model=NomineeInfoModel,
     responses={500: {"description": "Failed to retrieve updated nominee."}},
     operation_id="update_nominee",
+    dependencies=[Depends(perm_election)],
 )
-async def provide_nominee_info(
-    request: Request, db_session: database.DBSession, body: NomineeInfoUpdateParams, computing_id: str
-):
+async def provide_nominee_info(db_session: database.DBSession, body: NomineeInfoUpdateParams, computing_id: str):
     # TODO: There needs to be a lot more validation here.
-    await admin_or_raise(request, db_session, AdminTypeEnum.Election)
-
     updated_data = {}
     # Only update fields that were provided
     if body.full_name is not None:

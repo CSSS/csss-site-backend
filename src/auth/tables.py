@@ -26,7 +26,7 @@ class UserSession(Base):
     )  # the space needed to store 256 bytes in base64
 
 
-class SiteUser(Base):
+class SiteUserDB(Base):
     # user is a reserved word in postgres
     # see: https://stackoverflow.com/questions/22256124/cannot-create-a-database-table-named-user-in-postgresql
     __tablename__ = "site_user"

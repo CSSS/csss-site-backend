@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.tables import SiteUser, UserSession
+from auth.tables import SiteUserDB, UserSession
 
 _logger = logging.getLogger(__name__)
 
@@ -18,7 +18,9 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
     existing_user_session = await db_session.scalar(
         sqlalchemy.select(UserSession).where(UserSession.computing_id == computing_id)
     )
-    existing_user = await db_session.scalar(sqlalchemy.select(SiteUser).where(SiteUser.computing_id == computing_id))
+    existing_user = await db_session.scalar(
+        sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == computing_id)
+    )
 
     if existing_user is None:
         if existing_user_session is not None:
@@ -27,7 +29,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 
         # add new user to User table if it's their first time logging in
         db_session.add(
-            SiteUser(computing_id=computing_id, first_logged_in=datetime.now(), last_logged_in=datetime.now())
+            SiteUserDB(computing_id=computing_id, first_logged_in=datetime.now(), last_logged_in=datetime.now())
         )
 
     if existing_user_session is not None:
@@ -68,18 +70,18 @@ async def task_clean_expired_user_sessions(db_session: AsyncSession):
 
 
 # get the site user given a session ID; returns None when session is invalid
-async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUser | None:
+async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB | None:
     query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
     user_session = await db_session.scalar(query)
     if user_session is None:
         return None
 
-    query = sqlalchemy.select(SiteUser).where(SiteUser.computing_id == user_session.computing_id)
+    query = sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == user_session.computing_id)
     return await db_session.scalar(query)
 
 
 async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:
-    user = await db_session.scalar(sqlalchemy.select(SiteUser).where(SiteUser.computing_id == computing_id))
+    user = await db_session.scalar(sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == computing_id))
     return user is not None
 
 
@@ -91,8 +93,8 @@ async def update_site_user(db_session: AsyncSession, session_id: str, profile_pi
         return False
 
     query = (
-        sqlalchemy.update(SiteUser)
-        .where(SiteUser.computing_id == user_session.computing_id)
+        sqlalchemy.update(SiteUserDB)
+        .where(SiteUserDB.computing_id == user_session.computing_id)
         .values(profile_picture_url=profile_picture_url)
     )
     await db_session.execute(query)

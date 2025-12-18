@@ -6,12 +6,13 @@ from httpx import AsyncClient
 
 from src import load_test_db
 from src.officers.constants import OfficerPositionEnum
-from src.officers.crud import all_officers, current_officers, get_active_officer_terms
+from src.officers.crud import current_officers, get_active_officer_terms, get_all_officers
 
 # TODO: setup a database on the CI machine & run this as a unit test then (since
 # this isn't really an integration test)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
 
 async def test__read_execs(db_session):
     # test that reads from the database succeeded as expected
@@ -44,13 +45,14 @@ async def test__read_execs(db_session):
     # assert next(iter(current_exec_team.values()))[0].private_data is not None
     # assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc11"
 
-    all_terms = await all_officers(db_session, include_future_terms=False)
+    all_terms = await get_all_officers(db_session, include_future_terms=False)
     assert len(all_terms) == 8
 
 
-#async def test__update_execs(database_setup):
+# async def test__update_execs(database_setup):
 #    # TODO: the second time an update_officer_info call occurs, the user should be updated with info
 #    pass
+
 
 async def test__get_officers(client):
     # private data shouldn't be leaked
@@ -101,6 +103,7 @@ async def test__get_officers(client):
     response = await client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 401
 
+
 async def test__get_officer_terms(client: AsyncClient):
     response = await client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false")
     assert response.status_code == 200
@@ -120,54 +123,67 @@ async def test__get_officer_terms(client: AsyncClient):
     response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 401
 
+
 async def test__post_officer_terms(client: AsyncClient):
     # Only admins can create new terms
-    response = await client.post("officers/term", json=[{
-        "computing_id": "ehbc12",
-        "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
-        "start_date": "2025-12-29",
-        "legal_name": "Eh Bc"
-    }])
+    response = await client.post(
+        "officers/term",
+        json=[
+            {
+                "computing_id": "ehbc12",
+                "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
+                "start_date": "2025-12-29",
+                "legal_name": "Eh Bc",
+            }
+        ],
+    )
     assert response.status_code == 401
 
     # Position must be one of the enum positions
-    response = await client.post("officers/term", json=[{
-        "computing_id": "ehbc12",
-        "position": "balargho",
-        "start_date": "2025-12-29",
-        "legal_name": "Eh Bc"
-    }])
+    response = await client.post(
+        "officers/term",
+        json=[{"computing_id": "ehbc12", "position": "balargho", "start_date": "2025-12-29", "legal_name": "Eh Bc"}],
+    )
     assert response.status_code == 422
+
 
 async def test__patch_officer_term(client: AsyncClient):
     # Only admins can update new terms
-    response = await client.patch("officers/info/abc11", json={
-        "legal_name": "fancy name",
-        "phone_number": None,
-        "discord_name": None,
-        "github_username": None,
-        "google_drive_email": None,
-    })
+    response = await client.patch(
+        "officers/info/abc11",
+        json={
+            "legal_name": "fancy name",
+            "phone_number": None,
+            "discord_name": None,
+            "github_username": None,
+            "google_drive_email": None,
+        },
+    )
     assert response.status_code == 403
 
-    response = await client.patch("officers/term/1", content=json.dumps({
-        "computing_id": "abc11",
-        "position": OfficerPositionEnum.VICE_PRESIDENT,
-        "start_date": (date.today() - timedelta(days=365)).isoformat(),
-        "end_date": (date.today() - timedelta(days=1)).isoformat(),
-
-        # officer should change:
-        "nickname": "1",
-        "favourite_course_0": "2",
-        "favourite_course_1": "3",
-        "favourite_pl_0": "4",
-        "favourite_pl_1": "5",
-        "biography": "hello"
-    }))
+    response = await client.patch(
+        "officers/term/1",
+        content=json.dumps(
+            {
+                "computing_id": "abc11",
+                "position": OfficerPositionEnum.VICE_PRESIDENT,
+                "start_date": (date.today() - timedelta(days=365)).isoformat(),
+                "end_date": (date.today() - timedelta(days=1)).isoformat(),
+                # officer should change:
+                "nickname": "1",
+                "favourite_course_0": "2",
+                "favourite_course_1": "3",
+                "favourite_pl_0": "4",
+                "favourite_pl_1": "5",
+                "biography": "hello",
+            }
+        ),
+    )
     assert response.status_code == 403
 
     response = await client.delete("officers/term/1")
     assert response.status_code == 401
+
 
 async def test__get_current_officers_admin(admin_client):
     # test that more info is given if logged in & with access to it
@@ -177,14 +193,18 @@ async def test__get_current_officers_admin(admin_client):
     assert len(curr_officers) == 3
     assert curr_officers["executive at large"]["computing_id"] is not None
 
+
 async def test__get_all_officers_admin(admin_client):
     response = await admin_client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 200
     assert len(response.json()) == 9
     assert response.json()[1]["phone_number"] == "1234567890"
 
+
 async def test__get_officer_term_admin(admin_client):
-    response = await admin_client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false")
+    response = await admin_client.get(
+        f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false"
+    )
     assert response.status_code == 200
     assert response.json() != []
     assert len(response.json()) == 2
@@ -198,6 +218,7 @@ async def test__get_officer_term_admin(admin_client):
     assert response.status_code == 200
     assert response.json() == []
 
+
 async def test__get_officer_info_admin(admin_client):
     response = await admin_client.get("/officers/info/abc11")
     assert response.status_code == 200
@@ -209,13 +230,19 @@ async def test__get_officer_info_admin(admin_client):
     response = await admin_client.get("/officers/info/balargho")
     assert response.status_code == 404
 
+
 async def test__post_officer_term_admin(admin_client):
-    response = await admin_client.post("officers/term", json=[{
-        "computing_id": "ehbc12",
-        "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
-        "start_date": "2025-12-29",
-        "legal_name": "Eh Bc"
-    }])
+    response = await admin_client.post(
+        "officers/term",
+        json=[
+            {
+                "computing_id": "ehbc12",
+                "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
+                "start_date": "2025-12-29",
+                "legal_name": "Eh Bc",
+            }
+        ],
+    )
     assert response.status_code == 200
 
     response = await admin_client.get("/officers/terms/ehbc12?include_future_terms=true")
@@ -223,14 +250,20 @@ async def test__post_officer_term_admin(admin_client):
     assert response.json() != []
     assert len(response.json()) == 1
 
+
 async def test__patch_officer_info_admin(admin_client):
-    response = await admin_client.patch("officers/info/abc11", content=json.dumps({
-        "legal_name": "Person A2",
-        "phone_number": "12345asdab67890",
-        "discord_name": "person_a_yeah",
-        "github_username": "person_a",
-        "google_drive_email": "person_a@gmail.com",
-    }))
+    response = await admin_client.patch(
+        "officers/info/abc11",
+        content=json.dumps(
+            {
+                "legal_name": "Person A2",
+                "phone_number": "12345asdab67890",
+                "discord_name": "person_a_yeah",
+                "github_username": "person_a",
+                "google_drive_email": "person_a@gmail.com",
+            }
+        ),
+    )
     assert response.status_code == 200
     resJson = response.json()
     assert resJson["legal_name"] == "Person A2"
@@ -239,28 +272,37 @@ async def test__patch_officer_info_admin(admin_client):
     assert resJson["github_username"] == "person_a"
     assert resJson["google_drive_email"] == "person_a@gmail.com"
 
-    response = await admin_client.patch("officers/info/aaabbbc", content=json.dumps({
-        "legal_name": "Person AABBCC",
-        "phone_number": "1234567890",
-        "discord_name": None,
-        "github_username": None,
-        "google_drive_email": "person_aaa_bbb_ccc+spam@gmail.com",
-    }))
+    response = await admin_client.patch(
+        "officers/info/aaabbbc",
+        content=json.dumps(
+            {
+                "legal_name": "Person AABBCC",
+                "phone_number": "1234567890",
+                "discord_name": None,
+                "github_username": None,
+                "google_drive_email": "person_aaa_bbb_ccc+spam@gmail.com",
+            }
+        ),
+    )
     assert response.status_code == 404
+
 
 async def test__patch_officer_term_admin(admin_client):
     target_id = 1
-    response = await admin_client.patch(f"officers/term/{target_id}", json={
-        "position": OfficerPositionEnum.TREASURER,
-        "start_date": (date.today() - timedelta(days=365)).isoformat(),
-        "end_date": (date.today() - timedelta(days=1)).isoformat(),
-        "nickname": "1",
-        "favourite_course_0": "2",
-        "favourite_course_1": "3",
-        "favourite_pl_0": "4",
-        "favourite_pl_1": "5",
-        "biography": "hello o77"
-    })
+    response = await admin_client.patch(
+        f"officers/term/{target_id}",
+        json={
+            "position": OfficerPositionEnum.TREASURER,
+            "start_date": (date.today() - timedelta(days=365)).isoformat(),
+            "end_date": (date.today() - timedelta(days=1)).isoformat(),
+            "nickname": "1",
+            "favourite_course_0": "2",
+            "favourite_course_1": "3",
+            "favourite_pl_0": "4",
+            "favourite_pl_1": "5",
+            "biography": "hello o77",
+        },
+    )
     assert response.status_code == 200
 
     response = await admin_client.get("/officers/terms/abc11?include_future_terms=true")

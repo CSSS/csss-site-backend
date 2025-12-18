@@ -106,7 +106,7 @@ def setup_database():
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
     sessionmanager = DatabaseSessionManager(
         SQLALCHEMY_TEST_DATABASE_URL if os.environ.get("LOCAL") else SQLALCHEMY_DATABASE_URL,
-        {"echo": False},
+        {"echo": True},
     )
 
 

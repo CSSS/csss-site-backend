@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from constants import COMPUTING_ID_LEN
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPositionEnum
@@ -17,7 +17,61 @@ OFFICER_PRIVATE_INFO = {
 }
 
 
-class OfficerInfoBaseModel(BaseModel):
+# Officer Info Models
+class OfficerInfo(BaseModel):
+    computing_id: str = Field(..., max_length=COMPUTING_ID_LEN)
+    legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
+    phone_number: str | None = None
+    discord_id: str | None = None
+    discord_name: str | None = None
+    discord_nickname: str | None = None
+    google_drive_email: str | None = None
+    github_username: str | None = None
+
+
+# Officer Term Models
+class OfficerTermCreate(BaseModel):
+    """Request body to create a new Officer Term"""
+
+    computing_id: str = Field(..., max_length=COMPUTING_ID_LEN)
+    position: str = Field(..., max_length=128)
+    start_date: date
+    end_date: date | None = None
+    nickname: str | None = Field(None, max_length=128)
+    favourite_course_0: str | None = Field(None, max_length=64)
+    favourite_course_1: str | None = Field(None, max_length=64)
+    favourite_pl_0: str | None = Field(None, max_length=64)
+    favourite_pl_1: str | None = Field(None, max_length=64)
+    biography: str | None = None
+    photo_url: str | None = None
+
+
+class OfficerTerm(OfficerTermCreate):
+    """Response model for OfficerTerm"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+
+
+class OfficerTermUpdate(BaseModel):
+    """Request body to patch an Officer Term"""
+
+    computing_id: str | None = Field(..., max_length=COMPUTING_ID_LEN)
+    position: str | None = Field(..., max_length=128)
+    start_date: date | None = None
+    end_date: date | None = None
+    nickname: str | None = Field(None, max_length=128)
+    favourite_course_0: str | None = Field(None, max_length=64)
+    favourite_course_1: str | None = Field(None, max_length=64)
+    favourite_pl_0: str | None = Field(None, max_length=64)
+    favourite_pl_1: str | None = Field(None, max_length=64)
+    biography: str | None = None
+    photo_url: str | None = None
+
+
+# Concatenated Officer Models
+class OfficerBase(BaseModel):
     # TODO (#71): compute this using SFU's API & remove from being uploaded
     legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
     position: OfficerPositionEnum
@@ -25,7 +79,7 @@ class OfficerInfoBaseModel(BaseModel):
     end_date: date | None = None
 
 
-class OfficerInfoResponse(OfficerInfoBaseModel):
+class OfficerPublic(OfficerBase):
     """
     Response when fetching public officer data
     """
@@ -35,15 +89,27 @@ class OfficerInfoResponse(OfficerInfoBaseModel):
     biography: str | None = None
     csss_email: str | None = None
 
-    # Private data
+
+class OfficerPrivate(OfficerPublic):
+    """
+    Response when fetching private officer data
+    """
+
     discord_id: str | None = None
     discord_name: str | None = None
     discord_nickname: str | None = None
-    computing_id: str | None = None
+    computing_id: str
     phone_number: str | None = None
     github_username: str | None = None
     google_drive_email: str | None = None
     photo_url: str | None = None
+
+
+class OfficerCreate(OfficerPrivate):
+    favourite_course_0: str | None = Field(None, max_length=64)
+    favourite_course_1: str | None = Field(None, max_length=64)
+    favourite_pl_0: str | None = Field(None, max_length=64)
+    favourite_pl_1: str | None = Field(None, max_length=64)
 
 
 class OfficerSelfUpdate(BaseModel):
@@ -70,43 +136,3 @@ class OfficerUpdate(OfficerSelfUpdate):
     position: OfficerPositionEnum | None = None
     start_date: date | None = None
     end_date: date | None = None
-
-
-class OfficerTermBaseModel(BaseModel):
-    computing_id: str
-    position: OfficerPositionEnum
-    start_date: date
-
-
-class OfficerTermCreate(OfficerTermBaseModel):
-    """
-    Params to create a new Officer Term
-    """
-
-    legal_name: str
-
-
-class OfficerTermResponse(OfficerTermCreate):
-    id: int
-    end_date: date | None = None
-    favourite_course_0: str | None = None
-    favourite_course_1: str | None = None
-    favourite_pl_0: str | None = None
-    favourite_pl_1: str | None = None
-    biography: str | None = None
-    photo_url: str | None = None
-
-
-class OfficerTermUpdate(BaseModel):
-    nickname: str | None = None
-    favourite_course_0: str | None = None
-    favourite_course_1: str | None = None
-    favourite_pl_0: str | None = None
-    favourite_pl_1: str | None = None
-    biography: str | None = None
-
-    # Admin only
-    position: OfficerPositionEnum | None = None
-    start_date: date | None = None
-    end_date: date | None = None
-    photo_url: str | None = None  # Block this, just in case

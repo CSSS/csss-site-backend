@@ -1,24 +1,12 @@
 from datetime import date
-from typing import ClassVar
-
-from fastapi import HTTPException
 
 import database
-import officers.constants
 import officers.crud
 import utils
 from data.semesters import step_semesters
-from officers.constants import OfficerPositionEnum
-
-WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
-    OfficerPositionEnum.PRESIDENT,
-    OfficerPositionEnum.VICE_PRESIDENT,
-    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
-    OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
-    OfficerPositionEnum.WEBMASTER,
-]
 
 
+# TODO: Determine if we still need this
 class OfficerPrivateInfo:
     @staticmethod
     async def has_permission(db_session: database.DBSession, computing_id: str) -> bool:

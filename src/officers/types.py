@@ -10,7 +10,7 @@ import utils
 from constants import COMPUTING_ID_MAX
 from discord import discord
 from officers.constants import OfficerPosition
-from officers.tables import OfficerInfo, OfficerTerm
+from officers.tables import OfficerInfoDB, OfficerTermDB
 
 
 @dataclass
@@ -42,8 +42,8 @@ class OfficerInfoUpload:
         if self.legal_name is None or self.legal_name == "":
             raise HTTPException(status_code=400, detail="legal name must not be empty")
 
-    def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfo:
-        return OfficerInfo(
+    def to_officer_info(self, computing_id: str, discord_id: str | None, discord_nickname: str | None) -> OfficerInfoDB:
+        return OfficerInfoDB(
             computing_id=computing_id,
             legal_name=self.legal_name,
             discord_id=discord_id,
@@ -54,7 +54,7 @@ class OfficerInfoUpload:
             google_drive_email=self.google_drive_email,
         )
 
-    async def validate(self, computing_id: str, old_officer_info: OfficerInfo) -> tuple[list[str], OfficerInfo]:
+    async def validate(self, computing_id: str, old_officer_info: OfficerInfoDB) -> tuple[list[str], OfficerInfoDB]:
         """
         Validate that the uploaded officer info is correct; if it's not, revert it to old_officer_info.
         """
@@ -148,8 +148,8 @@ class OfficerTermUpload:
         elif self.end_date is not None and self.start_date > self.end_date:
             raise HTTPException(status_code=400, detail="end_date must be after start_date")
 
-    def to_officer_term(self, term_id: str) -> OfficerTerm:
-        return OfficerTerm(
+    def to_officer_term(self, term_id: str) -> OfficerTermDB:
+        return OfficerTermDB(
             id=term_id,
             computing_id=self.computing_id,
             position=self.position,
@@ -211,8 +211,8 @@ class OfficerData:
 
     @staticmethod
     def from_data(
-        term: OfficerTerm,
-        officer_info: OfficerInfo,
+        term: OfficerTermDB,
+        officer_info: OfficerInfoDB,
         include_private_data: bool,
         is_active: bool,
     ) -> OfficerData:

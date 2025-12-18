@@ -29,6 +29,7 @@ class ElectionResponse(BaseModel):
     available_positions: list[OfficerPositionEnum]
     status: ElectionStatusEnum
 
+    # Private fields
     survey_link: str | None = Field(None, description="Only available to admins")
     candidates: list[RegistrationModel] | None = Field(None, description="Only available to admins")
 

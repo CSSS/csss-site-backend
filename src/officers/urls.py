@@ -137,7 +137,7 @@ async def get_officer_info(
     session_computing_id: LoggedInUser,
     computing_id: str,
 ):
-    if computing_id != session_computing_id and not is_user_website_admin(session_computing_id, db_session):
+    if computing_id != session_computing_id and not await is_user_website_admin(session_computing_id, db_session):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not authorized")
 
     officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)

@@ -34,7 +34,9 @@ LoggedInUser = Annotated[str, Depends(logged_in_user)]
 
 
 async def perm_election(db_session: database.DBSession, computing_id: LoggedInUser) -> str:
-    if not is_user_website_admin(computing_id, db_session) or is_user_election_officer(computing_id, db_session):
+    if not await is_user_website_admin(computing_id, db_session) or not await is_user_election_officer(
+        computing_id, db_session
+    ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an election admin")
 
     return computing_id
@@ -44,7 +46,7 @@ ElectionAdmin = Annotated[str, Depends(perm_election)]
 
 
 async def perm_admin(db_session: database.DBSession, computing_id: LoggedInUser):
-    if not is_user_website_admin(computing_id, db_session):
+    if not await is_user_website_admin(computing_id, db_session):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
 
     return computing_id

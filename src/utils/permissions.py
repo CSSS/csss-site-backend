@@ -81,9 +81,6 @@ async def get_admin(request: Request, db_session: database.DBSession, admin_type
     return (session_id, computing_id)
 
 
-async def verify_update(request: Request, db_session: database.DBSession, computing_id: str) -> tuple[str, str]:
-    session_id, session_computing_id = await get_user(request, db_session)
-    if computing_id != session_computing_id and not is_user_website_admin(computing_id, db_session):
+async def verify_update(computing_id: str, db_session: database.DBSession, target_id: str):
+    if target_id != computing_id and not await is_user_website_admin(computing_id, db_session):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
-
-    return (session_id, session_computing_id)

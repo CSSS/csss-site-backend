@@ -325,6 +325,10 @@ async def create_multiple_officers(db_session: database.DBSession, new_officers:
     # Flush gets the generated IDs, but does not commit
     await db_session.flush()
 
+    # Refresh each term to ensure all attributes are loaded for Pydantic validation
+    for term in new_officer_terms:
+        await db_session.refresh(term)
+
     return new_officer_terms
 
 

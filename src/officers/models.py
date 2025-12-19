@@ -19,6 +19,7 @@ OFFICER_PRIVATE_INFO = {
 
 # Officer Info Models
 class OfficerInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     computing_id: str = Field(..., max_length=COMPUTING_ID_LEN)
     legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
     phone_number: str | None = None
@@ -57,8 +58,8 @@ class OfficerTerm(OfficerTermCreate):
 class OfficerTermUpdate(BaseModel):
     """Request body to patch an Officer Term"""
 
-    computing_id: str | None = Field(..., max_length=COMPUTING_ID_LEN)
-    position: str | None = Field(..., max_length=128)
+    computing_id: str | None = Field(None, max_length=COMPUTING_ID_LEN)
+    position: str | None = Field(None, max_length=128)
     start_date: date | None = None
     end_date: date | None = None
     nickname: str | None = Field(None, max_length=128)
@@ -77,6 +78,9 @@ class OfficerBase(BaseModel):
     position: OfficerPositionEnum
     start_date: date
     end_date: date | None = None
+    nickname: str | None = None
+    biography: str | None = None
+    csss_email: str | None = None
 
 
 class OfficerPublic(OfficerBase):
@@ -85,9 +89,6 @@ class OfficerPublic(OfficerBase):
     """
 
     is_active: bool
-    nickname: str | None = None
-    biography: str | None = None
-    csss_email: str | None = None
 
 
 class OfficerPrivate(OfficerPublic):
@@ -105,7 +106,20 @@ class OfficerPrivate(OfficerPublic):
     photo_url: str | None = None
 
 
-class OfficerCreate(OfficerPrivate):
+class OfficerCreate(OfficerBase):
+    """
+    Parameters when creating a new Officer
+    """
+
+    computing_id: str
+
+    discord_id: str | None = None
+    discord_name: str | None = None
+    discord_nickname: str | None = None
+    phone_number: str | None = None
+    github_username: str | None = None
+    google_drive_email: str | None = None
+    photo_url: str | None = None
     favourite_course_0: str | None = Field(None, max_length=64)
     favourite_course_1: str | None = Field(None, max_length=64)
     favourite_pl_0: str | None = Field(None, max_length=64)

@@ -2,11 +2,12 @@ import json
 from datetime import date, timedelta
 
 import pytest
+from fastapi import status
 from httpx import AsyncClient
 
-from src import load_test_db
-from src.officers.constants import OfficerPositionEnum
-from src.officers.crud import current_officers, get_active_officer_terms, get_all_officers
+import load_test_db
+from officers.constants import OfficerPositionEnum
+from officers.crud import current_officers, get_active_officer_terms, get_all_officers
 
 # TODO: setup a database on the CI machine & run this as a unit test then (since
 # this isn't really an integration test)
@@ -45,7 +46,7 @@ async def test__read_execs(db_session):
     # assert next(iter(current_exec_team.values()))[0].private_data is not None
     # assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc11"
 
-    all_terms = await get_all_officers(db_session, include_future_terms=False)
+    all_terms = await get_all_officers(db_session, False, False)
     assert len(all_terms) == 8
 
 
@@ -101,7 +102,7 @@ async def test__get_officers(client):
     assert "photo_url" not in response.json()[0]
 
     response = await client.get("/officers/all?include_future_terms=true")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 async def test__get_officer_terms(client: AsyncClient):
@@ -116,16 +117,15 @@ async def test__get_officer_terms(client: AsyncClient):
     assert len(response.json()) == 0
 
     response = await client.get("/officers/terms/abc11?include_future_terms=true")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
     response = await client.get("/officers/info/abc11")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     response = await client.get(f"/officers/info/{load_test_db.SYSADMIN_COMPUTING_ID}")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-async def test__post_officer_terms(client: AsyncClient):
-    # Only admins can create new terms
+async def test__user_create_officer_term(client: AsyncClient):
     response = await client.post(
         "officers/term",
         json=[
@@ -137,17 +137,19 @@ async def test__post_officer_terms(client: AsyncClient):
             }
         ],
     )
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+
+async def test__create_officer_term_bad_enum(client: AsyncClient):
     # Position must be one of the enum positions
     response = await client.post(
         "officers/term",
         json=[{"computing_id": "ehbc12", "position": "balargho", "start_date": "2025-12-29", "legal_name": "Eh Bc"}],
     )
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-async def test__patch_officer_term(client: AsyncClient):
+async def test__update_officer_term(client: AsyncClient):
     # Only admins can update new terms
     response = await client.patch(
         "officers/info/abc11",
@@ -159,7 +161,7 @@ async def test__patch_officer_term(client: AsyncClient):
             "google_drive_email": None,
         },
     )
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
     response = await client.patch(
         "officers/term/1",
@@ -179,13 +181,13 @@ async def test__patch_officer_term(client: AsyncClient):
             }
         ),
     )
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     response = await client.delete("officers/term/1")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-async def test__get_current_officers_admin(admin_client):
+async def test__get_current_officers_admin(admin_client: AsyncClient):
     # test that more info is given if logged in & with access to it
     response = await admin_client.get("/officers/current")
     assert response.status_code == 200
@@ -194,14 +196,14 @@ async def test__get_current_officers_admin(admin_client):
     assert curr_officers["executive at large"]["computing_id"] is not None
 
 
-async def test__get_all_officers_admin(admin_client):
+async def test__get_all_officers_admin(admin_client: AsyncClient):
     response = await admin_client.get("/officers/all?include_future_terms=true")
     assert response.status_code == 200
     assert len(response.json()) == 9
     assert response.json()[1]["phone_number"] == "1234567890"
 
 
-async def test__get_officer_term_admin(admin_client):
+async def test__admin_get_officer_term(admin_client: AsyncClient):
     response = await admin_client.get(
         f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=false"
     )
@@ -209,17 +211,21 @@ async def test__get_officer_term_admin(admin_client):
     assert response.json() != []
     assert len(response.json()) == 2
 
+
+async def test__admin_get_officer_term_with_future(admin_client: AsyncClient):
     response = await admin_client.get(f"/officers/terms/{load_test_db.SYSADMIN_COMPUTING_ID}?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() != []
     assert len(response.json()) == 3
 
+
+async def test__admin_get_other_officer_term_with_future(admin_client: AsyncClient):
     response = await admin_client.get("/officers/terms/ehbc12?include_future_terms=true")
     assert response.status_code == 200
     assert response.json() == []
 
 
-async def test__get_officer_info_admin(admin_client):
+async def test__get_single_valid_officer_info(admin_client: AsyncClient):
     response = await admin_client.get("/officers/info/abc11")
     assert response.status_code == 200
     assert response.json() != {}
@@ -231,14 +237,14 @@ async def test__get_officer_info_admin(admin_client):
     assert response.status_code == 404
 
 
-async def test__post_officer_term_admin(admin_client):
+async def test__admin_create_officer_term(admin_client: AsyncClient):
     response = await admin_client.post(
         "officers/term",
         json=[
             {
                 "computing_id": "ehbc12",
                 "position": OfficerPositionEnum.DIRECTOR_OF_MULTIMEDIA,
-                "start_date": "2025-12-29",
+                "start_date": "2026-12-29",
                 "legal_name": "Eh Bc",
             }
         ],
@@ -251,7 +257,7 @@ async def test__post_officer_term_admin(admin_client):
     assert len(response.json()) == 1
 
 
-async def test__patch_officer_info_admin(admin_client):
+async def test__admin_patch_officer_info(admin_client: AsyncClient):
     response = await admin_client.patch(
         "officers/info/abc11",
         content=json.dumps(
@@ -287,7 +293,7 @@ async def test__patch_officer_info_admin(admin_client):
     assert response.status_code == 404
 
 
-async def test__patch_officer_term_admin(admin_client):
+async def test__admin_patch_officer_term(admin_client: AsyncClient):
     target_id = 1
     response = await admin_client.patch(
         f"officers/term/{target_id}",
@@ -308,7 +314,6 @@ async def test__patch_officer_term_admin(admin_client):
     response = await admin_client.get("/officers/terms/abc11?include_future_terms=true")
     assert response.status_code == 200
     modifiedTerm = next((item for item in response.json() if item["id"] == target_id), None)
-    print(modifiedTerm)
     assert modifiedTerm is not None
     assert modifiedTerm["position"] == OfficerPositionEnum.TREASURER
     assert modifiedTerm["start_date"] == (date.today() - timedelta(days=365)).isoformat()
@@ -323,7 +328,6 @@ async def test__patch_officer_term_admin(admin_client):
     # other one shouldn't be modified
     assert response.status_code == 200
     modifiedTerm = next((item for item in response.json() if item["id"] == target_id + 1), None)
-    print(modifiedTerm)
     assert modifiedTerm is not None
     assert modifiedTerm["position"] == OfficerPositionEnum.EXECUTIVE_AT_LARGE
     assert modifiedTerm["start_date"] != (date.today() - timedelta(days=365)).isoformat()

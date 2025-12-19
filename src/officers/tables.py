@@ -22,7 +22,7 @@ from constants import (
 )
 from database import Base
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, OfficerPositionEnum
-from officers.models import OfficerInfo, OfficerTermUpdate, OfficerUpdate
+from officers.models import OfficerInfo, OfficerTerm, OfficerTermUpdate, OfficerUpdate
 
 
 # A row represents an assignment of a person to a position.
@@ -55,20 +55,7 @@ class OfficerTermDB(Base):
     __table_args__ = (UniqueConstraint("computing_id", "position", "start_date"),)  # This needs a comma to work
 
     def serializable_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "computing_id": self.computing_id,
-            "position": self.position,
-            "start_date": self.start_date.isoformat() if self.start_date is not None else None,
-            "end_date": self.end_date.isoformat() if self.end_date is not None else None,
-            "nickname": self.nickname,
-            "favourite_course_0": self.favourite_course_0,
-            "favourite_course_1": self.favourite_course_1,
-            "favourite_pl_0": self.favourite_pl_0,
-            "favourite_pl_1": self.favourite_pl_1,
-            "biography": self.biography,
-            "photo_url": self.photo_url,
-        }
+        return OfficerTerm.model_validate(self).model_dump(mode="json")
 
     def update_from_params(self, params: OfficerTermUpdate, admin_update: bool = True):
         if admin_update:

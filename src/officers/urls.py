@@ -5,7 +5,7 @@ import auth.crud
 import database
 import officers.crud
 import utils
-from dependencies import LoggedInUser, perm_admin
+from dependencies import LoggedInUser, SessionUser, perm_admin
 from officers.constants import OfficerPositionEnum
 from officers.models import (
     OfficerCreate,
@@ -16,7 +16,6 @@ from officers.models import (
     OfficerTermUpdate,
     OfficerUpdate,
 )
-from officers.tables import OfficerInfoDB
 from permission.types import OfficerPrivateInfo
 from utils.permissions import is_user_website_admin, verify_update
 from utils.shared_models import DetailModel, SuccessResponse
@@ -112,13 +111,10 @@ async def all_officers(
     operation_id="get_officer_terms_by_id",
 )
 async def get_officer_terms(
-    request: Request, db_session: database.DBSession, computing_id: str, include_future_terms: bool = False
+    user_id: SessionUser, db_session: database.DBSession, computing_id: str, include_future_terms: bool = False
 ):
     if include_future_terms:
-        await verify_update(request, db_session, computing_id)
-        # _, session_computing_id = await get_user(request, db_session)
-        # if computing_id != session_computing_id and not is_user_website_admin(session_computing_id, db_session):
-        #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not authorized")
+        await verify_update(user_id, db_session, computing_id)
 
     # all term info is public, so anyone can get any of it
     officer_terms = await officers.crud.get_officer_terms(db_session, computing_id, include_future_terms)
@@ -126,7 +122,7 @@ async def get_officer_terms(
 
 
 @router.get(
-    "/info/{computing_id:str}",
+    "/info/{computing_id}",
     description="Get officer info for the current user, if they've ever been an exec. Only admins can get info about another user.",
     response_model=OfficerInfo,
     responses={403: {"description": "not authorized to view author user info", "model": DetailModel}},
@@ -163,9 +159,10 @@ async def create_officer_term(
     officer_list: list[OfficerCreate],
 ):
     new_terms = await officers.crud.create_multiple_officers(db_session, officer_list)
+    content = [term.serializable_dict() for term in new_terms]
 
     await db_session.commit()
-    return JSONResponse([OfficerTerm.model_validate(term).model_dump(mode="json") for term in new_terms])
+    return JSONResponse(content)
 
 
 @router.patch(
@@ -183,12 +180,12 @@ async def create_officer_term(
     operation_id="update_officer_info",
 )
 async def update_officer_info(
-    request: Request,
+    user_id: SessionUser,
     db_session: database.DBSession,
     computing_id: str,
     officer_info_upload: OfficerUpdate,
 ):
-    await verify_update(request, db_session, computing_id)
+    await verify_update(user_id, db_session, computing_id)
 
     old_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
     old_officer_info.update_from_params(officer_info_upload)
@@ -221,8 +218,9 @@ async def update_officer_term(db_session: database.DBSession, term_id: int, body
 
     old_officer_term = await officers.crud.get_officer_term_by_id_or_raise(db_session, term_id)
 
-    if utils.is_past_term(old_officer_term):
-        raise HTTPException(status_code=403, detail="you may not update past terms")
+    # TODO: Enable this check if we allow non-website admins to change their information
+    # if utils.is_past_term(old_officer_term):
+    #     raise HTTPException(status_code=403, detail="you may not update past terms")
 
     new_data = body.model_dump(exclude_unset=True)
 

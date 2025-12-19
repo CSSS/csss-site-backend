@@ -9,7 +9,7 @@ from nominees.models import (
     NomineeInfoUpdateParams,
 )
 from nominees.tables import NomineeInfo
-from utils.shared_models import DetailModel, SuccessResponse
+from utils.shared_models import DetailModel
 from utils.urls import AdminTypeEnum, admin_or_raise
 
 router = APIRouter(
@@ -90,7 +90,7 @@ async def delete_nominee_info(request: Request, db_session: database.DBSession, 
     await db_session.commit()
 
 
-@router.put(
+@router.patch(
     "/{computing_id:str}",
     description="Will create or update nominee info. Returns an updated copy of their nominee info.",
     response_model=NomineeInfoModel,

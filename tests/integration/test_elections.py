@@ -3,92 +3,59 @@ import datetime
 from datetime import timedelta
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-import load_test_db
-from auth.crud import create_user_session
-from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
-from elections.crud import (
-    get_all_elections,
-    get_election,
-)
-from main import app
-from nominees.crud import (
-    get_nominee_info,
-)
 from registrations.crud import (
     get_all_registrations_in_election,
 )
+from src import load_test_db
+from src.auth.crud import create_user_session
+from src.database import DBSession
+from src.elections.crud import (
+    get_all_elections,
+    get_election,
+)
+from src.nominees.crud import (
+    get_nominee_info,
+)
 
-
-@pytest.fixture(scope="session")
-def anyio_backend():
-    return "asyncio"
-
-
-# creates HTTP test client for making requests
-@pytest.fixture(scope="session")
-async def client():
-    # base_url is just a random placeholder url
-    # ASGITransport is just telling the async client to pass all requests to app
-    async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
-        yield client
-
-
-# run this again for every function
-# sets up a clean database for each test function
-@pytest.fixture(scope="function")
-async def database_setup():
-    # reset the database again, just in case
-    print("Resetting DB...")
-    sessionmanager = DatabaseSessionManager(SQLALCHEMY_TEST_DATABASE_URL, {"echo": False}, check_db=False)
-    await DatabaseSessionManager.test_connection(SQLALCHEMY_TEST_DATABASE_URL)
-    # this resets the contents of the database to be whatever is from `load_test_db.py`
-    await load_test_db.async_main(sessionmanager)
-    print("Done setting up!")
-
-    return sessionmanager
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 # database testing-------------------------------
-@pytest.mark.asyncio
-async def test_read_elections(database_setup):
-    sessionmanager = await database_setup
-    async with sessionmanager.session() as db_session:
-        # test that reads from the database succeeded as expected
-        elections = await get_all_elections(db_session)
-        assert elections is not None
-        assert len(elections) > 0
+async def test_read_elections(db_session: DBSession):
+    # test that reads from the database succeeded as expected
+    elections = await get_all_elections(db_session)
+    assert elections is not None
+    assert len(elections) > 0
 
-        # False data test
-        election_false = await get_election(db_session, "this-not-a-election")
-        assert election_false is None
+    # False data test
+    election_false = await get_election(db_session, "this-not-a-election")
+    assert election_false is None
 
-        # Test getting specific election
-        election = await get_election(db_session, "test-election-1")
-        assert election is not None
-        assert election.slug == "test-election-1"
-        assert election.name == "test election    1"
-        assert election.type == "general_election"
-        assert election.survey_link == "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
+    # Test getting specific election
+    election = await get_election(db_session, "test-election-1")
+    assert election is not None
+    assert election.slug == "test-election-1"
+    assert election.name == "test election    1"
+    assert election.type == "general_election"
+    assert election.survey_link == "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5"
 
-        # Test getting a specific registration
-        registrations = await get_all_registrations_in_election(db_session, "test-election-1")
-        assert registrations is not None
+    # Test getting a specific registration
+    registrations = await get_all_registrations_in_election(db_session, "test-election-1")
+    assert registrations is not None
 
-        # Test getting the nominee info
-        nominee_info = await get_nominee_info(db_session, "jdo12")
-        assert nominee_info is not None
-        assert nominee_info.full_name == "John Doe"
-        assert nominee_info.email == "john_doe@doe.com"
-        assert nominee_info.discord_username == "doedoe"
-        assert nominee_info.linked_in == "linkedin.com/john-doe"
-        assert nominee_info.instagram == "john_doe"
+    # Test getting the nominee info
+    nominee_info = await get_nominee_info(db_session, "jdo12")
+    assert nominee_info is not None
+    assert nominee_info.full_name == "John Doe"
+    assert nominee_info.email == "john_doe@doe.com"
+    assert nominee_info.discord_username == "doedoe"
+    assert nominee_info.linked_in == "linkedin.com/john-doe"
+    assert nominee_info.instagram == "john_doe"
 
 
 # API endpoint testing (without AUTH)--------------------------------------
-@pytest.mark.anyio
-async def test_endpoints(client, database_setup):
+async def test_endpoints(client, db_session: DBSession):
     response = await client.get("/election")
     assert response.status_code == 200
     assert response.json() != {}
@@ -181,7 +148,6 @@ async def test_endpoints(client, database_setup):
 
 
 # Admin API testing (with AUTH)-----------------------------------
-@pytest.mark.anyio
 async def test_endpoints_admin(client, database_setup):
     # Login in as the website admin
     session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID

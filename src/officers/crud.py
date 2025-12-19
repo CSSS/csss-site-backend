@@ -21,8 +21,6 @@ async def current_officers(
 ) -> list[OfficerPrivate] | list[OfficerPublic]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.
-
-    Returns a mapping between officer position and officer terms
     """
     curr_time = date.today()
     query = (

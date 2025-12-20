@@ -6,6 +6,7 @@ from fastapi import status
 from httpx import AsyncClient
 
 import load_test_db
+from database import DBSession
 from officers.constants import OfficerPositionEnum
 from officers.crud import current_officers, get_active_officer_terms, get_all_officers
 
@@ -15,7 +16,7 @@ from officers.crud import current_officers, get_active_officer_terms, get_all_of
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-async def test__read_execs(db_session):
+async def test__read_execs(db_session: DBSession):
     # test that reads from the database succeeded as expected
     assert (await get_active_officer_terms(db_session, "blarg")) == []
     assert (await get_active_officer_terms(db_session, "abc22")) != []
@@ -55,7 +56,7 @@ async def test__read_execs(db_session):
 #    pass
 
 
-async def test__get_officers(client):
+async def test__get_officers(client: AsyncClient):
     # private data shouldn't be leaked
     response = await client.get("/officers/current")
     assert response.status_code == 200

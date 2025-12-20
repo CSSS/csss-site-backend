@@ -43,13 +43,13 @@ async def client() -> AsyncGenerator[Any, None]:
 
 
 @pytest_asyncio.fixture(scope="function", loop_scope="session")
-async def db_session(database_setup):
+async def db_session(database_setup: DatabaseSessionManager):
     async with database_setup.session() as session:
         yield session
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def admin_client(database_setup, client):
+async def admin_client(database_setup: DatabaseSessionManager, client: AsyncClient):
     session_id = "temp_id_" + SYSADMIN_COMPUTING_ID
     client.cookies = {"session_id": session_id}
     async with database_setup.session() as session:

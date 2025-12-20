@@ -3,20 +3,23 @@ import datetime
 from datetime import timedelta
 
 import pytest
+from httpx import AsyncClient
 
-from registrations.crud import (
-    get_all_registrations_in_election,
-)
-from src import load_test_db
-from src.auth.crud import create_user_session
-from src.database import DBSession
-from src.elections.crud import (
+import load_test_db
+from auth.crud import create_user_session
+from database import DBSession
+from elections.crud import (
     get_all_elections,
     get_election,
 )
-from src.nominees.crud import (
+from nominees.crud import (
     get_nominee_info,
 )
+from registrations.crud import (
+    get_all_registrations_in_election,
+)
+
+TEST_ELECTION_2 = "test election 2"
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -55,14 +58,15 @@ async def test_read_elections(db_session: DBSession):
 
 
 # API endpoint testing (without AUTH)--------------------------------------
-async def test_endpoints(client, db_session: DBSession):
+async def test__get_all_elections(client):
     response = await client.get("/election")
     assert response.status_code == 200
     assert response.json() != {}
 
+
+async def test__get_single_election(client):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
-    election_name = "test election 2"
-    response = await client.get(f"/election/{election_name}")
+    response = await client.get(f"/election/{TEST_ELECTION_2}")
     assert response.status_code == 200
     assert response.json() != {}
     # if candidates filled, enure unauthorized values remain hidden
@@ -70,19 +74,22 @@ async def test_endpoints(client, db_session: DBSession):
         for cand in response.json()["candidates"]:
             assert "computing_id" not in cand
 
-    # TODO: Move these tests to a registrations test function
+
+async def test__get_single_registrations(client: AsyncClient):
     # ensure that registrations can be viewed
     # Only authorized users can access registrations get
-    response = await client.get(f"/registration/{election_name}")
+    response = await client.get(f"/registration/{TEST_ELECTION_2}")
     assert response.status_code == 401
 
     response = await client.get("/nominee/pkn4")
     assert response.status_code == 401
 
+
+async def test__create_election(client: AsyncClient):
     response = await client.post(
         "/election",
         json={
-            "name": election_name,
+            "name": TEST_ELECTION_2,
             "type": "general_election",
             "datetime_start_nominations": "2025-08-18T09:00:00Z",
             "datetime_start_voting": "2025-09-03T09:00:00Z",
@@ -93,7 +100,8 @@ async def test_endpoints(client, db_session: DBSession):
     )
     assert response.status_code == 401  # unauthorized access to create an election
 
-    # TODO: Move these tests to a registrations test function
+
+async def test__create_registration(client: AsyncClient):
     # ensure that registrations can be viewed
     response = await client.post(
         "/registration/{test-election-1}",
@@ -104,8 +112,10 @@ async def test_endpoints(client, db_session: DBSession):
     )
     assert response.status_code == 401  # unauthorized access to register candidates
 
+
+async def test__update_election(client: AsyncClient):
     response = await client.patch(
-        f"/election/{election_name}",
+        f"/election/{TEST_ELECTION_2}",
         json={
             "type": "general_election",
             "datetime_start_nominations": "2025-08-18T09:00:00Z",
@@ -117,9 +127,10 @@ async def test_endpoints(client, db_session: DBSession):
     )
     assert response.status_code == 401
 
-    # TODO: Move these tests to a registrations test function
+
+async def test__update_registration(client: AsyncClient):
     response = await client.patch(
-        f"/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}",
+        f"/registration/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}",
         json={
             "position": "president",
             "speech": "I would like to run for president because I'm the best in Valorant at SFU.",
@@ -127,6 +138,8 @@ async def test_endpoints(client, db_session: DBSession):
     )
     assert response.status_code == 401
 
+
+async def test__update_nominee(client: AsyncClient):
     response = await client.patch(
         "/nominee/jdo12",
         json={
@@ -139,11 +152,16 @@ async def test_endpoints(client, db_session: DBSession):
     )
     assert response.status_code == 401
 
-    response = await client.delete(f"/election/{election_name}")
+
+async def test__delete_election(client: AsyncClient):
+    response = await client.delete(f"/election/{TEST_ELECTION_2}")
     assert response.status_code == 401
 
-    # TODO: Move these tests to a registrations test function
-    response = await client.delete(f"/registration/{election_name}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}")
+
+async def test__delete_registration(client: AsyncClient):
+    response = await client.delete(
+        f"/registration/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}"
+    )
     assert response.status_code == 401
 
 

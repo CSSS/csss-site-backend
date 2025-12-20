@@ -166,22 +166,23 @@ async def test__delete_registration(client: AsyncClient):
 
 
 # Admin API testing (with AUTH)-----------------------------------
-async def test_endpoints_admin(client, database_setup):
+async def test__admin_get_all_elections(admin_client: AsyncClient):
     # Login in as the website admin
-    session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
-    async with database_setup.session() as db_session:
-        await create_user_session(db_session, session_id, load_test_db.SYSADMIN_COMPUTING_ID)
+    # session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
+    # async with database_setup.session() as db_session:
+    #     await create_user_session(db_session, session_id, load_test_db.SYSADMIN_COMPUTING_ID)
 
-    client.cookies = {"session_id": session_id}
+    # client.cookies = {"session_id": session_id}
 
     # test that more info is given if logged in & with access to it
-    response = await client.get("/election")
+    response = await admin_client.get("/election")
     assert response.status_code == 200
     assert response.json() != {}
 
+
+async def test__admin_get_single_election(admin_client: AsyncClient):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
-    election_name = "test election 2"
-    response = await client.get(f"/election/{election_name}")
+    response = await admin_client.get(f"/election/{TEST_ELECTION_2}")
     assert response.status_code == 200
     assert response.json() != {}
     # if candidates filled, enure unauthorized values remain hidden
@@ -189,13 +190,10 @@ async def test_endpoints_admin(client, database_setup):
         for cand in response.json()["candidates"]:
             assert "computing_id" in cand
 
-    # TODO: Move these tests to a registrations test function
-    # ensure that registrations can be viewed
-    response = await client.get(f"/election/{election_name}")
-    assert response.status_code == 200
 
+async def test__admin_create_election(admin_client: AsyncClient):
     # ensure that authorized users can create an election
-    response = await client.post(
+    response = await admin_client.post(
         "/election",
         json={
             "name": "testElection4",
@@ -209,7 +207,7 @@ async def test_endpoints_admin(client, database_setup):
     )
     assert response.status_code == 200
     # ensure that user can create election without knowing each position type
-    response = await client.post(
+    response = await admin_client.post(
         "/election",
         json={
             "name": "byElection4",
@@ -222,11 +220,10 @@ async def test_endpoints_admin(client, database_setup):
     )
     assert response.status_code == 200
 
-    # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
     # try to register for a past election -> should say nomination period expired
     testElection1 = "test election    1"
-    response = await client.post(
+    response = await admin_client.post(
         f"/registration/{testElection1}",
         json={
             "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
@@ -236,11 +233,10 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 400
     assert "nomination period" in response.json()["detail"]
 
-    # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
     # try to register for an invalid position will just throw a 422
-    response = await client.post(
-        f"/registration/{election_name}",
+    response = await admin_client.post(
+        f"/registration/{TEST_ELECTION_2}",
         json={
             "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
             "position": "CEO",
@@ -248,10 +244,9 @@ async def test_endpoints_admin(client, database_setup):
     )
     assert response.status_code == 422
 
-    # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
     # try to register in an unknown election
-    response = await client.post(
+    response = await admin_client.post(
         "/registration/unknownElection12345",
         json={
             "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
@@ -261,11 +256,10 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 404
     assert "does not exist" in response.json()["detail"]
 
-    # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
     # register for an election correctly
-    response = await client.post(
-        f"/registration/{election_name}",
+    response = await admin_client.post(
+        f"/registration/{TEST_ELECTION_2}",
         json={
             "computing_id": "jdo12",
             "position": "president",
@@ -273,17 +267,19 @@ async def test_endpoints_admin(client, database_setup):
     )
     assert response.status_code == 200
 
-    # TODO: Move these tests to a registrations test function
+
+async def test__admin_get_registration(admin_client: AsyncClient):
     # ensure that registrations can be viewed
     # ensure that the above registration exists and is valid
-    response = await client.get(f"/registration/{election_name}")
+    response = await admin_client.get(f"/registration/{TEST_ELECTION_2}")
     assert response.status_code == 200
 
-    # TODO: Move these tests to a registrations test function
+
+async def test__admin_create_registration(admin_client: AsyncClient):
     # ensure that registrations can be viewed
     # duplicate registration
-    response = await client.post(
-        f"/registration/{election_name}",
+    response = await admin_client.post(
+        f"/registration/{TEST_ELECTION_2}",
         json={
             "computing_id": "jdo12",
             "position": "president",
@@ -292,8 +288,10 @@ async def test_endpoints_admin(client, database_setup):
     assert response.status_code == 400
     assert "registered" in response.json()["detail"]
 
+
+async def test__admin_update_election(admin_client: AsyncClient):
     # update the above election
-    response = await client.patch(
+    response = await admin_client.patch(
         "/election/testElection4",
         json={
             "election_type": "general_election",
@@ -306,46 +304,49 @@ async def test_endpoints_admin(client, database_setup):
     )
     assert response.status_code == 200
 
-    # TODO: Move these tests to a registrations test function
+
+async def test__admin_update_registration(admin_client: AsyncClient):
     # ensure that registrations can be viewed
     # update the registration
-    await client.patch(
-        f"/registration/{election_name}/vice-president/pkn4", json={"speech": "Vote for me as treasurer"}
+    response = await admin_client.patch(
+        f"/registration/{TEST_ELECTION_2}/vice-president/pkn4", json={"speech": "Vote for me as treasurer"}
     )
     assert response.status_code == 200
 
-    # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
     # try updating a non-registered election
-    response = await client.patch(
+    response = await admin_client.patch(
         "/registration/testElection4/pkn4",
         json={"position": "president", "speech": "Vote for me as president, I am good at valorant."},
     )
     assert response.status_code == 404
 
+
+async def test__admin_delete_election(admin_client: AsyncClient):
     # delete an election
-    response = await client.delete("/election/testElection4")
+    response = await admin_client.delete("/election/testElection4")
     assert response.status_code == 200
 
     # TODO: Move these tests to a registrations test function
     # ensure that registrations can be viewed
     # delete a registration
-    response = await client.delete(f"/registration/{election_name}/president/jdo12")
+    response = await admin_client.delete(f"/registration/{TEST_ELECTION_2}/president/jdo12")
     assert response.status_code == 200
 
+
+async def test__admin_get_nominee(admin_client: AsyncClient):
     # get nominee info
-    response = await client.get(f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    response = await admin_client.get(f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200
 
+
+async def test__admin_update_nominee(admin_client: AsyncClient):
     # update nominee info
-    response = await client.patch(
+    response = await admin_client.patch(
         f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}",
         json={
             "full_name": "Puneet N",
             "linked_in": "linkedin.com/not-my-linkedin",
         },
     )
-    assert response.status_code == 200
-
-    response = await client.get(f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200

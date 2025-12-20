@@ -39,13 +39,13 @@ def _default_election_positions(election_type: ElectionTypeEnum) -> list[Officer
 
 def _raise_if_bad_election_data(
     slug: str,
-    election_type: str,
+    election_type: ElectionTypeEnum,
     datetime_start_nominations: datetime.datetime,
     datetime_start_voting: datetime.datetime,
     datetime_end_voting: datetime.datetime,
     available_positions: list[OfficerPositionEnum],
 ):
-    if election_type not in ElectionTypeEnum:
+    if election_type not in [e.value for e in ElectionTypeEnum]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"unknown election type {election_type}",

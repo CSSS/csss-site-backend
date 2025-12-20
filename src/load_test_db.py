@@ -25,7 +25,7 @@ from officers.crud import (
 )
 from officers.tables import OfficerInfoDB, OfficerTermDB
 from registrations.crud import add_registration
-from registrations.tables import NomineeApplication
+from registrations.tables import NomineeApplicationDB
 
 
 async def reset_db(engine):
@@ -449,7 +449,7 @@ async def load_test_elections_data(db_session: AsyncSession):
 async def load_test_election_nominee_application_data(db_session: AsyncSession):
     await add_registration(
         db_session,
-        NomineeApplication(
+        NomineeApplicationDB(
             computing_id=SYSADMIN_COMPUTING_ID,
             nominee_election="test-election-2",
             position="vice-president",

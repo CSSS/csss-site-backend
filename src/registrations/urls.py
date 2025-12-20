@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
 import database
@@ -13,11 +13,11 @@ from elections.models import (
 )
 from officers.constants import OfficerPositionEnum
 from registrations.models import (
-    NomineeApplicationModel,
-    NomineeApplicationParams,
-    NomineeApplicationUpdateParams,
+    NomineeApplication,
+    NomineeApplicationCreate,
+    NomineeApplicationUpdate,
 )
-from registrations.tables import NomineeApplication
+from registrations.tables import NomineeApplicationDB
 from utils.shared_models import DetailModel, SuccessResponse
 from utils.urls import slugify
 
@@ -30,18 +30,19 @@ router = APIRouter(
 @router.get(
     "",
     description="get all the registrations",
-    response_model=list[NomineeApplicationModel],
-    operation_id="get_registrations"
+    response_model=list[NomineeApplication],
+    operation_id="get_registrations",
 )
 async def get_all_registrations(
     db_session: database.DBSession,
 ):
     return await registrations.crud.get_all_registrations(db_session)
 
+
 @router.get(
-    "/{election_name:str}",
+    "/{election_name}",
     description="get all the registrations of a single election",
-    response_model=list[NomineeApplicationModel],
+    response_model=list[NomineeApplication],
     responses={
         401: {"description": "Not logged in", "model": DetailModel},
         404: {"description": "Election with slug does not exist", "model": DetailModel},
@@ -63,9 +64,9 @@ async def get_election_registrations(db_session: database.DBSession, election_na
 
 
 @router.post(
-    "/{election_name:str}",
+    "/{election_name}",
     description="Register for a specific position in this election, but doesn't set a speech. Returns the created entry.",
-    response_model=NomineeApplicationModel,
+    response_model=NomineeApplication,
     responses={
         400: {"description": "Bad request", "model": DetailModel},
         401: {"description": "Not logged in", "model": DetailModel},
@@ -75,8 +76,8 @@ async def get_election_registrations(db_session: database.DBSession, election_na
     operation_id="register",
     dependencies=[Depends(perm_election)],
 )
-async def register_in_election(db_session: database.DBSession, body: NomineeApplicationParams, election_name: str):
-    if body.position not in OfficerPositionEnum:
+async def register_in_election(db_session: database.DBSession, body: NomineeApplicationCreate, election_name: str):
+    if body.position not in [o.value for o in OfficerPositionEnum]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
 
     if await nominees.crud.get_nominee_info(db_session, body.computing_id) is None:
@@ -130,9 +131,9 @@ async def register_in_election(db_session: database.DBSession, body: NomineeAppl
 
 
 @router.patch(
-    "/{election_name:str}/{position:str}/{computing_id:str}",
+    "/{election_name}/{position}/{computing_id}",
     description="update the application of a specific registrant and return the changed entry",
-    response_model=NomineeApplicationModel,
+    response_model=NomineeApplication,
     responses={
         400: {"description": "Bad request", "model": DetailModel},
         401: {"description": "Not logged in", "model": DetailModel},
@@ -144,12 +145,12 @@ async def register_in_election(db_session: database.DBSession, body: NomineeAppl
 )
 async def update_registration(
     db_session: database.DBSession,
-    body: NomineeApplicationUpdateParams,
+    body: NomineeApplicationUpdate,
     election_name: str,
     computing_id: str,
     position: OfficerPositionEnum,
 ):
-    if body.position not in OfficerPositionEnum:
+    if body.position not in [o.value for o in OfficerPositionEnum]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
 
     slugified_name = slugify(election_name)
@@ -187,7 +188,7 @@ async def update_registration(
 
 
 @router.delete(
-    "/{election_name:str}/{position:str}/{computing_id:str}",
+    "/{election_name}/{position}/{computing_id}",
     description="delete the registration of a person",
     response_model=SuccessResponse,
     responses={
@@ -205,7 +206,7 @@ async def delete_registration(
     position: OfficerPositionEnum,
     computing_id: str,
 ):
-    if position not in OfficerPositionEnum:
+    if position not in [o.value for o in OfficerPositionEnum]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {position}")
 
     slugified_name = slugify(election_name)

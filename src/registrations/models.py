@@ -13,17 +13,17 @@ class RegistrationModel(BaseModel):
     speech: str
 
 
-class NomineeApplicationParams(BaseModel):
+class NomineeApplicationCreate(BaseModel):
     computing_id: str
     position: OfficerPositionEnum
 
 
-class NomineeApplicationUpdateParams(BaseModel):
+class NomineeApplicationUpdate(BaseModel):
     position: OfficerPositionEnum | None = None
     speech: str | None = None
 
 
-class NomineeApplicationModel(BaseModel):
+class NomineeApplication(BaseModel):
     computing_id: str
     nominee_election: str
     position: OfficerPositionEnum

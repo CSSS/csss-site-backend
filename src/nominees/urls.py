@@ -10,7 +10,6 @@ from nominees.models import (
 )
 from nominees.tables import NomineeInfo
 from utils.shared_models import DetailModel
-from utils.urls import AdminTypeEnum, admin_or_raise
 
 router = APIRouter(
     prefix="/nominee",
@@ -24,13 +23,12 @@ router = APIRouter(
     response_model=list[NomineeInfoModel],
     responses={403: {"description": "need to be an admin", "model": DetailModel}},
     operation_id="get_all_nominees",
+    dependencies=[Depends(perm_election)],
 )
 async def get_all_nominees(
-    request: Request,
     db_session: database.DBSession,
 ):
     # Putting this behind a wall since there is private information here
-    await admin_or_raise(request, db_session)
     nominees_list = await nominees.crud.get_all_nominees(db_session)
 
     return JSONResponse([item.serialize() for item in nominees_list])
@@ -42,9 +40,9 @@ async def get_all_nominees(
     response_model=NomineeInfoModel,
     responses={500: {"description": "failed to fetch new nominee", "model": DetailModel}},
     operation_id="create_nominee",
+    dependencies=[Depends(perm_election)],
 )
-async def create_nominee(request: Request, db_session: database.DBSession, body: NomineeInfoModel):
-    await admin_or_raise(request, db_session)
+async def create_nominee(db_session: database.DBSession, body: NomineeInfoModel):
     await nominees.crud.create_nominee_info(
         db_session,
         NomineeInfo(
@@ -83,9 +81,13 @@ async def get_nominee_info(db_session: database.DBSession, computing_id: str):
     return JSONResponse(nominee_info.serialize())
 
 
-@router.delete("/{computing_id:str}", description="Delete a nominee", operation_id="delete_nominee")
-async def delete_nominee_info(request: Request, db_session: database.DBSession, computing_id: str):
-    await admin_or_raise(request, db_session)
+@router.delete(
+    "/{computing_id:str}",
+    description="Delete a nominee",
+    operation_id="delete_nominee",
+    dependencies=[Depends(perm_election)],
+)
+async def delete_nominee_info(db_session: database.DBSession, computing_id: str):
     await nominees.crud.delete_nominee_info(db_session, computing_id)
     await db_session.commit()
 

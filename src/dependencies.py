@@ -4,7 +4,7 @@ from fastapi import Cookie, Depends, HTTPException, status
 
 import auth
 import database
-from utils.permissions import is_user_election_officer, is_user_website_admin
+from utils.permissions import is_user_election_admin, is_user_website_admin
 
 
 async def user(db_session: database.DBSession, session_id: Annotated[str | None, Cookie()] = None) -> str | None:
@@ -34,7 +34,7 @@ LoggedInUser = Annotated[str, Depends(logged_in_user)]
 
 
 async def perm_election(db_session: database.DBSession, computing_id: LoggedInUser) -> str:
-    if not await is_user_website_admin(computing_id, db_session) or not await is_user_election_officer(
+    if not await is_user_website_admin(computing_id, db_session) or not await is_user_election_admin(
         computing_id, db_session
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an election admin")

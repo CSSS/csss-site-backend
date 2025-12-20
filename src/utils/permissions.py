@@ -15,6 +15,8 @@ WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
     OfficerPositionEnum.WEBMASTER,
 ]
 
+ELECTIONS_OFFICER_POSITION = [*WEBSITE_ADMIN_POSITIONS, OfficerPositionEnum.ELECTIONS_OFFICER]
+
 
 # Permissions are granted if the Enum value >= the level needed
 class AdminTypeEnum(Enum):
@@ -23,24 +25,15 @@ class AdminTypeEnum(Enum):
 
 
 async def is_user_website_admin(computing_id: str, db_session: database.DBSession) -> bool:
-    for position in await officers.crud.current_officer_positions(db_session, computing_id):
-        if position in WEBSITE_ADMIN_POSITIONS:
-            return True
-
-    return False
+    return len(await officers.crud.current_officer_positions(db_session, computing_id, WEBSITE_ADMIN_POSITIONS)) > 0
 
 
 # TODO: Add an election admin version that checks the election attempting to be modified as well
-async def is_user_election_officer(computing_id: str, db_session: database.DBSession) -> bool:
+async def is_user_election_admin(computing_id: str, db_session: database.DBSession) -> bool:
     """
     An current election officer has access to all election, prior election officers have no access.
     """
-    officer_terms = await officers.crud.get_current_terms_by_position(db_session, OfficerPositionEnum.ELECTIONS_OFFICER)
-    for officer in officer_terms:
-        if computing_id == officer.computing_id:
-            return True
-
-    return False
+    return len(await officers.crud.current_officer_positions(db_session, computing_id, ELECTIONS_OFFICER_POSITION)) > 0
 
 
 async def get_user(request: Request, db_session: database.DBSession) -> tuple[str, str]:
@@ -71,10 +64,8 @@ async def get_user(request: Request, db_session: database.DBSession) -> tuple[st
 async def get_admin(request: Request, db_session: database.DBSession, admin_type: AdminTypeEnum) -> tuple[str, str]:
     session_id, computing_id = await get_user(request, db_session)
 
-    if (
-        not is_user_website_admin(computing_id, db_session)
-        and not admin_type == AdminTypeEnum.Election
-        and is_user_election_officer(computing_id, db_session)
+    if (admin_type == AdminTypeEnum.Full and not await is_user_website_admin(computing_id, db_session)) or (
+        admin_type == AdminTypeEnum.Election and not await is_user_election_admin(computing_id, db_session)
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
 

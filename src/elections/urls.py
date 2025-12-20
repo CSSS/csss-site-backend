@@ -8,7 +8,7 @@ import elections.crud
 import elections.tables
 import nominees.crud
 import registrations.crud
-from dependencies import LoggedInUser, SessionUser, perm_election
+from dependencies import SessionUser, perm_election
 from elections.models import (
     ElectionParams,
     ElectionResponse,
@@ -17,7 +17,7 @@ from elections.models import (
 )
 from elections.tables import Election
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
-from utils.permissions import is_user_election_officer
+from utils.permissions import is_user_election_admin
 from utils.shared_models import DetailModel, SuccessResponse
 from utils.urls import slugify
 
@@ -79,7 +79,7 @@ def _raise_if_bad_election_data(
     operation_id="get_all_elections",
 )
 async def list_elections(
-    computing_id: LoggedInUser,
+    computing_id: SessionUser,
     db_session: database.DBSession,
 ):
     election_list = await elections.crud.get_all_elections(db_session)
@@ -87,7 +87,7 @@ async def list_elections(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
 
     current_time = datetime.datetime.now()
-    if is_user_election_officer(computing_id, db_session):
+    if await is_user_election_admin(computing_id, db_session):
         election_metadata_list = [election.private_details(current_time) for election in election_list]
     else:
         election_metadata_list = [election.public_details(current_time) for election in election_list]
@@ -115,7 +115,7 @@ async def get_election(db_session: database.DBSession, computing_id: SessionUser
             status_code=status.HTTP_404_NOT_FOUND, detail=f"election with slug {slugified_name} does not exist"
         )
 
-    has_permission = is_user_election_officer(computing_id, db_session)
+    has_permission = await is_user_election_admin(computing_id, db_session)
     if current_time >= election.datetime_start_voting or has_permission:
         election_json = election.private_details(current_time)
         all_nominations = await registrations.crud.get_all_registrations_in_election(db_session, slugified_name)

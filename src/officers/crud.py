@@ -9,7 +9,7 @@ import database
 import utils
 from auth.tables import SiteUserDB
 from data import semesters
-from officers.constants import OfficerPosition
+from officers.constants import OfficerPosition, OfficerPositionEnum
 from officers.models import OfficerCreate, OfficerPrivate, OfficerPublic
 from officers.tables import OfficerInfoDB, OfficerTermDB
 
@@ -70,7 +70,9 @@ async def current_officers(
     return officer_list
 
 
-async def get_current_terms_by_position(db_session: database.DBSession, position: str) -> list[OfficerTermDB]:
+async def get_current_terms_by_position(
+    db_session: database.DBSession, position: OfficerPositionEnum, computing_id: str | None = None
+) -> list[OfficerTermDB]:
     """
     Get current officer that holds a position
     """
@@ -78,11 +80,14 @@ async def get_current_terms_by_position(db_session: database.DBSession, position
     query = (
         select(OfficerTermDB)
         .where(
-            (OfficerTermDB.start_date <= curr_time) & (OfficerTermDB.end_date >= curr_time) & OfficerTermDB.position
-            == position
+            (OfficerTermDB.start_date <= curr_time)
+            & (OfficerTermDB.end_date >= curr_time)
+            & (OfficerTermDB.position == position)
         )
         .order_by(OfficerTermDB.start_date.desc())
     )
+    if computing_id:
+        query.where(OfficerTermDB.computing_id == computing_id)
 
     result = list((await db_session.scalars(query)).all())
 
@@ -178,7 +183,9 @@ async def get_officer_terms(
     return list((await db_session.scalars(query)).all())
 
 
-async def get_active_officer_terms(db_session: database.DBSession, computing_id: str) -> list[OfficerTermDB]:
+async def get_active_officer_terms(
+    db_session: database.DBSession, computing_id: str, positions: list[OfficerPositionEnum] | None = None
+) -> list[OfficerTermDB]:
     """
     Returns the list of active officer terms for a user. Returns [] if the user is not currently an officer.
     An officer can have multiple positions at once, such as Webmaster, Frosh chair, and DoEE.
@@ -190,15 +197,19 @@ async def get_active_officer_terms(db_session: database.DBSession, computing_id:
         .order_by(OfficerTermDB.start_date.desc())
     )
     query = utils.is_active_officer(query)
+    if positions:
+        query.where(OfficerTermDB.position.in_(positions))
 
     return list((await db_session.scalars(query)).all())
 
 
-async def current_officer_positions(db_session: database.DBSession, computing_id: str) -> list[str]:
+async def current_officer_positions(
+    db_session: database.DBSession, computing_id: str, positions: list[OfficerPositionEnum] | None = None
+) -> list[str]:
     """
     Returns the list of officer positions a user currently has. [] if not currently an officer.
     """
-    officer_term_list = await get_active_officer_terms(db_session, computing_id)
+    officer_term_list = await get_active_officer_terms(db_session, computing_id, positions)
     return [term.position for term in officer_term_list]
 
 

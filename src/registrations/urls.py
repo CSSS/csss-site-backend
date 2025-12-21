@@ -211,7 +211,9 @@ async def delete_registration(
             detail="registration can only be revoked during the nomination period",
         )
 
-    if not await registrations.crud.get_all_registrations_of_user(db_session, computing_id, slugified_name):
+    if not await registrations.crud.get_one_registration_in_election(
+        db_session, computing_id, slugified_name, position
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"{computing_id} was not registered in election {slugified_name} for {position}",

@@ -116,7 +116,7 @@ async def register_in_election(db_session: database.DBSession, body: NomineeAppl
     # allow any election officer running an election to register for it
     await registrations.crud.add_registration(
         db_session,
-        NomineeApplication(
+        NomineeApplicationDB(
             computing_id=body.computing_id, nominee_election=slugified_name, position=body.position, speech=None
         ),
     )
@@ -150,7 +150,7 @@ async def update_registration(
     computing_id: str,
     position: OfficerPositionEnum,
 ):
-    if body.position not in [o.value for o in OfficerPositionEnum]:
+    if body.position and body.position not in [o.value for o in OfficerPositionEnum]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
 
     slugified_name = slugify(election_name)
@@ -160,7 +160,7 @@ async def update_registration(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"election with slug {slugified_name} does not exist"
         )
 
-    # self updates can only be done during nomination period. Officer updates can be done whenever
+    # self updates can only be done during nomination period. Admin updates can be done whenever
     if election.status(datetime.datetime.now()) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="speeches can only be updated during the nomination period"
@@ -175,16 +175,10 @@ async def update_registration(
     registration.update_from_params(body)
 
     await registrations.crud.update_registration(db_session, registration)
-    await db_session.commit()
 
-    registrant = await registrations.crud.get_one_registration_in_election(
-        db_session, registration.computing_id, slugified_name, registration.position
-    )
-    if not registrant:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="failed to find changed registrant"
-        )
-    return registrant
+    await db_session.commit()
+    await db_session.refresh(registration)
+    return registration
 
 
 @router.delete(

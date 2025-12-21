@@ -66,7 +66,7 @@ async def update_registration(db_session: AsyncSession, initial_application: Nom
             & (NomineeApplicationDB.nominee_election == initial_application.nominee_election)
             & (NomineeApplicationDB.position == initial_application.position)
         )
-        .values(initial_application.to_update_dict())
+        .values(initial_application.serialize())
     )
 
 

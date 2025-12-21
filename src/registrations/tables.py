@@ -25,14 +25,6 @@ class NomineeApplicationDB(Base):
             "speech": self.speech,
         }
 
-    def to_update_dict(self) -> dict:
-        return {
-            "computing_id": self.computing_id,
-            "nominee_election": self.nominee_election,
-            "position": self.position,
-            "speech": self.speech,
-        }
-
     def update_from_params(self, params: NomineeApplicationUpdate):
         update_data = params.model_dump(exclude_unset=True)
         for k, v in update_data.items():

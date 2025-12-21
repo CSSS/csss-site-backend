@@ -58,9 +58,7 @@ async def get_election_registrations(db_session: database.DBSession, election_na
         )
 
     registration_list = await registrations.crud.get_all_registrations_in_election(db_session, slugified_name)
-    if registration_list is None:
-        return JSONResponse([])
-    return JSONResponse([item.serialize() for item in registration_list])
+    return [item.serialize() for item in registration_list]
 
 
 @router.post(

@@ -198,9 +198,6 @@ async def delete_registration(
     position: OfficerPositionEnum,
     computing_id: str,
 ):
-    if position not in [o.value for o in OfficerPositionEnum]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {position}")
-
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:

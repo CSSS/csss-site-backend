@@ -45,13 +45,13 @@ async def get_one_registration_in_election(
 async def get_all_registrations_in_election(
     db_session: AsyncSession,
     election_slug: str,
-) -> Sequence[NomineeApplicationDB] | None:
+) -> list[NomineeApplicationDB]:
     registrations = (
         await db_session.scalars(
             sqlalchemy.select(NomineeApplicationDB).where(NomineeApplicationDB.nominee_election == election_slug)
         )
     ).all()
-    return registrations
+    return list(registrations)
 
 
 async def add_registration(db_session: AsyncSession, initial_application: NomineeApplicationDB):

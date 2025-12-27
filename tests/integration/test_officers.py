@@ -60,34 +60,17 @@ async def test__get_officers(client: AsyncClient):
     # private data shouldn't be leaked
     response = await client.get("/officers/current")
     assert response.status_code == 200
-    assert response.json() != {}
-    assert len(response.json().values()) == 3
-    assert "computing_id" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-    assert "discord_id" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-    assert "discord_name" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-    assert "discord_nickname" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-    assert "phone_number" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-    assert "github_username" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-    assert "google_drive_email" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-    assert "photo_url" not in response.json()[OfficerPositionEnum.EXECUTIVE_AT_LARGE]
-
-    assert "computing_id" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-    assert "discord_id" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-    assert "discord_name" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-    assert "discord_nickname" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-    assert "phone_number" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-    assert "github_username" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-    assert "google_drive_email" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-    assert "photo_url" not in response.json()[OfficerPositionEnum.DIRECTOR_OF_ARCHIVES]
-
-    assert "computing_id" not in response.json()[OfficerPositionEnum.PRESIDENT]
-    assert "discord_id" not in response.json()[OfficerPositionEnum.PRESIDENT]
-    assert "discord_name" not in response.json()[OfficerPositionEnum.PRESIDENT]
-    assert "discord_nickname" not in response.json()[OfficerPositionEnum.PRESIDENT]
-    assert "phone_number" not in response.json()[OfficerPositionEnum.PRESIDENT]
-    assert "github_username" not in response.json()[OfficerPositionEnum.PRESIDENT]
-    assert "google_drive_email" not in response.json()[OfficerPositionEnum.PRESIDENT]
-    assert "photo_url" not in response.json()[OfficerPositionEnum.PRESIDENT]
+    officers = response.json()
+    assert len(officers) == 3
+    officer = next(o for o in officers if o["position"] == OfficerPositionEnum.EXECUTIVE_AT_LARGE)
+    assert "computing_id" not in officer
+    assert "discord_id" not in officer
+    assert "discord_name" not in officer
+    assert "discord_nickname" not in officer
+    assert "phone_number" not in officer
+    assert "github_username" not in officer
+    assert "google_drive_email" not in officer
+    assert "photo_url" not in officer
 
     response = await client.get("/officers/all?include_future_terms=false")
     assert response.status_code == 200
@@ -194,7 +177,15 @@ async def test__get_current_officers_admin(admin_client: AsyncClient):
     assert response.status_code == 200
     curr_officers = response.json()
     assert len(curr_officers) == 3
-    assert curr_officers["executive at large"]["computing_id"] is not None
+    officer = next(o for o in curr_officers if o["position"] == OfficerPositionEnum.EXECUTIVE_AT_LARGE)
+    assert "computing_id" in officer
+    assert "discord_id" in officer
+    assert "discord_name" in officer
+    assert "discord_nickname" in officer
+    assert "phone_number" in officer
+    assert "github_username" in officer
+    assert "google_drive_email" in officer
+    assert "photo_url" in officer
 
 
 async def test__get_all_officers_admin(admin_client: AsyncClient):

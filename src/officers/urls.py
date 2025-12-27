@@ -4,9 +4,7 @@ from fastapi.responses import JSONResponse
 import auth.crud
 import database
 import officers.crud
-import utils
 from dependencies import LoggedInUser, SessionUser, perm_admin
-from officers.constants import OfficerPositionEnum
 from officers.models import (
     OfficerCreate,
     OfficerInfo,

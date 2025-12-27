@@ -88,7 +88,6 @@ class OfficerBase(BaseModel):
     end_date: date | None = None
     nickname: str | None = None
     biography: str | None = None
-    csss_email: str | None = None
 
 
 class Officer(OfficerBase):
@@ -101,13 +100,17 @@ class Officer(OfficerBase):
             start_date=term.start_date,
             end_date=term.end_date,
             biography=term.biography,
-            csss_email=OfficerPosition.to_email(term.position),
         )
 
     @computed_field
     @property
     def is_active(self) -> bool:
         return is_active_term(start_date=self.start_date, end_date=self.end_date)
+
+    @computed_field
+    @property
+    def csss_email(self) -> str | None:
+        return OfficerPosition.to_email(self.position)
 
     term_id: int
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from sqlalchemy import (
     Date,
@@ -116,23 +115,6 @@ class OfficerInfoDB(Base):
 
     # TODO (#22): add support for giving executives bitwarden access automagically
     # has_signed_into_bitwarden: Mapped[str] = mapped_column(Boolean)
-
-    def update_from_params(self, params: OfficerUpdate | OfficerUpdate):
-        update_data = params.model_dump(exclude_unset=True)
-        for k, v in update_data.items():
-            setattr(self, k, v)
-
-    def is_filled_in(self):
-        return (
-            self.computing_id is not None
-            and self.legal_name is not None
-            and self.phone_number is not None
-            and self.discord_id is not None
-            and self.discord_name is not None
-            and self.discord_nickname is not None
-            and self.google_drive_email is not None
-            and self.github_username is not None
-        )
 
     def to_update_dict(self) -> dict:
         return {

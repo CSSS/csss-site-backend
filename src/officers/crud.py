@@ -35,7 +35,6 @@ async def current_officers(db_session: database.DBSession, include_private: bool
             officer_list.append(
                 Officer(
                     legal_name=officer.legal_name,
-                    is_active=True,
                     position=term.position,
                     start_date=term.start_date,
                     end_date=term.end_date,
@@ -104,7 +103,6 @@ async def get_all_officers(
             officer_list.append(
                 Officer(
                     legal_name=officer.legal_name,
-                    is_active=utils.is_active_term(term),
                     position=term.position,
                     start_date=term.start_date,
                     end_date=term.end_date,

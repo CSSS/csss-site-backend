@@ -1,11 +1,12 @@
 from datetime import date
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from constants import COMPUTING_ID_LEN
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPosition, OfficerPositionEnum
 from officers.tables import OfficerInfoDB, OfficerTermDB
+from utils import is_active_term
 
 OFFICER_PRIVATE_INFO = {
     "discord_id",
@@ -56,6 +57,11 @@ class OfficerTerm(OfficerTermCreate):
 
     id: int
 
+    @computed_field
+    @property
+    def is_active(self) -> bool:
+        return is_active_term(start_date=self.start_date, end_date=self.end_date)
+
 
 class OfficerTermUpdate(BaseModel):
     """Request body to patch an Officer Term"""
@@ -90,7 +96,6 @@ class Officer(OfficerBase):
     def public_fields(cls, term: OfficerTermDB, info: OfficerInfoDB) -> Self:
         return cls(
             legal_name=info.legal_name,
-            is_active=True,
             position=term.position,
             start_date=term.start_date,
             end_date=term.end_date,
@@ -98,7 +103,10 @@ class Officer(OfficerBase):
             csss_email=OfficerPosition.to_email(term.position),
         )
 
-    is_active: bool
+    @computed_field
+    @property
+    def is_active(self) -> bool:
+        return is_active_term(start_date=self.start_date, end_date=self.end_date)
 
     # Private Info
     discord_id: str | None = None

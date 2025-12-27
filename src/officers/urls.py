@@ -56,7 +56,7 @@ async def _has_officer_private_info_access(
 @router.get(
     "/current",
     description="Get information about the current officers. With no authorization, only get basic info.",
-    response_model=dict[OfficerPositionEnum, OfficerPublic],
+    response_model=list[OfficerPrivate] | list[OfficerPublic],
     operation_id="get_current_officers",
 )
 async def current_officers(
@@ -67,9 +67,7 @@ async def current_officers(
 
     curr_officers = await officers.crud.current_officers(db_session, has_private_access)
 
-    res = {}
-    for officer in curr_officers:
-        res[officer.position] = officer.model_dump(mode="json")
+    res = [o.model_dump(mode="json") for o in curr_officers]
 
     return JSONResponse(res)
 

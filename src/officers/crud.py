@@ -10,15 +10,13 @@ import utils
 from auth.tables import SiteUserDB
 from data import semesters
 from officers.constants import OfficerPosition, OfficerPositionEnum
-from officers.models import OfficerCreate, OfficerPrivate, OfficerPublic
+from officers.models import Officer, OfficerCreate
 from officers.tables import OfficerInfoDB, OfficerTermDB
 
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
 
 
-async def current_officers(
-    db_session: database.DBSession, include_private: bool = False
-) -> list[OfficerPrivate] | list[OfficerPublic]:
+async def current_officers(db_session: database.DBSession, include_private: bool = False) -> list[Officer]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.
     """
@@ -35,7 +33,7 @@ async def current_officers(
     if include_private:
         for term, officer in result:
             officer_list.append(
-                OfficerPrivate(
+                Officer(
                     legal_name=officer.legal_name,
                     is_active=True,
                     position=term.position,
@@ -55,17 +53,7 @@ async def current_officers(
             )
     else:
         for term, officer in result:
-            officer_list.append(
-                OfficerPublic(
-                    legal_name=officer.legal_name,
-                    is_active=True,
-                    position=term.position,
-                    start_date=term.start_date,
-                    end_date=term.end_date,
-                    biography=term.biography,
-                    csss_email=OfficerPosition.to_email(term.position),
-                )
-            )
+            officer_list.append(Officer.public_fields(term, officer))
 
     return officer_list
 
@@ -96,7 +84,7 @@ async def get_current_terms_by_position(
 
 async def get_all_officers(
     db_session: AsyncSession, include_future_terms: bool, include_private: bool
-) -> list[OfficerPrivate] | list[OfficerPublic]:
+) -> list[Officer]:
     """
     This could be a lot of data, so be careful
     """
@@ -114,7 +102,7 @@ async def get_all_officers(
     if include_private:
         for term, officer in result:
             officer_list.append(
-                OfficerPrivate(
+                Officer(
                     legal_name=officer.legal_name,
                     is_active=utils.is_active_term(term),
                     position=term.position,
@@ -134,17 +122,7 @@ async def get_all_officers(
             )
     else:
         for term, officer in result:
-            officer_list.append(
-                OfficerPublic(
-                    legal_name=officer.legal_name,
-                    is_active=utils.is_active_term(term),
-                    position=term.position,
-                    start_date=term.start_date,
-                    end_date=term.end_date,
-                    biography=term.biography,
-                    csss_email=OfficerPosition.to_email(term.position),
-                )
-            )
+            officer_list.append(Officer.public_fields(term, officer))
 
     return officer_list
 

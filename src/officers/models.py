@@ -1,9 +1,11 @@
 from datetime import date
+from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from constants import COMPUTING_ID_LEN
-from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPositionEnum
+from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPosition, OfficerPositionEnum
+from officers.tables import OfficerInfoDB, OfficerTermDB
 
 OFFICER_PRIVATE_INFO = {
     "discord_id",
@@ -83,23 +85,26 @@ class OfficerBase(BaseModel):
     csss_email: str | None = None
 
 
-class OfficerPublic(OfficerBase):
-    """
-    Response when fetching public officer data
-    """
+class Officer(OfficerBase):
+    @classmethod
+    def public_fields(cls, term: OfficerTermDB, info: OfficerInfoDB) -> Self:
+        return cls(
+            legal_name=info.legal_name,
+            is_active=True,
+            position=term.position,
+            start_date=term.start_date,
+            end_date=term.end_date,
+            biography=term.biography,
+            csss_email=OfficerPosition.to_email(term.position),
+        )
 
     is_active: bool
 
-
-class OfficerPrivate(OfficerPublic):
-    """
-    Response when fetching private officer data
-    """
-
+    # Private Info
     discord_id: str | None = None
     discord_name: str | None = None
     discord_nickname: str | None = None
-    computing_id: str
+    computing_id: str | None = None
     phone_number: str | None = None
     github_username: str | None = None
     google_drive_email: str | None = None

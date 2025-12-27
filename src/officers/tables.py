@@ -22,7 +22,6 @@ from constants import (
 )
 from database import Base
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, OfficerPositionEnum
-from officers.models import OfficerInfo, OfficerTerm, OfficerTermUpdate, OfficerUpdate
 
 
 # A row represents an assignment of a person to a position.
@@ -53,19 +52,6 @@ class OfficerTermDB(Base):
     photo_url: Mapped[str] = mapped_column(Text, nullable=True)  # some urls get big, best to let it be a string
 
     __table_args__ = (UniqueConstraint("computing_id", "position", "start_date"),)  # This needs a comma to work
-
-    def serializable_dict(self) -> dict:
-        return OfficerTerm.model_validate(self).model_dump(mode="json")
-
-    def update_from_params(self, params: OfficerTermUpdate, admin_update: bool = True):
-        if admin_update:
-            update_data = params.model_dump(exclude_unset=True)
-        else:
-            update_data = params.model_dump(
-                exclude_unset=True, exclude={"position", "start_date", "end_date", "photo_url"}
-            )
-        for k, v in update_data.items():
-            setattr(self, k, v)
 
     def is_filled_in(self):
         return (
@@ -130,9 +116,6 @@ class OfficerInfoDB(Base):
 
     # TODO (#22): add support for giving executives bitwarden access automagically
     # has_signed_into_bitwarden: Mapped[str] = mapped_column(Boolean)
-
-    def serializable_dict(self) -> dict[str, Any]:
-        return OfficerInfo.model_validate(self).model_dump(mode="json")
 
     def update_from_params(self, params: OfficerUpdate | OfficerUpdate):
         update_data = params.model_dump(exclude_unset=True)

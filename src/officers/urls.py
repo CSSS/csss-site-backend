@@ -6,10 +6,9 @@ import database
 import officers.crud
 from dependencies import LoggedInUser, SessionUser, perm_admin
 from officers.models import (
+    Officer,
     OfficerCreate,
     OfficerInfo,
-    OfficerPrivate,
-    OfficerPublic,
     OfficerTerm,
     OfficerTermUpdate,
     OfficerUpdate,
@@ -54,7 +53,7 @@ async def _has_officer_private_info_access(
 @router.get(
     "/current",
     description="Get information about the current officers. With no authorization, only get basic info.",
-    response_model=list[OfficerPrivate] | list[OfficerPublic],
+    response_model=list[Officer],
     operation_id="get_current_officers",
 )
 async def current_officers(
@@ -65,15 +64,13 @@ async def current_officers(
 
     curr_officers = await officers.crud.current_officers(db_session, has_private_access)
 
-    res = [o.model_dump(mode="json") for o in curr_officers]
-
-    return JSONResponse(res)
+    return JSONResponse([o.model_dump(mode="json", exclude_unset=True) for o in curr_officers])
 
 
 @router.get(
     "/all",
     description="Information for all execs from all exec terms",
-    response_model=list[OfficerPrivate] | list[OfficerPublic],
+    response_model=list[Officer],
     responses={403: {"description": "not authorized", "model": DetailModel}},
     operation_id="get_all_officers",
 )
@@ -90,7 +87,7 @@ async def all_officers(
 
     all_officers = await officers.crud.get_all_officers(db_session, include_future_terms, has_private_access)
 
-    return JSONResponse([officer_data.model_dump(mode="json") for officer_data in all_officers])
+    return JSONResponse([officer_data.model_dump(mode="json", exclude_unset=True) for officer_data in all_officers])
 
 
 @router.get(
@@ -114,7 +111,9 @@ async def get_officer_terms(
 
     # all term info is public, so anyone can get any of it
     officer_terms = await officers.crud.get_officer_terms(db_session, computing_id, include_future_terms)
-    return JSONResponse([OfficerTerm.model_validate(term).model_dump(mode="json") for term in officer_terms])
+    return JSONResponse(
+        [OfficerTerm.model_validate(term).model_dump(mode="json", exclude_unset=True) for term in officer_terms]
+    )
 
 
 @router.get(
@@ -133,7 +132,7 @@ async def get_officer_info(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not authorized")
 
     officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
-    return JSONResponse(officer_info.serializable_dict())
+    return JSONResponse(OfficerInfo.model_validate(officer_info).model_dump(mode="json", exclude_unset=True))
 
 
 @router.post(
@@ -155,7 +154,7 @@ async def create_officer_term(
     officer_list: list[OfficerCreate],
 ):
     new_terms = await officers.crud.create_multiple_officers(db_session, officer_list)
-    content = [term.serializable_dict() for term in new_terms]
+    content = [OfficerTerm.model_validate(term).model_dump(mode="json", exclude_unset=True) for term in new_terms]
 
     await db_session.commit()
     return JSONResponse(content)
@@ -184,7 +183,9 @@ async def update_officer_info(
     await verify_update(user_id, db_session, computing_id)
 
     old_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
-    old_officer_info.update_from_params(officer_info_upload)
+    update_data = officer_info_upload.model_dump(exclude_unset=True)
+    for k, v in update_data.items():
+        setattr(old_officer_info, k, v)
     await officers.crud.update_officer_info(db_session, old_officer_info)
 
     # TODO (#27): log all important changes just to a .log file & persist them for a few years
@@ -192,7 +193,7 @@ async def update_officer_info(
     await db_session.commit()
 
     updated_officer_info = await officers.crud.get_new_officer_info_or_raise(db_session, computing_id)
-    return JSONResponse(updated_officer_info.serializable_dict())
+    return JSONResponse(OfficerInfo.model_validate(updated_officer_info).model_dump(mode="json", exclude_unset=True))
 
 
 @router.patch(
@@ -229,7 +230,7 @@ async def update_officer_term(db_session: database.DBSession, term_id: int, body
     await db_session.commit()
     await db_session.refresh(old_officer_term)
 
-    return JSONResponse(OfficerTerm.model_validate(old_officer_term).model_dump(mode="json"))
+    return JSONResponse(OfficerTerm.model_validate(old_officer_term).model_dump(mode="json", exclude_unset=True))
 
 
 @router.delete(

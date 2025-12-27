@@ -142,7 +142,7 @@ class OfficerCreate(OfficerBase):
     favourite_pl_1: str | None = Field(None, max_length=64)
 
 
-class OfficerSelfUpdate(BaseModel):
+class OfficerInfoSelfUpdate(BaseModel):
     """
     Used when an Officer is updating their own information
     """
@@ -157,7 +157,7 @@ class OfficerSelfUpdate(BaseModel):
     google_drive_email: str | None = None
 
 
-class OfficerUpdate(OfficerSelfUpdate):
+class OfficerInfoUpdate(OfficerInfoSelfUpdate):
     """
     Used when an admin is updating an Officer's info
     """

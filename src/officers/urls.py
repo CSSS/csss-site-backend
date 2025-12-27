@@ -9,9 +9,9 @@ from officers.models import (
     Officer,
     OfficerCreate,
     OfficerInfo,
+    OfficerInfoUpdate,
     OfficerTerm,
     OfficerTermUpdate,
-    OfficerUpdate,
 )
 from permission.types import OfficerPrivateInfo
 from utils.permissions import is_user_website_admin, verify_update
@@ -178,7 +178,7 @@ async def update_officer_info(
     user_id: SessionUser,
     db_session: database.DBSession,
     computing_id: str,
-    officer_info_upload: OfficerUpdate,
+    officer_info_upload: OfficerInfoUpdate,
 ):
     await verify_update(user_id, db_session, computing_id)
 

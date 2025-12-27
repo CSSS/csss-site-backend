@@ -32,20 +32,11 @@ async def test__read_execs(db_session: DBSession):
 
     current_exec_team = await current_officers(db_session)
     assert current_exec_team is not None
-    assert len(current_exec_team) == 3
+    assert len(current_exec_team) == 5
     # assert next(iter(current_exec_team)) == OfficerPositionEnum.EXECUTIVE_AT_LARGE
     # assert next(iter(current_exec_team))["favourite_course_0"] == "CMPT 361"
     # assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.to_email(OfficerPositionEnum.EXECUTIVE_AT_LARGE)
     # assert next(iter(current_exec_team.values()))[0].private_data is None
-
-    current_exec_team = await current_officers(db_session)
-    assert current_exec_team is not None
-    assert len(current_exec_team) == 3
-    # assert next(iter(current_exec_team.keys())) == OfficerPositionEnum.EXECUTIVE_AT_LARGE
-    # assert next(iter(current_exec_team.values()))[0].favourite_course_0 == "CMPT 361"
-    # assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.to_email(OfficerPositionEnum.EXECUTIVE_AT_LARGE)
-    # assert next(iter(current_exec_team.values()))[0].private_data is not None
-    # assert next(iter(current_exec_team.values()))[0].private_data.computing_id == "abc11"
 
     all_terms = await get_all_officers(db_session, False, False)
     assert len(all_terms) == 8
@@ -61,7 +52,7 @@ async def test__get_officers(client: AsyncClient):
     response = await client.get("/officers/current")
     assert response.status_code == 200
     officers = response.json()
-    assert len(officers) == 3
+    assert len(officers) == 5
     officer = next(o for o in officers if o["position"] == OfficerPositionEnum.EXECUTIVE_AT_LARGE)
     assert "computing_id" not in officer
     assert "discord_id" not in officer
@@ -176,7 +167,7 @@ async def test__get_current_officers_admin(admin_client: AsyncClient):
     response = await admin_client.get("/officers/current")
     assert response.status_code == 200
     curr_officers = response.json()
-    assert len(curr_officers) == 3
+    assert len(curr_officers) == 5
     officer = next(o for o in curr_officers if o["position"] == OfficerPositionEnum.EXECUTIVE_AT_LARGE)
     assert "computing_id" in officer
     assert "discord_id" in officer

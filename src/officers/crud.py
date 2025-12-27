@@ -24,7 +24,10 @@ async def current_officers(db_session: database.DBSession, include_private: bool
     query = (
         select(OfficerTermDB, OfficerInfoDB)
         .join(OfficerInfoDB, OfficerTermDB.computing_id == OfficerInfoDB.computing_id)
-        .where((OfficerTermDB.start_date <= curr_time) & (OfficerTermDB.end_date >= curr_time))
+        .where(
+            (OfficerTermDB.start_date <= curr_time)
+            & ((OfficerTermDB.end_date >= curr_time) | OfficerTermDB.end_date.is_(None))
+        )
         .order_by(OfficerTermDB.start_date.desc())
     )
 

@@ -37,7 +37,7 @@ class OfficerTermCreate(BaseModel):
     """Request body to create a new Officer Term"""
 
     computing_id: str = Field(..., max_length=COMPUTING_ID_LEN)
-    position: str = Field(..., max_length=128)
+    position: OfficerPositionEnum = Field(..., max_length=128)
     start_date: date
     end_date: date | None = None
     nickname: str | None = Field(None, max_length=128)
@@ -61,7 +61,7 @@ class OfficerTermUpdate(BaseModel):
     """Request body to patch an Officer Term"""
 
     computing_id: str | None = Field(None, max_length=COMPUTING_ID_LEN)
-    position: str | None = Field(None, max_length=128)
+    position: OfficerPositionEnum | None = Field(None, max_length=128)
     start_date: date | None = None
     end_date: date | None = None
     nickname: str | None = Field(None, max_length=128)

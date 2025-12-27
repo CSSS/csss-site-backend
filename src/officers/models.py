@@ -95,6 +95,7 @@ class Officer(OfficerBase):
     @classmethod
     def public_fields(cls, term: OfficerTermDB, info: OfficerInfoDB) -> Self:
         return cls(
+            term_id=term.id,
             legal_name=info.legal_name,
             position=term.position,
             start_date=term.start_date,
@@ -107,6 +108,8 @@ class Officer(OfficerBase):
     @property
     def is_active(self) -> bool:
         return is_active_term(start_date=self.start_date, end_date=self.end_date)
+
+    term_id: int
 
     # Private Info
     discord_id: str | None = None

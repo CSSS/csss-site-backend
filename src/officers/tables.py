@@ -28,7 +28,7 @@ from officers.constants import OFFICER_LEGAL_NAME_MAX, OFFICER_POSITION_MAX, Off
 class OfficerTermDB(Base):
     __tablename__ = "officer_term"
 
-    id: Mapped[str] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     computing_id: Mapped[str] = mapped_column(
         String(COMPUTING_ID_LEN),

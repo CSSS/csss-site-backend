@@ -15,7 +15,7 @@ from elections.models import (
     ElectionTypeEnum,
     ElectionUpdateParams,
 )
-from elections.tables import Election
+from elections.tables import ElectionDB
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
 from utils.permissions import is_user_election_admin
 from utils.shared_models import DetailModel, SuccessResponse
@@ -58,7 +58,7 @@ def _raise_if_bad_election_data(
         )
 
     for position in available_positions:
-        if position not in OfficerPositionEnum:
+        if position not in [p.value for p in OfficerPositionEnum]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"unknown position found in position list {position}",
@@ -200,7 +200,7 @@ async def create_election(
 
     await elections.crud.create_election(
         db_session,
-        Election(
+        ElectionDB(
             slug=slugified_name,
             name=body.name,
             type=body.type,

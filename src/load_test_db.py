@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth.crud import create_user_session, update_site_user
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from elections.crud import create_election, update_election
-from elections.tables import Election
+from elections.tables import ElectionDB
 from nominees.crud import create_nominee_info
 from nominees.tables import NomineeInfo
 from officers.constants import OfficerPositionEnum
@@ -358,7 +358,7 @@ async def load_test_elections_data(db_session: AsyncSession):
     print("loading election data...")
     await create_election(
         db_session,
-        Election(
+        ElectionDB(
             slug="test-election-1",
             name="test election    1",
             type="general_election",
@@ -371,7 +371,7 @@ async def load_test_elections_data(db_session: AsyncSession):
     )
     await update_election(
         db_session,
-        Election(
+        ElectionDB(
             slug="test-election-1",
             name="test election    1",
             type="general_election",
@@ -384,7 +384,7 @@ async def load_test_elections_data(db_session: AsyncSession):
     )
     await create_election(
         db_session,
-        Election(
+        ElectionDB(
             slug="test-election-2",
             name="test election 2",
             type="by_election",
@@ -419,7 +419,7 @@ async def load_test_elections_data(db_session: AsyncSession):
     )
     await create_election(
         db_session,
-        Election(
+        ElectionDB(
             slug="my-cr-election-3",
             name="my cr election 3",
             type="council_rep_election",
@@ -432,7 +432,7 @@ async def load_test_elections_data(db_session: AsyncSession):
     )
     await create_election(
         db_session,
-        Election(
+        ElectionDB(
             slug="THE-SUPER-GENERAL-ELECTION-friends",
             name="THE SUPER GENERAL ELECTION & friends",
             type="general_election",

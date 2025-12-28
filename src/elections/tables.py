@@ -19,7 +19,7 @@ MAX_ELECTION_NAME = 64
 MAX_ELECTION_SLUG = 64
 
 
-class Election(Base):
+class ElectionDB(Base):
     __tablename__ = "election"
 
     # Slugs are unique identifiers

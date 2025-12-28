@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -23,9 +24,9 @@ class ElectionResponse(BaseModel):
     slug: str
     name: str
     type: ElectionTypeEnum
-    datetime_start_nominations: str
-    datetime_start_voting: str
-    datetime_end_voting: str
+    datetime_start_nominations: datetime
+    datetime_start_voting: datetime
+    datetime_end_voting: datetime
     available_positions: list[OfficerPositionEnum]
     status: ElectionStatusEnum
 
@@ -37,17 +38,17 @@ class ElectionResponse(BaseModel):
 class ElectionParams(BaseModel):
     name: str
     type: ElectionTypeEnum
-    datetime_start_nominations: str
-    datetime_start_voting: str
-    datetime_end_voting: str
+    datetime_start_nominations: datetime
+    datetime_start_voting: datetime
+    datetime_end_voting: datetime
     available_positions: list[OfficerPositionEnum] | None = None
     survey_link: str | None = None
 
 
 class ElectionUpdateParams(BaseModel):
     type: ElectionTypeEnum | None = None
-    datetime_start_nominations: str | None = None
-    datetime_start_voting: str | None = None
-    datetime_end_voting: str | None = None
+    datetime_start_nominations: datetime | None = None
+    datetime_start_voting: datetime | None = None
+    datetime_end_voting: datetime | None = None
     available_positions: list[OfficerPositionEnum] | None = None
     survey_link: str | None = None

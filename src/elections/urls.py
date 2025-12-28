@@ -182,9 +182,9 @@ async def create_election(
 
     slugified_name = slugify(body.name)
     current_time = datetime.datetime.now()
-    start_nominations = datetime.datetime.fromisoformat(body.datetime_start_nominations)
-    start_voting = datetime.datetime.fromisoformat(body.datetime_start_voting)
-    end_voting = datetime.datetime.fromisoformat(body.datetime_end_voting)
+    start_nominations = body.datetime_start_nominations
+    start_voting = body.datetime_start_voting
+    end_voting = body.datetime_end_voting
 
     # TODO: We might be able to just use a validation function from Pydantic or SQLAlchemy to check this
     _raise_if_bad_election_data(
@@ -222,7 +222,7 @@ async def create_election(
 
 
 @router.patch(
-    "/{election_name:str}",
+    "/{election_name}",
     description="""
         Updates an election in the database.
 
@@ -234,7 +234,7 @@ async def create_election(
     response_model=ElectionResponse,
     responses={
         400: {"model": DetailModel},
-        401: {"description": "Bad request", "model": DetailModel},
+        401: {"description": "Not authenticated", "model": DetailModel},
         500: {"description": "Failed to find updated election", "model": DetailModel},
     },
     operation_id="update_election",
@@ -265,15 +265,9 @@ async def update_election(
         election.available_positions,
     )
 
-    # NOTE: If you update available positions, people will still *technically* be able to update their
-    # registrations, however they will not be returned in the results.
-    await elections.crud.update_election(db_session, election)
-
     await db_session.commit()
+    await db_session.refresh(election)
 
-    election = await elections.crud.get_election(db_session, slugified_name)
-    if election is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't find updated election")
     return JSONResponse(election.private_details(datetime.datetime.now()))
 
 

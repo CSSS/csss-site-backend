@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
     DateTime,
@@ -92,17 +92,9 @@ class ElectionDB(Base):
         }
 
     def update_from_params(self, params: ElectionUpdateParams):
-        update_data = params.model_dump(
-            exclude_unset=True, exclude={"datetime_start_nominations", "datetime_start_voting", "datetime_end_voting"}
-        )
+        update_data = params.model_dump(exclude_unset=True)
         for k, v in update_data.items():
             setattr(self, k, v)
-        if params.datetime_start_nominations:
-            self.datetime_start_nominations = datetime.fromisoformat(params.datetime_start_nominations)
-        if params.datetime_start_voting:
-            self.datetime_start_voting = datetime.fromisoformat(params.datetime_start_voting)
-        if params.datetime_end_voting:
-            self.datetime_end_voting = datetime.fromisoformat(params.datetime_end_voting)
 
     def status(self, at_time: datetime) -> str:
         if at_time <= self.datetime_start_nominations:

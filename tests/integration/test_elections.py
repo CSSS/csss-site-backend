@@ -6,7 +6,6 @@ import pytest
 from httpx import AsyncClient
 
 import load_test_db
-from auth.crud import create_user_session
 from database import DBSession
 from elections.crud import (
     get_all_elections,

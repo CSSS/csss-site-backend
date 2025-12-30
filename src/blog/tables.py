@@ -6,7 +6,7 @@ from officers import tables
 
 
 # blog table
-class BlogPosts(Base):
+class BlogPostsDB(Base):
     # table name
     __tablename__ = "blog_posts"
 

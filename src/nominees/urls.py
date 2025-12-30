@@ -8,7 +8,7 @@ from nominees.models import (
     NomineeInfoModel,
     NomineeInfoUpdateParams,
 )
-from nominees.tables import NomineeInfo
+from nominees.tables import NomineeInfoDB
 from utils.shared_models import DetailModel
 
 router = APIRouter(
@@ -45,7 +45,7 @@ async def get_all_nominees(
 async def create_nominee(db_session: database.DBSession, body: NomineeInfoModel):
     await nominees.crud.create_nominee_info(
         db_session,
-        NomineeInfo(
+        NomineeInfoDB(
             computing_id=body.computing_id,
             full_name=body.full_name,
             linked_in=body.linked_in,
@@ -120,7 +120,7 @@ async def provide_nominee_info(db_session: database.DBSession, body: NomineeInfo
     # if not already existing, create it
     if not existing_info:
         # unpack dictionary and expand into NomineeInfo class
-        new_nominee_info = NomineeInfo(computing_id=computing_id, **updated_data)
+        new_nominee_info = NomineeInfoDB(computing_id=computing_id, **updated_data)
         # create a new nominee
         await nominees.crud.create_nominee_info(db_session, new_nominee_info)
     # else just update the partial data
@@ -135,7 +135,7 @@ async def provide_nominee_info(db_session: database.DBSession, body: NomineeInfo
         }
         #  update the dictionary with new data
         merged_data.update(updated_data)
-        updated_nominee_info = NomineeInfo(**merged_data)
+        updated_nominee_info = NomineeInfoDB(**merged_data)
         await nominees.crud.update_nominee_info(db_session, updated_nominee_info)
 
     await db_session.commit()

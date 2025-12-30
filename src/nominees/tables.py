@@ -10,7 +10,7 @@ from constants import (
 from database import Base
 
 
-class NomineeInfo(Base):
+class NomineeInfoDB(Base):
     __tablename__ = "election_nominee_info"
 
     computing_id: Mapped[str] = mapped_column(String(COMPUTING_ID_LEN), primary_key=True)

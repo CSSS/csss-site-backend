@@ -7,7 +7,7 @@ from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
 from database import Base
 
 
-class UserSession(Base):
+class UserSessionDB(Base):
     __tablename__ = "user_session"
 
     computing_id: Mapped[str] = mapped_column(

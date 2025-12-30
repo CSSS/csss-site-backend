@@ -15,7 +15,7 @@ from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from elections.crud import create_election, update_election
 from elections.tables import ElectionDB
 from nominees.crud import create_nominee_info
-from nominees.tables import NomineeInfo
+from nominees.tables import NomineeInfoDB
 from officers.constants import OfficerPositionEnum
 from officers.crud import (
     create_new_officer_info,
@@ -397,7 +397,7 @@ async def load_test_elections_data(db_session: AsyncSession):
     )
     await create_nominee_info(
         db_session,
-        NomineeInfo(
+        NomineeInfoDB(
             computing_id="jdo12",
             full_name="John Doe",
             linked_in="linkedin.com/john-doe",
@@ -408,7 +408,7 @@ async def load_test_elections_data(db_session: AsyncSession):
     )
     await create_nominee_info(
         db_session,
-        NomineeInfo(
+        NomineeInfoDB(
             computing_id="pkn4",
             full_name="Puneet North",
             linked_in="linkedin.com/john-doe3",

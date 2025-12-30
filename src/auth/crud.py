@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.tables import SiteUserDB, UserSession
+from auth.tables import SiteUserDB, UserSessionDB
 
 _logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
     Also, adds the new user to the SiteUser table if it's their first time logging in.
     """
     existing_user_session = await db_session.scalar(
-        sqlalchemy.select(UserSession).where(UserSession.computing_id == computing_id)
+        sqlalchemy.select(UserSessionDB).where(UserSessionDB.computing_id == computing_id)
     )
     existing_user = await db_session.scalar(
         sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == computing_id)
@@ -40,7 +40,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
             existing_user.last_logged_in = datetime.now(UTC)
     else:
         db_session.add(
-            UserSession(
+            UserSessionDB(
                 session_id=session_id,
                 computing_id=computing_id,
                 issue_time=datetime.now(UTC),
@@ -49,13 +49,13 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 
 
 async def remove_user_session(db_session: AsyncSession, session_id: str):
-    query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
+    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     user_session = await db_session.scalars(query)
     await db_session.delete(user_session.first())
 
 
 async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
-    query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
+    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     existing_user_session = (await db_session.scalars(query)).first()
     return existing_user_session.computing_id if existing_user_session else None
 
@@ -64,14 +64,14 @@ async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | N
 async def task_clean_expired_user_sessions(db_session: AsyncSession):
     one_day_ago = datetime.now(UTC) - timedelta(days=0.5)
 
-    query = sqlalchemy.delete(UserSession).where(UserSession.issue_time < one_day_ago)
+    query = sqlalchemy.delete(UserSessionDB).where(UserSessionDB.issue_time < one_day_ago)
     await db_session.execute(query)
     await db_session.commit()
 
 
 # get the site user given a session ID; returns None when session is invalid
 async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB | None:
-    query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
+    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     user_session = await db_session.scalar(query)
     if user_session is None:
         return None
@@ -87,7 +87,7 @@ async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:
 
 # update the optional user info for a given site user (e.g., display name, profile picture, ...)
 async def update_site_user(db_session: AsyncSession, session_id: str, profile_picture_url: str) -> bool:
-    query = sqlalchemy.select(UserSession).where(UserSession.session_id == session_id)
+    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     user_session = await db_session.scalar(query)
     if user_session is None:
         return False

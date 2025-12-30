@@ -9,13 +9,12 @@ import sqlalchemy
 
 sys.path.append(str(Path(__file__).parent.parent.resolve()))
 
-from officers.types import OfficerInfoDB, OfficerTermDB
-
 from auth.crud import site_user_exists
 from auth.tables import SiteUserDB
 from data import semesters
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
+from officers.types import OfficerInfoDB, OfficerTermDB
 
 # This loads officer data from the https://github.com/CSSS/csss-site database into the provided database
 

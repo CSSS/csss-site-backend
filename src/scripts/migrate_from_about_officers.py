@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import asyncpg
@@ -9,12 +9,13 @@ import sqlalchemy
 
 sys.path.append(str(Path(__file__).parent.parent.resolve()))
 
+from officers.types import OfficerInfoDB, OfficerTermDB
+
 from auth.crud import site_user_exists
 from auth.tables import SiteUserDB
 from data import semesters
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.types import OfficerInfoDB, OfficerTermDB
 
 # This loads officer data from the https://github.com/CSSS/csss-site database into the provided database
 
@@ -148,8 +149,8 @@ async def main():
                 db_session.add(
                     SiteUserDB(
                         computing_id=officer["sfu_computing_id"],
-                        first_logged_in=datetime.now(),
-                        last_logged_in=datetime.now(),
+                        first_logged_in=datetime.now(UTC),
+                        last_logged_in=datetime.now(UTC),
                     )
                 )
 

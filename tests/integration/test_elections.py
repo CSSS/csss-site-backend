@@ -197,9 +197,9 @@ async def test__admin_create_election(admin_client: AsyncClient):
         json={
             "name": "testElection4",
             "type": "general_election",
-            "datetime_start_nominations": (datetime.datetime.now() - timedelta(days=1)).isoformat(),
-            "datetime_start_voting": (datetime.datetime.now() + timedelta(days=7)).isoformat(),
-            "datetime_end_voting": (datetime.datetime.now() + timedelta(days=14)).isoformat(),
+            "datetime_start_nominations": (datetime.datetime.now(datetime.UTC) - timedelta(days=1)).isoformat(),
+            "datetime_start_voting": (datetime.datetime.now(datetime.UTC) + timedelta(days=7)).isoformat(),
+            "datetime_end_voting": (datetime.datetime.now(datetime.UTC) + timedelta(days=14)).isoformat(),
             "available_positions": ["president", "treasurer"],
             "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5",
         },
@@ -211,9 +211,9 @@ async def test__admin_create_election(admin_client: AsyncClient):
         json={
             "name": "byElection4",
             "type": "by_election",
-            "datetime_start_nominations": (datetime.datetime.now() - timedelta(days=1)).isoformat(),
-            "datetime_start_voting": (datetime.datetime.now() + timedelta(days=7)).isoformat(),
-            "datetime_end_voting": (datetime.datetime.now() + timedelta(days=14)).isoformat(),
+            "datetime_start_nominations": (datetime.datetime.now(datetime.UTC) - timedelta(days=1)).isoformat(),
+            "datetime_start_voting": (datetime.datetime.now(datetime.UTC) + timedelta(days=7)).isoformat(),
+            "datetime_end_voting": (datetime.datetime.now(datetime.UTC) + timedelta(days=14)).isoformat(),
             "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5",
         },
     )
@@ -294,9 +294,9 @@ async def test__admin_update_election(admin_client: AsyncClient):
         "/election/testElection4",
         json={
             "election_type": "general_election",
-            "datetime_start_nominations": (datetime.datetime.now() - timedelta(days=1)).isoformat(),
-            "datetime_start_voting": (datetime.datetime.now() + timedelta(days=7)).isoformat(),
-            "datetime_end_voting": (datetime.datetime.now() + timedelta(days=14)).isoformat(),
+            "datetime_start_nominations": (datetime.datetime.now(datetime.UTC) - timedelta(days=1)).isoformat(),
+            "datetime_start_voting": (datetime.datetime.now(datetime.UTC) + timedelta(days=7)).isoformat(),
+            "datetime_end_voting": (datetime.datetime.now(datetime.UTC) + timedelta(days=14)).isoformat(),
             "available_positions": ["president", "vice-president", "treasurer"],  # update this
             "survey_link": "https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5",
         },

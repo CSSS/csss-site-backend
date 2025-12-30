@@ -86,7 +86,7 @@ async def list_elections(
     if election_list is None or len(election_list) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
 
-    current_time = datetime.datetime.now()
+    current_time = datetime.datetime.now(datetime.UTC)
     if await is_user_election_admin(computing_id, db_session):
         election_metadata_list = [election.private_details(current_time) for election in election_list]
     else:
@@ -107,7 +107,7 @@ async def list_elections(
     operation_id="get_election_by_name",
 )
 async def get_election(db_session: database.DBSession, computing_id: SessionUser, election_name: str):
-    current_time = datetime.datetime.now()
+    current_time = datetime.datetime.now(datetime.UTC)
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
@@ -181,7 +181,7 @@ async def create_election(
         available_positions = body.available_positions
 
     slugified_name = slugify(body.name)
-    current_time = datetime.datetime.now()
+    current_time = datetime.datetime.now(datetime.UTC)
     start_nominations = body.datetime_start_nominations
     start_voting = body.datetime_start_voting
     end_voting = body.datetime_end_voting
@@ -268,7 +268,7 @@ async def update_election(
     await db_session.commit()
     await db_session.refresh(election)
 
-    return JSONResponse(election.private_details(datetime.datetime.now()))
+    return JSONResponse(election.private_details(datetime.datetime.now(datetime.UTC)))
 
 
 @router.delete(

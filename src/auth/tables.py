@@ -19,7 +19,7 @@ class UserSession(Base):
 
     # TODO: Make all timestamps uneditable later
     # time the CAS ticket was issued
-    issue_time: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    issue_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     session_id: Mapped[str] = mapped_column(
         String(SESSION_ID_LEN), nullable=False, unique=True
@@ -37,8 +37,8 @@ class SiteUserDB(Base):
     )
 
     # first and last time logged into the CSSS API
-    first_logged_in: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    last_logged_in: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    first_logged_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_logged_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # optional user information for display purposes
     profile_picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)

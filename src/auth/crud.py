@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,21 +29,21 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 
         # add new user to User table if it's their first time logging in
         db_session.add(
-            SiteUserDB(computing_id=computing_id, first_logged_in=datetime.now(), last_logged_in=datetime.now())
+            SiteUserDB(computing_id=computing_id, first_logged_in=datetime.now(UTC), last_logged_in=datetime.now(UTC))
         )
 
     if existing_user_session is not None:
-        existing_user_session.issue_time = datetime.now()
+        existing_user_session.issue_time = datetime.now(UTC)
         existing_user_session.session_id = session_id
         if existing_user is not None:
             # update the last time the user logged in to now
-            existing_user.last_logged_in = datetime.now()
+            existing_user.last_logged_in = datetime.now(UTC)
     else:
         db_session.add(
             UserSession(
                 session_id=session_id,
                 computing_id=computing_id,
-                issue_time=datetime.now(),
+                issue_time=datetime.now(UTC),
             )
         )
 
@@ -62,7 +62,7 @@ async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | N
 
 # remove all out of date user sessions
 async def task_clean_expired_user_sessions(db_session: AsyncSession):
-    one_day_ago = datetime.now() - timedelta(days=0.5)
+    one_day_ago = datetime.now(UTC) - timedelta(days=0.5)
 
     query = sqlalchemy.delete(UserSession).where(UserSession.issue_time < one_day_ago)
     await db_session.execute(query)

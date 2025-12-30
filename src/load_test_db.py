@@ -3,7 +3,7 @@
 # python load_test_db.py
 
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -362,9 +362,9 @@ async def load_test_elections_data(db_session: AsyncSession):
             slug="test-election-1",
             name="test election    1",
             type="general_election",
-            datetime_start_nominations=datetime.now() - timedelta(days=400),
-            datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
-            datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
+            datetime_start_nominations=datetime.now(UTC) - timedelta(days=400),
+            datetime_start_voting=datetime.now(UTC) - timedelta(days=395, hours=4),
+            datetime_end_voting=datetime.now(UTC) - timedelta(days=390, hours=8),
             available_positions=["president", "vice-president"],
             survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5",
         ),
@@ -375,9 +375,9 @@ async def load_test_elections_data(db_session: AsyncSession):
             slug="test-election-1",
             name="test election    1",
             type="general_election",
-            datetime_start_nominations=datetime.now() - timedelta(days=400),
-            datetime_start_voting=datetime.now() - timedelta(days=395, hours=4),
-            datetime_end_voting=datetime.now() - timedelta(days=390, hours=8),
+            datetime_start_nominations=datetime.now(UTC) - timedelta(days=400),
+            datetime_start_voting=datetime.now(UTC) - timedelta(days=395, hours=4),
+            datetime_end_voting=datetime.now(UTC) - timedelta(days=390, hours=8),
             available_positions=["president", "vice-president", "treasurer"],
             survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5",
         ),
@@ -388,9 +388,9 @@ async def load_test_elections_data(db_session: AsyncSession):
             slug="test-election-2",
             name="test election 2",
             type="by_election",
-            datetime_start_nominations=datetime.now() - timedelta(days=1),
-            datetime_start_voting=datetime.now() + timedelta(days=7),
-            datetime_end_voting=datetime.now() + timedelta(days=14),
+            datetime_start_nominations=datetime.now(UTC) - timedelta(days=1),
+            datetime_start_voting=datetime.now(UTC) + timedelta(days=7),
+            datetime_end_voting=datetime.now(UTC) + timedelta(days=14),
             available_positions=["president", "vice-president", "treasurer"],
             survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5 (oh yeah)",
         ),
@@ -423,9 +423,9 @@ async def load_test_elections_data(db_session: AsyncSession):
             slug="my-cr-election-3",
             name="my cr election 3",
             type="council_rep_election",
-            datetime_start_nominations=datetime.now() - timedelta(days=5),
-            datetime_start_voting=datetime.now() - timedelta(days=1, hours=4),
-            datetime_end_voting=datetime.now() + timedelta(days=5, hours=8),
+            datetime_start_nominations=datetime.now(UTC) - timedelta(days=5),
+            datetime_start_voting=datetime.now(UTC) - timedelta(days=1, hours=4),
+            datetime_end_voting=datetime.now(UTC) + timedelta(days=5, hours=8),
             available_positions=["president", "vice-president", "treasurer"],
             survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5",
         ),
@@ -436,9 +436,9 @@ async def load_test_elections_data(db_session: AsyncSession):
             slug="THE-SUPER-GENERAL-ELECTION-friends",
             name="THE SUPER GENERAL ELECTION & friends",
             type="general_election",
-            datetime_start_nominations=datetime.now() + timedelta(days=5),
-            datetime_start_voting=datetime.now() + timedelta(days=10, hours=4),
-            datetime_end_voting=datetime.now() + timedelta(days=15, hours=8),
+            datetime_start_nominations=datetime.now(UTC) + timedelta(days=5),
+            datetime_start_voting=datetime.now(UTC) + timedelta(days=10, hours=4),
+            datetime_end_voting=datetime.now(UTC) + timedelta(days=15, hours=8),
             available_positions=["president", "vice-president", "treasurer"],
             survey_link=None,
         ),

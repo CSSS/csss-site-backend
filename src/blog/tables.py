@@ -22,8 +22,8 @@ class BlogPosts(Base):
     )
 
     # dates of creation and last edit
-    date_created = Column(DateTime, nullable=False)
-    last_edited = Column(DateTime, nullable=False)
+    date_created = Column(DateTime(timezone=True), nullable=False)
+    last_edited = Column(DateTime(timezone=True), nullable=False)
 
     # storing the html content
     html_content = Column(Text, nullable=False)

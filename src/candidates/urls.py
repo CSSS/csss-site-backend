@@ -57,8 +57,8 @@ async def get_election_candidates(db_session: database.DBSession, election_name:
             status_code=status.HTTP_404_NOT_FOUND, detail=f"election with slug {slugified_name} does not exist"
         )
 
-    registration_list = await candidates.crud.get_all_candidates_in_election(db_session, slugified_name)
-    return [item.serialize() for item in registration_list]
+    candidate_list = await candidates.crud.get_all_candidates_in_election(db_session, slugified_name)
+    return [item.serialize() for item in candidate_list]
 
 
 @router.post(
@@ -138,7 +138,7 @@ async def register_candidate(db_session: database.DBSession, body: CandidateCrea
         403: {"description": "Not an admin", "model": DetailModel},
         404: {"description": "No election found", "model": DetailModel},
     },
-    operation_id="update_registration",
+    operation_id="update_candidate",
     dependencies=[Depends(perm_election)],
 )
 async def update_candidate(
@@ -164,19 +164,17 @@ async def update_candidate(
             status_code=status.HTTP_400_BAD_REQUEST, detail="speeches can only be updated during the nomination period"
         )
 
-    registration = await candidates.crud.get_one_candidate_in_election(
-        db_session, computing_id, slugified_name, position
-    )
-    if not registration:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no registration record found")
+    candidate = await candidates.crud.get_one_candidate_in_election(db_session, computing_id, slugified_name, position)
+    if not candidate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no candidate record found")
 
-    registration.update_from_params(body)
+    candidate.update_from_params(body)
 
-    await candidates.crud.update_candidate(db_session, registration)
+    await candidates.crud.update_candidate(db_session, candidate)
 
     await db_session.commit()
-    await db_session.refresh(registration)
-    return registration
+    await db_session.refresh(candidate)
+    return candidate
 
 
 @router.delete(
@@ -189,10 +187,10 @@ async def update_candidate(
         403: {"description": "Not an admin", "model": DetailModel},
         404: {"description": "No election or registrant found", "model": DetailModel},
     },
-    operation_id="delete_registration",
+    operation_id="delete_candidate",
     dependencies=[Depends(perm_election)],
 )
-async def delete_registration(
+async def delete_candidate(
     db_session: database.DBSession,
     election_name: str,
     position: OfficerPositionEnum,
@@ -208,7 +206,7 @@ async def delete_registration(
     if election.status(datetime.datetime.now(datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="registration can only be revoked during the nomination period",
+            detail="candidate can only be revoked during the nomination period",
         )
 
     if not await candidates.crud.get_one_candidate_in_election(db_session, computing_id, slugified_name, position):

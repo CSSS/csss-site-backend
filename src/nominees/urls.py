@@ -6,6 +6,7 @@ import nominees.crud
 from dependencies import perm_election
 from nominees.models import (
     Nominee,
+    NomineeCreate,
     NomineeUpdate,
 )
 from nominees.tables import NomineeInfoDB
@@ -42,17 +43,10 @@ async def get_all_nominees(
     operation_id="create_nominee",
     dependencies=[Depends(perm_election)],
 )
-async def create_nominee(db_session: database.DBSession, body: Nominee):
+async def create_nominee(db_session: database.DBSession, body: NomineeCreate):
     await nominees.crud.create_nominee_info(
         db_session,
-        NomineeInfoDB(
-            computing_id=body.computing_id,
-            full_name=body.full_name,
-            linked_in=body.linked_in,
-            instagram=body.instagram,
-            email=body.email,
-            discord_username=body.discord_username,
-        ),
+        NomineeInfoDB(**body.model_dump()),
     )
 
     nominee_info = await nominees.crud.get_nominee_info(db_session, body.computing_id)

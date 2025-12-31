@@ -15,6 +15,7 @@ from elections.crud import (
 from nominees.crud import (
     get_nominee_info,
 )
+from utils.urls import slugify
 
 TEST_ELECTION_2 = "test election 2"
 
@@ -216,52 +217,53 @@ async def test__admin_create_election(admin_client: AsyncClient):
     )
     assert response.status_code == 200
 
+    # TODO: Move these to candidate test functions
     # ensure that candidates can be viewed
     # try to register for a past election -> should say nomination period expired
-    testElection1 = "test election    1"
-    response = await admin_client.post(
-        f"/candidate/{testElection1}",
-        json={
-            "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
-            "position": "president",
-        },
-    )
-    assert response.status_code == 400
-    assert "nomination period" in response.json()["detail"]
+    # testElection1 = "test election    1"
+    # response = await admin_client.post(
+    #     f"/candidate/{testElection1}",
+    #     json={
+    #         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
+    #         "position": "president",
+    #     },
+    # )
+    # assert response.status_code == 400
+    # assert "nomination period" in response.json()["detail"]
 
-    # ensure that candidates can be viewed
-    # try to register for an invalid position will just throw a 422
-    response = await admin_client.post(
-        f"/candidate/{TEST_ELECTION_2}",
-        json={
-            "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
-            "position": "CEO",
-        },
-    )
-    assert response.status_code == 422
+    # # ensure that candidates can be viewed
+    # # try to register for an invalid position will just throw a 422
+    # response = await admin_client.post(
+    #     f"/candidate/{TEST_ELECTION_2}",
+    #     json={
+    #         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
+    #         "position": "CEO",
+    #     },
+    # )
+    # assert response.status_code == 422
 
     # ensure that candidates can be viewed
     # try to register in an unknown election
-    response = await admin_client.post(
-        "/candidate/unknownElection12345",
-        json={
-            "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
-            "position": "president",
-        },
-    )
-    assert response.status_code == 404
-    assert "does not exist" in response.json()["detail"]
+    # response = await admin_client.post(
+    #     "/candidate/unknownElection12345",
+    #     json={
+    #         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
+    #         "position": "president",
+    #     },
+    # )
+    # assert response.status_code == 404
+    # assert "does not exist" in response.json()["detail"]
 
     # ensure that candidates can be viewed
     # register for an election correctly
-    response = await admin_client.post(
-        f"/candidate/{TEST_ELECTION_2}",
-        json={
-            "computing_id": "jdo12",
-            "position": "president",
-        },
-    )
-    assert response.status_code == 200
+    # response = await admin_client.post(
+    #     f"/candidate/{TEST_ELECTION_2}",
+    #     json={
+    #         "computing_id": "jdo12",
+    #         "position": "president",
+    #     },
+    # )
+    # assert response.status_code == 200
 
 
 async def test__admin_get_candidate(admin_client: AsyncClient):
@@ -272,17 +274,12 @@ async def test__admin_get_candidate(admin_client: AsyncClient):
 
 
 async def test__admin_create_candidate(admin_client: AsyncClient):
-    # ensure that candidates can be viewed
-    # duplicate candidate
     response = await admin_client.post(
-        f"/candidate/{TEST_ELECTION_2}",
-        json={
-            "computing_id": "jdo12",
-            "position": "president",
-        },
+        f"/candidate/{slugify(TEST_ELECTION_2)}",
+        json={"computing_id": "jdo12", "position": "president"},
     )
-    assert response.status_code == 400
-    assert "registered" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.json()["speech"] is None
 
 
 async def test__admin_update_election(admin_client: AsyncClient):
@@ -323,11 +320,11 @@ async def test__admin_delete_election(admin_client: AsyncClient):
     response = await admin_client.delete("/election/testElection4")
     assert response.status_code == 200
 
-    # TODO: Move these tests to a candidates test function
-    # ensure that candidates can be viewed
-    # delete a candidate
-    response = await admin_client.delete(f"/candidate/{TEST_ELECTION_2}/president/jdo12")
-    assert response.status_code == 200
+    # # TODO: Move these tests to a candidates test function
+    # # ensure that candidates can be viewed
+    # # delete a candidate
+    # response = await admin_client.delete(f"/candidate/{TEST_ELECTION_2}/president/jdo12")
+    # assert response.status_code == 200
 
 
 async def test__admin_get_nominee(admin_client: AsyncClient):

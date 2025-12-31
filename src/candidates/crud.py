@@ -14,7 +14,18 @@ async def get_all_candidates(db_session: AsyncSession) -> Sequence[CandidateDB]:
 
 async def get_all_registrations_of_candidate(
     db_session: AsyncSession, computing_id: str, election_slug: str
-) -> Sequence[CandidateDB] | None:
+) -> dict[OfficerPositionEnum, CandidateDB]:
+    """
+    Get all the registrations of a candidate in one election.
+
+    Args:
+        db_session: Database session
+        computing_id: Candidate's computing ID
+        election_slug: Election to search through
+
+    Returns:
+        All registrations of the candidate in the election.
+    """
     candidates = (
         await db_session.scalars(
             sqlalchemy.select(CandidateDB).where(
@@ -22,7 +33,7 @@ async def get_all_registrations_of_candidate(
             )
         )
     ).all()
-    return candidates
+    return {c.position: c for c in candidates}
 
 
 async def get_one_candidate_in_election(

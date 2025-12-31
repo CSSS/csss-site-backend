@@ -15,6 +15,7 @@ class Candidate(BaseModel):
 class CandidateCreate(BaseModel):
     computing_id: str
     position: OfficerPositionEnum
+    speech: str | None = None
 
 
 class CandidateUpdate(BaseModel):

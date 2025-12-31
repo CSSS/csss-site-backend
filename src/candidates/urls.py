@@ -62,7 +62,7 @@ async def get_election_candidates(db_session: database.DBSession, election_name:
 
 
 @router.post(
-    "/{election_name}",
+    "/{election_slug}",
     description="Register for a specific position in this election, but doesn't set a speech. Returns the created entry.",
     response_model=Candidate,
     responses={
@@ -74,7 +74,7 @@ async def get_election_candidates(db_session: database.DBSession, election_name:
     operation_id="register",
     dependencies=[Depends(perm_election)],
 )
-async def register_candidate(db_session: database.DBSession, body: CandidateCreate, election_name: str):
+async def register_candidate(db_session: database.DBSession, body: CandidateCreate, election_slug: str):
     if body.position not in [o.value for o in OfficerPositionEnum]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
 
@@ -84,7 +84,7 @@ async def register_candidate(db_session: database.DBSession, body: CandidateCrea
             status_code=status.HTTP_400_BAD_REQUEST, detail="must have submitted nominee info before registering"
         )
 
-    slugified_name = slugify(election_name)
+    slugified_name = slugify(election_slug)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
         raise HTTPException(
@@ -96,7 +96,7 @@ async def register_candidate(db_session: database.DBSession, body: CandidateCrea
         # not updating or deleting one
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{body.position} is not available to register for in this election",
+            detail=f"{body.position} is not available in this election",
         )
 
     if election.status(datetime.datetime.now(datetime.UTC)) != ElectionStatusEnum.NOMINATIONS:
@@ -105,27 +105,23 @@ async def register_candidate(db_session: database.DBSession, body: CandidateCrea
             detail="registrations can only be made during the nomination period",
         )
 
-    if await candidates.crud.get_all_registrations_of_candidate(db_session, body.computing_id, slugified_name):
+    if await candidates.crud.get_one_candidate_in_election(
+        db_session, body.computing_id, slugified_name, body.position
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="person is already registered in this election"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="person is already registered for that position"
         )
 
     # TODO: associate specific election officers with specific election, then don't
     # allow any election officer running an election to register for it
-    await candidates.crud.add_candidate(
-        db_session,
-        CandidateDB(
-            computing_id=body.computing_id, nominee_election=slugified_name, position=body.position, speech=None
-        ),
+    candidate = CandidateDB(
+        computing_id=body.computing_id, nominee_election=slugified_name, position=body.position, speech=body.speech
     )
+    await candidates.crud.add_candidate(db_session, candidate)
+    new_candidate = Candidate.model_validate(candidate)
     await db_session.commit()
 
-    registrant = await candidates.crud.get_one_candidate_in_election(
-        db_session, body.computing_id, slugified_name, body.position
-    )
-    if not registrant:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="failed to find new registrant")
-    return registrant
+    return JSONResponse(new_candidate.model_dump(mode="json"))
 
 
 @router.patch(
@@ -148,9 +144,6 @@ async def update_candidate(
     computing_id: str,
     position: OfficerPositionEnum,
 ):
-    if body.position and body.position not in [o.value for o in OfficerPositionEnum]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
-
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
     if election is None:
@@ -164,17 +157,25 @@ async def update_candidate(
             status_code=status.HTTP_400_BAD_REQUEST, detail="speeches can only be updated during the nomination period"
         )
 
-    candidate = await candidates.crud.get_one_candidate_in_election(db_session, computing_id, slugified_name, position)
-    if not candidate:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no candidate record found")
+    registrations = await candidates.crud.get_all_registrations_of_candidate(db_session, computing_id, slugified_name)
+    registration = registrations.get(position)
+    if not registration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="candidate not registered in this election for that position"
+        )
 
-    candidate.update_from_params(body)
+    # candidates cannot have multiple registrations for the same position in the same election
+    if body.position and body.position != position and registrations.get(body.position):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="candidate is already registered for that position",
+        )
 
-    await candidates.crud.update_candidate(db_session, candidate)
+    registration.update_from_params(body)
 
     await db_session.commit()
-    await db_session.refresh(candidate)
-    return candidate
+    await db_session.refresh(registration)
+    return registration
 
 
 @router.delete(

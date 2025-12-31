@@ -5,8 +5,8 @@ import database
 import nominees.crud
 from dependencies import perm_election
 from nominees.models import (
-    NomineeInfoModel,
-    NomineeInfoUpdateParams,
+    Nominee,
+    NomineeUpdate,
 )
 from nominees.tables import NomineeInfoDB
 from utils.shared_models import DetailModel
@@ -20,7 +20,7 @@ router = APIRouter(
 @router.get(
     "",
     description="Get all nominees",
-    response_model=list[NomineeInfoModel],
+    response_model=list[Nominee],
     responses={403: {"description": "need to be an admin", "model": DetailModel}},
     operation_id="get_all_nominees",
     dependencies=[Depends(perm_election)],
@@ -37,12 +37,12 @@ async def get_all_nominees(
 @router.post(
     "",
     description="Nominee info is always publically tied to election, so be careful!",
-    response_model=NomineeInfoModel,
+    response_model=Nominee,
     responses={500: {"description": "failed to fetch new nominee", "model": DetailModel}},
     operation_id="create_nominee",
     dependencies=[Depends(perm_election)],
 )
-async def create_nominee(db_session: database.DBSession, body: NomineeInfoModel):
+async def create_nominee(db_session: database.DBSession, body: Nominee):
     await nominees.crud.create_nominee_info(
         db_session,
         NomineeInfoDB(
@@ -65,9 +65,9 @@ async def create_nominee(db_session: database.DBSession, body: NomineeInfoModel)
 
 
 @router.get(
-    "/{computing_id:str}",
+    "/{computing_id}",
     description="Nominee info is always publically tied to election, so be careful!",
-    response_model=NomineeInfoModel,
+    response_model=Nominee,
     responses={404: {"description": "nominee doesn't exist"}},
     operation_id="get_nominee",
     dependencies=[Depends(perm_election)],
@@ -82,7 +82,7 @@ async def get_nominee_info(db_session: database.DBSession, computing_id: str):
 
 
 @router.delete(
-    "/{computing_id:str}",
+    "/{computing_id}",
     description="Delete a nominee",
     operation_id="delete_nominee",
     dependencies=[Depends(perm_election)],
@@ -93,54 +93,22 @@ async def delete_nominee_info(db_session: database.DBSession, computing_id: str)
 
 
 @router.patch(
-    "/{computing_id:str}",
-    description="Will create or update nominee info. Returns an updated copy of their nominee info.",
-    response_model=NomineeInfoModel,
-    responses={500: {"description": "Failed to retrieve updated nominee."}},
+    "/{computing_id}",
+    description="Updates an exisint nominee. Returns an updated copy of their nominee info.",
+    response_model=Nominee,
+    responses={
+        404: {"description": "Nominee doesn't exist."},
+        500: {"description": "Failed to retrieve updated nominee."},
+    },
     operation_id="update_nominee",
     dependencies=[Depends(perm_election)],
 )
-async def provide_nominee_info(db_session: database.DBSession, body: NomineeInfoUpdateParams, computing_id: str):
-    # TODO: There needs to be a lot more validation here.
-    updated_data = {}
-    # Only update fields that were provided
-    if body.full_name is not None:
-        updated_data["full_name"] = body.full_name
-    if body.linked_in is not None:
-        updated_data["linked_in"] = body.linked_in
-    if body.instagram is not None:
-        updated_data["instagram"] = body.instagram
-    if body.email is not None:
-        updated_data["email"] = body.email
-    if body.discord_username is not None:
-        updated_data["discord_username"] = body.discord_username
-
-    # TODO: Look into using something built into SQLAlchemy/Pydantic for better entry updates
-    existing_info = await nominees.crud.get_nominee_info(db_session, computing_id)
-    # if not already existing, create it
-    if not existing_info:
-        # unpack dictionary and expand into NomineeInfo class
-        new_nominee_info = NomineeInfoDB(computing_id=computing_id, **updated_data)
-        # create a new nominee
-        await nominees.crud.create_nominee_info(db_session, new_nominee_info)
-    # else just update the partial data
-    else:
-        merged_data = {
-            "computing_id": computing_id,
-            "full_name": existing_info.full_name,
-            "linked_in": existing_info.linked_in,
-            "instagram": existing_info.instagram,
-            "email": existing_info.email,
-            "discord_username": existing_info.discord_username,
-        }
-        #  update the dictionary with new data
-        merged_data.update(updated_data)
-        updated_nominee_info = NomineeInfoDB(**merged_data)
-        await nominees.crud.update_nominee_info(db_session, updated_nominee_info)
-
+async def provide_nominee_info(db_session: database.DBSession, body: NomineeUpdate, computing_id: str):
+    nominee_entry = await nominees.crud.get_nominee_info(db_session, computing_id)
+    updated_data = body.model_dump(exclude_unset=True)
+    for k, v in updated_data.items():
+        setattr(nominee_entry, k, v)
     await db_session.commit()
+    await db_session.refresh(nominee_entry)
 
-    nominee_info = await nominees.crud.get_nominee_info(db_session, computing_id)
-    if not nominee_info:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="failed to get updated nominee")
-    return JSONResponse(nominee_info.serialize())
+    return JSONResponse(Nominee.model_validate(nominee_entry).model_dump(mode="json", exclude_unset=True))

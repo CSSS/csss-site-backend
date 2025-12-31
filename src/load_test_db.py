@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # NOTE: make sure you import from a file in your module which (at least) indirectly contains those
 # tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session, update_site_user
+from candidates.crud import add_candidate
+from candidates.tables import CandidateDB
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from elections.crud import create_election, update_election
 from elections.tables import ElectionDB
@@ -24,8 +26,6 @@ from officers.crud import (
     update_officer_term,
 )
 from officers.tables import OfficerInfoDB, OfficerTermDB
-from registrations.crud import add_registration
-from registrations.tables import NomineeApplicationDB
 
 
 async def reset_db(engine):
@@ -447,9 +447,9 @@ async def load_test_elections_data(db_session: AsyncSession):
 
 
 async def load_test_election_nominee_application_data(db_session: AsyncSession):
-    await add_registration(
+    await add_candidate(
         db_session,
-        NomineeApplicationDB(
+        CandidateDB(
             computing_id=SYSADMIN_COMPUTING_ID,
             nominee_election="test-election-2",
             position="vice-president",

@@ -3,8 +3,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from candidates.models import Candidate
 from officers.constants import OfficerPositionEnum
-from registrations.models import RegistrationModel
 
 
 class ElectionTypeEnum(StrEnum):
@@ -32,7 +32,7 @@ class ElectionResponse(BaseModel):
 
     # Private fields
     survey_link: str | None = Field(None, description="Only available to admins")
-    candidates: list[RegistrationModel] | None = Field(None, description="Only available to admins")
+    candidates: list[Candidate] | None = Field(None, description="Only available to admins")
 
 
 class ElectionParams(BaseModel):

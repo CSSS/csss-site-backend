@@ -1,12 +1,12 @@
 from sqlalchemy import ForeignKey, PrimaryKeyConstraint, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
+from candidates.models import CandidateUpdate
 from database import Base
 from officers.constants import OfficerPositionEnum
-from registrations.models import NomineeApplicationUpdate
 
 
-class NomineeApplicationDB(Base):
+class CandidateDB(Base):
     __tablename__ = "election_nominee_application"
 
     computing_id: Mapped[str] = mapped_column(ForeignKey("election_nominee_info.computing_id"), primary_key=True)
@@ -25,7 +25,7 @@ class NomineeApplicationDB(Base):
             "speech": self.speech,
         }
 
-    def update_from_params(self, params: NomineeApplicationUpdate):
+    def update_from_params(self, params: CandidateUpdate):
         update_data = params.model_dump(exclude_unset=True)
         for k, v in update_data.items():
             setattr(self, k, v)

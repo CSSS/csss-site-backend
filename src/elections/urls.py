@@ -3,11 +3,11 @@ import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
+import candidates.crud
 import database
 import elections.crud
 import elections.tables
 import nominees.crud
-import registrations.crud
 from dependencies import SessionUser, perm_election
 from elections.models import (
     ElectionParams,
@@ -118,9 +118,9 @@ async def get_election(db_session: database.DBSession, computing_id: SessionUser
     has_permission = await is_user_election_admin(computing_id, db_session)
     if current_time >= election.datetime_start_voting or has_permission:
         election_json = election.private_details(current_time)
-        all_nominations = await registrations.crud.get_all_registrations_in_election(db_session, slugified_name)
+        all_nominations = await candidates.crud.get_all_candidates_in_election(db_session, slugified_name)
         if not all_nominations:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no registrations found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no candidates found")
         election_json["candidates"] = []
 
         available_positions_list = election.available_positions

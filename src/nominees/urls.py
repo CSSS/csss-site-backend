@@ -10,7 +10,7 @@ from nominees.models import (
     NomineeUpdate,
 )
 from nominees.tables import NomineeInfoDB
-from utils.shared_models import DetailModel
+from utils.shared_models import DetailModel, SuccessResponse
 
 router = APIRouter(
     prefix="/nominee",
@@ -44,18 +44,16 @@ async def get_all_nominees(
     dependencies=[Depends(perm_election)],
 )
 async def create_nominee(db_session: database.DBSession, body: NomineeCreate):
+    new_nominee = NomineeInfoDB(**body.model_dump())
     await nominees.crud.create_nominee_info(
         db_session,
-        NomineeInfoDB(**body.model_dump()),
+        new_nominee,
     )
 
-    nominee_info = await nominees.crud.get_nominee_info(db_session, body.computing_id)
-    if nominee_info is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="couldn't fetch newly created nominee"
-        )
+    await db_session.commit()
+    await db_session.refresh(new_nominee)
 
-    return JSONResponse(nominee_info)
+    return JSONResponse(Nominee.model_validate(new_nominee).model_dump(mode="json"))
 
 
 @router.get(
@@ -78,12 +76,15 @@ async def get_nominee_info(db_session: database.DBSession, computing_id: str):
 @router.delete(
     "/{computing_id}",
     description="Delete a nominee",
+    response_model=SuccessResponse,
     operation_id="delete_nominee",
     dependencies=[Depends(perm_election)],
 )
 async def delete_nominee_info(db_session: database.DBSession, computing_id: str):
     await nominees.crud.delete_nominee_info(db_session, computing_id)
     await db_session.commit()
+
+    return SuccessResponse(success=True)
 
 
 @router.patch(
@@ -99,6 +100,8 @@ async def delete_nominee_info(db_session: database.DBSession, computing_id: str)
 )
 async def provide_nominee_info(db_session: database.DBSession, body: NomineeUpdate, computing_id: str):
     nominee_entry = await nominees.crud.get_nominee_info(db_session, computing_id)
+    if not nominee_entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="nominee doesn't exist.")
     updated_data = body.model_dump(exclude_unset=True)
     for k, v in updated_data.items():
         setattr(nominee_entry, k, v)

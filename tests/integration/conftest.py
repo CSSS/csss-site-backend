@@ -21,7 +21,7 @@ def suppress_sqlalchemy_logs():
     logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
 
-@pytest_asyncio.fixture(scope="session", loop_scope="session")
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def database_setup():
     # reset the database again, just in case
     print("Resetting DB...")

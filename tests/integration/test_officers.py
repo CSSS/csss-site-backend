@@ -22,7 +22,7 @@ async def test__read_execs(db_session: DBSession):
     assert (await get_active_officer_terms(db_session, "abc22")) != []
 
     abc11_officer_terms = await get_active_officer_terms(db_session, "abc11")
-    assert len(abc11_officer_terms) == 1
+    assert len(abc11_officer_terms) == 2
     assert abc11_officer_terms[0].computing_id == "abc11"
     assert abc11_officer_terms[0].position == OfficerPositionEnum.EXECUTIVE_AT_LARGE
     assert abc11_officer_terms[0].start_date is not None
@@ -32,7 +32,7 @@ async def test__read_execs(db_session: DBSession):
 
     current_exec_team = await current_officers(db_session)
     assert current_exec_team is not None
-    assert len(current_exec_team) == 5
+    assert len(current_exec_team) == 6
     # assert next(iter(current_exec_team)) == OfficerPositionEnum.EXECUTIVE_AT_LARGE
     # assert next(iter(current_exec_team))["favourite_course_0"] == "CMPT 361"
     # assert next(iter(current_exec_team.values()))[0].csss_email == OfficerPosition.to_email(OfficerPositionEnum.EXECUTIVE_AT_LARGE)
@@ -52,7 +52,7 @@ async def test__get_officers(client: AsyncClient):
     response = await client.get("/officers/current")
     assert response.status_code == 200
     officers = response.json()
-    assert len(officers) == 5
+    assert len(officers) == 6
     officer = next(o for o in officers if o["position"] == OfficerPositionEnum.EXECUTIVE_AT_LARGE)
     assert "computing_id" not in officer
     assert "discord_id" not in officer
@@ -167,7 +167,7 @@ async def test__get_current_officers_admin(admin_client: AsyncClient):
     response = await admin_client.get("/officers/current")
     assert response.status_code == 200
     curr_officers = response.json()
-    assert len(curr_officers) == 5
+    assert len(curr_officers) == 6
     officer = next(o for o in curr_officers if o["position"] == OfficerPositionEnum.EXECUTIVE_AT_LARGE)
     assert "computing_id" in officer
     assert "discord_id" in officer

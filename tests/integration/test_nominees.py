@@ -1,14 +1,7 @@
-import json
-from datetime import date, timedelta
 from http import HTTPStatus
 
 import pytest
-from fastapi import status
 from httpx import AsyncClient
-
-import load_test_db
-from officers.constants import OfficerPositionEnum
-from officers.crud import current_officers, get_active_officer_terms, get_all_officers
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

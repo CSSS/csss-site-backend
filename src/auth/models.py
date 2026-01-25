@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from utils.permissions import AdminTypeEnum
+
 
 class LoginBodyParams(BaseModel):
     service: str = Field(description="Service URL used for SFU's CAS system")
@@ -13,14 +15,15 @@ class UpdateUserParams(BaseModel):
     profile_picture_url: str
 
 
-class UserSessionModel(BaseModel):
+class UserSession(BaseModel):
     computing_id: str
     issue_time: datetime
     session_id: str
 
 
-class SiteUserModel(BaseModel):
+class SiteUser(BaseModel):
     computing_id: str
-    first_logged_in: datetime
-    last_logged_in: datetime
+    first_logged_in: datetime | None
+    last_logged_in: datetime | None
     profile_picture_url: str | None = None
+    permissions_level: AdminTypeEnum | None = None

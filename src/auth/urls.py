@@ -10,8 +10,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 import database
 from auth import crud
-from auth.models import LoginBodyParams, SiteUserModel, UpdateUserParams
+from auth.models import LoginBodyParams, SiteUser, UpdateUserParams
 from constants import DOMAIN, IS_PROD, SAMESITE
+from utils.permissions import get_permissions_level
 from utils.shared_models import DetailModel, MessageModel
 
 _logger = logging.getLogger(__name__)
@@ -55,6 +56,17 @@ async def login_user(
     service = urllib.parse.quote(service_url)
     service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={body.ticket}"
     cas_response = xmltodict.parse(requests.get(service_validate_url).text)
+    # Response shape
+    # {
+    #     'cas:serviceResponse':
+    #     {
+    #         '@xmlns:cas': 'http://www.yale.edu/tp/cas',
+    #         'cas:authenticationSuccess':
+    #         {
+    #             'cas:user': '<computing_id>'
+    #         }
+    #     }
+    # }
 
     if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
         _logger.info(f"User failed to login, with response {cas_response}")
@@ -112,7 +124,7 @@ async def logout_user(
     "/user",
     operation_id="get_user",
     description="Get info about the current user. Only accessible by that user",
-    response_model=SiteUserModel,
+    response_model=SiteUser,
     responses={401: {"description": "Not logged in.", "model": DetailModel}},
 )
 async def get_user(
@@ -130,7 +142,17 @@ async def get_user(
     if user_info is None:
         raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")
 
-    return JSONResponse(user_info.serialize())
+    perm_level = await get_permissions_level(user_info.computing_id, db_session)
+
+    return JSONResponse(
+        SiteUser(
+            computing_id=user_info.computing_id,
+            first_logged_in=user_info.first_logged_in,
+            last_logged_in=user_info.last_logged_in,
+            permissions_level=perm_level,
+            profile_picture_url=user_info.profile_picture_url,
+        ).model_dump(mode="json")
+    )
 
 
 # TODO: We should change this so that the admins can change people's pictures too, so they can remove offensive stuff

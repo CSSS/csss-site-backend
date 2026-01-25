@@ -43,7 +43,7 @@ class SiteUserDB(Base):
     # optional user information for display purposes
     profile_picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    def serialize(self) -> dict[str, str | int | bool | None]:
+    def serialize(self) -> dict[str, str | bool | None]:
         res = {"computing_id": self.computing_id, "profile_picture_url": self.profile_picture_url}
         if self.first_logged_in is not None:
             res["first_logged_in"] = self.first_logged_in.isoformat()

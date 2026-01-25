@@ -20,6 +20,7 @@ ELECTIONS_OFFICER_POSITION = [*WEBSITE_ADMIN_POSITIONS, OfficerPositionEnum.ELEC
 
 # Permissions are granted if the Enum value >= the level needed
 class AdminTypeEnum(Enum):
+    User = 0
     Election = 1
     Full = 2
 
@@ -75,3 +76,12 @@ async def get_admin(request: Request, db_session: database.DBSession, admin_type
 async def verify_update(computing_id: str, db_session: database.DBSession, target_id: str):
     if target_id != computing_id and not await is_user_website_admin(computing_id, db_session):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
+
+
+async def get_permissions_level(computing_id: str, db_session: database.DBSession) -> AdminTypeEnum:
+    if await is_user_website_admin(computing_id, db_session):
+        return AdminTypeEnum.Full
+    elif await is_user_election_admin(computing_id, db_session):
+        return AdminTypeEnum.Election
+    else:
+        return AdminTypeEnum.User

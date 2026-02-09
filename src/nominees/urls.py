@@ -32,7 +32,7 @@ async def get_all_nominees(
     # Putting this behind a wall since there is private information here
     nominees_list = await nominees.crud.get_all_nominees(db_session)
 
-    return JSONResponse([item.serialize() for item in nominees_list])
+    return nominees_list
 
 
 @router.post(
@@ -53,7 +53,7 @@ async def create_nominee(db_session: database.DBSession, body: NomineeCreate):
     await db_session.commit()
     await db_session.refresh(new_nominee)
 
-    return JSONResponse(Nominee.model_validate(new_nominee).model_dump(mode="json"))
+    return new_nominee
 
 
 @router.get(

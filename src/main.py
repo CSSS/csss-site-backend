@@ -34,7 +34,12 @@ if not IS_PROD:
 # if on production, disable viewing the docs
 else:
     print("Running production environment")
-    origins = ["https://sfucsss.org", "https://test.sfucsss.org", "https://admin.sfucsss.org"]
+    origins = [
+        "https://sfucsss.org",
+        "https://test.sfucsss.org",
+        "https://admin.sfucsss.org",
+        "https://madness.sfucsss.org",
+    ]
     app = FastAPI(
         lifespan=database.lifespan,
         title="CSSS Site Backend",

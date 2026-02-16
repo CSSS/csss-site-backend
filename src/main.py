@@ -10,6 +10,7 @@ import auth.urls
 import candidates.urls
 import database
 import elections.urls
+import mountain_madness._2026.urls
 import nominees.urls
 import officers.urls
 import permission.urls
@@ -33,7 +34,12 @@ if not IS_PROD:
 # if on production, disable viewing the docs
 else:
     print("Running production environment")
-    origins = ["https://sfucsss.org", "https://test.sfucsss.org", "https://admin.sfucsss.org"]
+    origins = [
+        "https://sfucsss.org",
+        "https://test.sfucsss.org",
+        "https://admin.sfucsss.org",
+        "https://madness.sfucsss.org",
+    ]
     app = FastAPI(
         lifespan=database.lifespan,
         title="CSSS Site Backend",
@@ -53,6 +59,7 @@ app.include_router(candidates.urls.router)
 app.include_router(nominees.urls.router)
 app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
+app.include_router(mountain_madness._2026.urls.router)
 
 
 @app.get("/")

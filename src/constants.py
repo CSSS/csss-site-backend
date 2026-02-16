@@ -1,10 +1,12 @@
 import os
+from zoneinfo import ZoneInfo
 
 # TODO(future): replace new.sfucsss.org with sfucsss.org during migration
 # TODO(far-future): branch-specific root IP addresses (e.g., devbranch.sfucsss.org)
 ENV_LOCAL = os.environ.get("LOCAL")
 IS_PROD = True if not ENV_LOCAL or ENV_LOCAL.lower() != "true" else False
 GITHUB_ORG_NAME = "CSSS-Test-Organization" if not IS_PROD else "CSSS"
+TZ_INFO = ZoneInfo("America/Vancouver")
 
 W3_GUILD_ID = "1260652618875797504"
 CSSS_GUILD_ID = "228761314644852736"

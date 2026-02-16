@@ -26,7 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m venv venv
           source ./venv/bin/activate
-          pip install -r requirements.txt
+          pip install ".[test]"
 
       - name: Run unit tests
         run: PYTHONPATH=src ./venv/bin/python -m pytest ./tests/unit -v

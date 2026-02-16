@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import asyncpg
@@ -10,11 +10,11 @@ import sqlalchemy
 sys.path.append(str(Path(__file__).parent.parent.resolve()))
 
 from auth.crud import site_user_exists
-from auth.tables import SiteUser
+from auth.tables import SiteUserDB
 from data import semesters
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
 from officers.constants import OfficerPosition
-from officers.types import OfficerInfo, OfficerTerm
+from officers.types import OfficerInfoDB, OfficerTermDB
 
 # This loads officer data from the https://github.com/CSSS/csss-site database into the provided database
 
@@ -22,12 +22,13 @@ DB_PASSWORD = os.environ.get("DB_PASSWORD")
 # NOTE: pass either SQLALCHEMY_DATABASE_URL or SQLALCHEMY_TEST_DATABASE_URL
 DB_TARGET = os.environ.get("DB_TARGET")
 
+
 async def main():
     conn = await asyncpg.connect(
         user="postgres",
         password=DB_PASSWORD,
         database="postgres",
-        host="sfucsss.org", # NOTE: this should point to the old sfucsss.org server (made initially by jace)
+        host="sfucsss.org",  # NOTE: this should point to the old sfucsss.org server (made initially by jace)
         port=5432,
     )
 
@@ -59,12 +60,13 @@ async def main():
             unique_terms[key] = (officer["id"], 1)
         else:
             # if there is a term with the same start date, position, and computing_id, take only the last instance.
-            unique_terms[key] = (officer["id"], unique_terms[key][1]+1)
+            unique_terms[key] = (officer["id"], unique_terms[key][1] + 1)
 
     # computing num_semesters
     num_semesters_map = {}
     consolidated_officer_data = [
-        officer for officer in officer_data
+        officer
+        for officer in officer_data
         # include only latest info in a term
         if unique_terms[get_key(officer)][0] == officer["id"]
     ]
@@ -78,25 +80,25 @@ async def main():
     for officer in consolidated_officer_data:
         if officer["full_name"] == "Jace Manshadi":
             last_term_jace = officer
-    num_semesters_jace = sum([
-        num_semesters_map[get_key(officer)]
-        for officer in consolidated_officer_data
-        if officer["full_name"] == "Jace Manshadi"]
+    num_semesters_jace = sum(
+        [
+            num_semesters_map[get_key(officer)]
+            for officer in consolidated_officer_data
+            if officer["full_name"] == "Jace Manshadi"
+        ]
     )
-    num_semesters_map[(
-        last_term_jace["start_date"],
-        last_term_jace["sfu_computing_id"],
-        last_term_jace["position_name"]
-    )] = num_semesters_jace
+    num_semesters_map[
+        (last_term_jace["start_date"], last_term_jace["sfu_computing_id"], last_term_jace["position_name"])
+    ] = num_semesters_jace
 
     consolidated_officer_data = [
         officer for officer in consolidated_officer_data if officer["full_name"] != "Jace Manshadi"
     ] + [last_term_jace]
     await conn.close()
 
-    #print("\n\n".join([str(x) for x in consolidated_officer_data[100:]]))
+    # print("\n\n".join([str(x) for x in consolidated_officer_data[100:]]))
 
-    sessionmanager = DatabaseSessionManager(DB_TARGET, { "echo": False }, check_db=False)
+    sessionmanager = DatabaseSessionManager(DB_TARGET, {"echo": False}, check_db=False)
     await DatabaseSessionManager.test_connection(DB_TARGET)
     async with sessionmanager.session() as db_session:
         # NOTE: keep an eye out for bugs with legacy officer position names, as any not in OfficerPosition should be considered inactive
@@ -143,40 +145,37 @@ async def main():
 
             if not await site_user_exists(db_session, officer["sfu_computing_id"]):
                 # if computing_id has not been created as a site_user yet, add them
-                db_session.add(SiteUser(
-                    computing_id=officer["sfu_computing_id"],
-                    first_logged_in=datetime.now(),
-                    last_logged_in=datetime.now()
-                ))
+                db_session.add(
+                    SiteUserDB(
+                        computing_id=officer["sfu_computing_id"],
+                        first_logged_in=datetime.now(UTC),
+                        last_logged_in=datetime.now(UTC),
+                    )
+                )
 
             # use the most up to date officer info
             # --------------------------------
 
-            new_officer_info = OfficerInfo(
-                computing_id = officer["sfu_computing_id"],
-                legal_name = officer["full_name"],
-                phone_number = str(officer["phone_number"]),
-
-                discord_id = officer["discord_id"],
-                discord_name = officer["discord_username"],
-                discord_nickname = officer["discord_nickname"],
-
-                google_drive_email = officer["gmail"],
-                github_username = officer["github_username"],
+            new_officer_info = OfficerInfoDB(
+                computing_id=officer["sfu_computing_id"],
+                legal_name=officer["full_name"],
+                phone_number=str(officer["phone_number"]),
+                discord_id=officer["discord_id"],
+                discord_name=officer["discord_username"],
+                discord_nickname=officer["discord_nickname"],
+                google_drive_email=officer["gmail"],
+                github_username=officer["github_username"],
             )
 
             existing_officer_info = await db_session.scalar(
-                sqlalchemy
-                .select(OfficerInfo)
-                .where(OfficerInfo.computing_id == new_officer_info.computing_id)
+                sqlalchemy.select(OfficerInfoDB).where(OfficerInfoDB.computing_id == new_officer_info.computing_id)
             )
             if existing_officer_info is None:
                 db_session.add(new_officer_info)
             else:
                 await db_session.execute(
-                    sqlalchemy
-                    .update(OfficerInfo)
-                    .where(OfficerInfo.computing_id == new_officer_info.computing_id)
+                    sqlalchemy.update(OfficerInfoDB)
+                    .where(OfficerInfoDB.computing_id == new_officer_info.computing_id)
                     .values(new_officer_info.to_update_dict())
                 )
 
@@ -194,9 +193,9 @@ async def main():
             if position_length is not None:
                 if (
                     (officer["start_date"].date() < (date.today() - timedelta(days=365)))
-                    and (officer["start_date"].date() > (date.today() - timedelta(days=365*5)))
-                    and officer["id"] != 867 # sometimes people only run partial terms (elected_term_id=20222)
-                    and officer["id"] != 942 # sometimes people only run partial terms
+                    and (officer["start_date"].date() > (date.today() - timedelta(days=365 * 5)))
+                    and officer["id"] != 867  # sometimes people only run partial terms (elected_term_id=20222)
+                    and officer["id"] != 942  # sometimes people only run partial terms
                 ):
                     # over the past few years, the semester length should be as expected
                     if not (position_length == num_semesters):
@@ -214,20 +213,18 @@ async def main():
                     num_semesters,
                 )
 
-            new_officer_term = OfficerTerm(
-                computing_id = officer["sfu_computing_id"],
-                position = corrected_position_name,
-
-                start_date = officer["start_date"],
-                end_date = computed_end_date,
-
-                nickname = None,
-                favourite_course_0 = officer["course1"],
-                favourite_course_1 = officer["course2"],
-                favourite_pl_0 = officer["language1"],
-                favourite_pl_1 = officer["language2"],
-                biography = officer["bio"],
-                photo_url = officer["image"],
+            new_officer_term = OfficerTermDB(
+                computing_id=officer["sfu_computing_id"],
+                position=corrected_position_name,
+                start_date=officer["start_date"],
+                end_date=computed_end_date,
+                nickname=None,
+                favourite_course_0=officer["course1"],
+                favourite_course_1=officer["course2"],
+                favourite_pl_0=officer["language1"],
+                favourite_pl_1=officer["language2"],
+                biography=officer["bio"],
+                photo_url=officer["image"],
             )
             db_session.add(new_officer_term)
 
@@ -235,5 +232,6 @@ async def main():
         await db_session.commit()
 
     print("successfully loaded data!")
+
 
 asyncio.run(main())

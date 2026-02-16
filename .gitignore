@@ -8,6 +8,10 @@ google_key.json
 # Python - Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+build/
+dist/
+wheels
+*.egg-info/
 *$py.class
 
 .venv

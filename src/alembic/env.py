@@ -11,7 +11,7 @@ import database
 import elections.tables
 import nominees.tables
 import officers.tables
-import registrations.tables
+import candidates.tables
 from alembic import context
 
 # this is the Alembic Config object, which provides
@@ -62,6 +62,9 @@ async def run_async_migrations() -> None:
     and associate a connection with the context.
     """
     configuration = config.get_section(config.config_ini_section)
+    if not configuration:
+        return
+
     configuration["sqlalchemy.url"] = database.SQLALCHEMY_DATABASE_URL
     connectable = async_engine_from_config(
         configuration,

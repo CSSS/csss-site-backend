@@ -1,26 +1,58 @@
 [project]
 name = "csss-site-backend"
 version = "0.1"
-requires-python = ">= 3.11" # older versions untested, but we use new features often
+requires-python = "~=3.11.0" # older versions untested, but we use new features often
+
+dependencies = [
+    # major
+    "fastapi==0.115.6",
+    "gunicorn==21.2.0",
+    "uvicorn[standard]==0.27.1",
+    "sqlalchemy[asyncio]==2.0.27",
+    "asyncpg==0.29.0",
+    "alembic==1.13.1",
+    "google-api-python-client==2.143.0",
+
+    # minor
+    "pyOpenSSL==24.0.0", # for generating cryptographically secure random numbers
+    "xmltodict==0.13.0",
+    "requests==2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.6.9", # linting and formatter
+]
+
+test = [
+    "pytest", # test framework
+    "pytest-asyncio",
+    "httpx",
+]
 
 [project.urls]
 Homepage = "https://api.sfucsss.org/"
 
+# Pytest: Test framework
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 log_cli = true
 log_cli_level = "INFO"
 testpaths = [
     "tests",
-  ]
+]
 norecursedirs = "tests/wip"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
+# Ruff: Formatter and linter
 [tool.ruff]
 line-length = 120
 indent-width = 4
 target-version = "py311"
+exclude = [
+    "src/alembic/*"
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -31,6 +63,12 @@ line-ending = "lf"
 select = ["E", "F", "B", "I", "N", "UP", "A", "PTH", "W", "RUF", "C4", "PIE", "Q", "FLY"] # "ANN"
 ignore = ["E501", "F401", "N806"]
 
+# [Based]Pyright: Type checker/LSP
 [tool.pyright]
-executionEnvironments = [{ root = "src" }]
+executionEnvironments = [
+    { root = "src", pythonVersion = "3.11" },
+    { root = "tests", extraPaths=["src"], pythonVersion = "3.11" }
+]
 typeCheckingMode = "standard"
+reportAny = "none" # Allow the use of `Any` type
+reportExplicitAny = "none" # Allow the declaration of `Any` type

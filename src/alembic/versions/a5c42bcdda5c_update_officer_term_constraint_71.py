@@ -1,7 +1,7 @@
 """update_officer_term_constraint_71
 
 Revision ID: a5c42bcdda5c
-Revises: 876041e5b41c
+Revises: 243190df5588
 Create Date: 2025-09-28 18:03:54.856781
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "a5c42bcdda5c"
-down_revision: str | None = "876041e5b41c"
+down_revision: str | None = "243190df5588"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

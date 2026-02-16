@@ -10,7 +10,7 @@ from constants import (
 from database import Base
 
 
-class NomineeInfo(Base):
+class NomineeInfoDB(Base):
     __tablename__ = "election_nominee_info"
 
     computing_id: Mapped[str] = mapped_column(String(COMPUTING_ID_LEN), primary_key=True)
@@ -23,7 +23,6 @@ class NomineeInfo(Base):
     def to_update_dict(self) -> dict:
         return {
             "full_name": self.full_name,
-
             "linked_in": self.linked_in,
             "instagram": self.instagram,
             "email": self.email,
@@ -38,10 +37,8 @@ class NomineeInfo(Base):
         return {
             "computing_id": self.computing_id,
             "full_name": self.full_name,
-
             "linked_in": self.linked_in,
             "instagram": self.instagram,
             "email": self.email,
             "discord_username": self.discord_username,
         }
-

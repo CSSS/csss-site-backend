@@ -28,5 +28,5 @@ DISCORD_NICKNAME_LEN = 32
 GITHUB_USERNAME_LEN = 39
 
 # COOKIE
-SAMESITE="none" if IS_PROD else "lax"
-DOMAIN=".sfucsss.org" if IS_PROD else None
+SAMESITE = "none" if IS_PROD else "lax"
+DOMAIN = ".sfucsss.org" if IS_PROD else None

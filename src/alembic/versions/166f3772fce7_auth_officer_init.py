@@ -25,15 +25,15 @@ def upgrade() -> None:
     op.create_table(
         "site_user",
         sa.Column("computing_id", sa.String(32), primary_key=True),
-        sa.Column("first_logged_in", sa.DateTime, nullable=False, default=datetime(2024, 6, 16)),
-        sa.Column("last_logged_in", sa.DateTime, nullable=False, default=datetime(2024, 6, 16)),
+        sa.Column("first_logged_in", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("last_logged_in", sa.DateTime(timezone=True), nullable=True),
         sa.Column("profile_picture_url", sa.Text(), nullable=True),
     )
     op.create_table(
         "user_session",
         # NOTE: order is important; site_user must be created first!
         sa.Column("computing_id", sa.String(32), sa.ForeignKey("site_user.computing_id"), primary_key=True),
-        sa.Column("issue_time", sa.DateTime, nullable=False),
+        sa.Column("issue_time", sa.DateTime(timezone=True), nullable=False),
         sa.Column("session_id", sa.String(512), nullable=False, unique=True),
     )
 

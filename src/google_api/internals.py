@@ -7,62 +7,59 @@ from google_api.constants import GOOGLE_API_SCOPES, GOOGLE_WORKSPACE_ACCOUNT, SE
 
 # TODO: understand how these work
 credentials = service_account.Credentials.from_service_account_file(
-    filename=SERVICE_ACCOUNT_KEY_PATH,
-    scopes=GOOGLE_API_SCOPES
+    filename=SERVICE_ACCOUNT_KEY_PATH, scopes=GOOGLE_API_SCOPES
 )
 delegated_credentials = credentials.with_subject(GOOGLE_WORKSPACE_ACCOUNT)
 service = build("drive", "v3", credentials=delegated_credentials)
 
+
 def _list_shared_drives() -> list:
     return (
-        service
-        .drives()
+        service.drives()
         .list(
-            #pageSize = 50,
-            #q = "name contains 'CSSS'",
-            #useDomainAdminAccess = True,
+            # pageSize = 50,
+            # q = "name contains 'CSSS'",
+            # useDomainAdminAccess = True,
         )
         .execute()
     )
+
 
 def list_drive_permissions(drive_id: str) -> list:
     return (
-        service
-        .permissions()
+        service.permissions()
         .list(
-            fileId = drive_id,
+            fileId=drive_id,
             # important to find the shared drive
-            supportsAllDrives = True,
-            fields = "*",
+            supportsAllDrives=True,
+            fields="*",
         )
         .execute()
     )
 
+
 def create_drive_permission(drive_id: str, permission: dict):
     return (
-        service
-        .permissions()
+        service.permissions()
         .create(
-            fileId = drive_id,
-
+            fileId=drive_id,
             # TODO: update message
-            emailMessage = "You were just given permission to an SFU CSSS shared google drive!",
-            sendNotificationEmail = True,
-            supportsAllDrives = True,
-
+            emailMessage="You were just given permission to an SFU CSSS shared google drive!",
+            sendNotificationEmail=True,
+            supportsAllDrives=True,
             body=permission,
         )
         .execute()
     )
 
+
 def delete_drive_permission(drive_id: str, permission_id: str):
     return (
-        service
-        .permissions()
+        service.permissions()
         .delete(
-            fileId = drive_id,
-            permissionId = permission_id,
-            supportsAllDrives = True,
+            fileId=drive_id,
+            permissionId=permission_id,
+            supportsAllDrives=True,
         )
         .execute()
     )

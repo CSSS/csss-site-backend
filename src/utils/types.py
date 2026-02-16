@@ -1,4 +1,3 @@
-
 from sqlalchemy import Dialect
 from sqlalchemy.types import Text, TypeDecorator
 
@@ -19,5 +18,3 @@ class StringList(TypeDecorator):
         if value is None or value == "":
             return []
         return value.split(",")
-
-

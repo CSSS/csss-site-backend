@@ -6,7 +6,7 @@ from officers import tables
 
 
 # blog table
-class BlogPosts(Base):
+class BlogPostsDB(Base):
     # table name
     __tablename__ = "blog_posts"
 
@@ -22,8 +22,8 @@ class BlogPosts(Base):
     )
 
     # dates of creation and last edit
-    date_created = Column(DateTime, nullable=False)
-    last_edited = Column(DateTime, nullable=False)
+    date_created = Column(DateTime(timezone=True), nullable=False)
+    last_edited = Column(DateTime(timezone=True), nullable=False)
 
     # storing the html content
     html_content = Column(Text, nullable=False)

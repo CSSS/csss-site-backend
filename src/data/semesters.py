@@ -2,6 +2,10 @@ from datetime import date
 from enum import Enum
 from typing import assert_never
 
+JANUARY = 1
+MAY = 5
+SEPTEMBER = 9
+
 
 class Semester(Enum):
     """semester numbers are assigned by their order in the year"""
@@ -18,7 +22,7 @@ class Semester(Enum):
         elif self.value == 2:
             return "fall"
         else:
-            assert_never()
+            assert_never(self.value)
 
 
 def step_semesters(semester_start_date: date, num_semesters: int) -> date:
@@ -32,30 +36,32 @@ def step_semesters(semester_start_date: date, num_semesters: int) -> date:
 
 
 def current_semester_start(the_date: date) -> date:
-    if the_date.month >= 9:
-        return date(year=the_date.year, month=9, day=1)
-    elif the_date.month >= 5:
-        return date(year=the_date.year, month=5, day=1)
-    elif the_date.month >= 1:
-        return date(year=the_date.year, month=1, day=1)
+    if the_date.month >= SEPTEMBER:
+        return date(year=the_date.year, month=SEPTEMBER, day=1)
+    elif the_date.month >= MAY:
+        return date(year=the_date.year, month=MAY, day=1)
+    elif the_date.month >= JANUARY:
+        return date(year=the_date.year, month=JANUARY, day=1)
+    else:
+        raise AssertionError("unreachable")
 
 
 def current_semester(the_date: date) -> Semester:
-    if the_date.month >= 9:
+    if the_date.month >= SEPTEMBER:
         return Semester.Fall
-    elif the_date.month >= 5:
+    elif the_date.month >= MAY:
         return Semester.Summer
-    elif the_date.month >= 1:
+    elif the_date.month >= JANUARY:
         return Semester.Spring
     else:
-        assert_never()
+        raise AssertionError("unreachable")
 
 
 def get_semester_start(year: int, semester: Semester):
     match semester:
         case Semester.Fall:
-            return date(year, month=9, day=1)
+            return date(year, month=SEPTEMBER, day=1)
         case Semester.Summer:
-            return date(year, month=5, day=1)
+            return date(year, month=MAY, day=1)
         case Semester.Spring:
-            return date(year, month=1, day=1)
+            return date(year, month=JANUARY, day=1)

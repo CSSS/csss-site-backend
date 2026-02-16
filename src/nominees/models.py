@@ -1,7 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
-class NomineeInfoModel(BaseModel):
+class Nominee(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     computing_id: str
     full_name: str
     linked_in: str
@@ -9,10 +10,19 @@ class NomineeInfoModel(BaseModel):
     email: str
     discord_username: str
 
-class NomineeInfoUpdateParams(BaseModel):
-    full_name: str | None = None
+
+class NomineeCreate(BaseModel):
+    computing_id: str
+    full_name: str
     linked_in: str | None = None
     instagram: str | None = None
     email: str | None = None
     discord_username: str | None = None
 
+
+class NomineeUpdate(BaseModel):
+    full_name: str | None = None
+    linked_in: str | None = None
+    instagram: str | None = None
+    email: str | None = None
+    discord_username: str | None = None

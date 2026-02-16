@@ -16,7 +16,7 @@ router = APIRouter(
     operation_id="mm_get_counters",
 )
 async def get_all_counters():
-    return mm_counter.get_all_counters()
+    return CounterResponse(**mm_counter.get_all_counters())
 
 
 @router.post(
@@ -28,7 +28,7 @@ async def get_all_counters():
 )
 async def increment_good():
     mm_counter.increment("good")
-    return mm_counter.get_all_counters()
+    return CounterResponse(**mm_counter.get_all_counters())
 
 
 @router.post(
@@ -40,4 +40,4 @@ async def increment_good():
 )
 async def increment_evil():
     mm_counter.increment("evil")
-    return mm_counter.get_all_counters()
+    return CounterResponse(**mm_counter.get_all_counters())

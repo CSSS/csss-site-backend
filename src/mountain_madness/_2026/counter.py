@@ -40,10 +40,11 @@ class CounterFile:
         thread.start()
 
     def increment(self, key: str, amount: int = 1) -> dict[str, int]:
-        """Increment a counter by the given amount."""
+        """Increment a counter by the given amount. Returns the current counters."""
         with self._lock:
+            self._load_from_file_unlocked()  # Always get latest from disk
             self._counters[key] = self._counters.get(key, 0) + amount
-            self._maybe_save_unlocked()
+            self._save_to_file_unlocked()
             return self._counters.copy()
 
     def get(self, key: str) -> int:

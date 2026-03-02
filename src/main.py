@@ -10,7 +10,6 @@ import auth.urls
 import candidates.urls
 import database
 import elections.urls
-import mountain_madness._2026.urls
 import nominees.urls
 import officers.urls
 import permission.urls
@@ -59,7 +58,6 @@ app.include_router(candidates.urls.router)
 app.include_router(nominees.urls.router)
 app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
-app.include_router(mountain_madness._2026.urls.router)
 
 
 @app.get("/")

@@ -19,23 +19,23 @@ async def get_all_counters():
     return CounterResponse(**mm_counter.get_all())
 
 
-@router.post(
-    "/good",
-    description="Increment the good counter",
-    response_description="Increment the good counter",
-    response_model=CounterResponse,
-    operation_id="mm_good_increment",
-)
-async def increment_good():
-    return CounterResponse(**mm_counter.increment("good"))
-
-
-@router.post(
-    "/evil",
-    description="Increment the evil counter",
-    response_description="Increment the evil counter",
-    response_model=CounterResponse,
-    operation_id="mm_evil_increment",
-)
-async def increment_evil():
-    return CounterResponse(**mm_counter.increment("evil"))
+# @router.post(
+#     "/good",
+#     description="Increment the good counter",
+#     response_description="Increment the good counter",
+#     response_model=CounterResponse,
+#     operation_id="mm_good_increment",
+# )
+# async def increment_good():
+#     return CounterResponse(**mm_counter.increment("good"))
+#
+#
+# @router.post(
+#     "/evil",
+#     description="Increment the evil counter",
+#     response_description="Increment the evil counter",
+#     response_model=CounterResponse,
+#     operation_id="mm_evil_increment",
+# )
+# async def increment_evil():
+#     return CounterResponse(**mm_counter.increment("evil"))

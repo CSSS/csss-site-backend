@@ -1,8 +1,9 @@
-from sqlalchemy import Column, VARCHAR, INTEGER, DATETIME, ForeignKey
+from sqlalchemy import DATETIME, INTEGER, VARCHAR, Column, ForeignKey
 
 from constants import COMPUTING_ID_LEN
 from database import Base
 from officers import tables
+
 
 class Announcement(Base):
     __tablename__ = "announcements"

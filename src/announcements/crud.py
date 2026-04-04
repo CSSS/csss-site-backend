@@ -1,11 +1,12 @@
 import logging
-from datetime import date, datetime
+from datetime import datetime
 
 import sqlalchemy
-from announcements.models import Announcements
-from sqlalchemy import func
 
+# from sqlalchemy import func
 import database
+
+# from announcements.models import Announcements
 
 
 async def create_new_entry(
@@ -13,7 +14,7 @@ async def create_new_entry(
     title: str,
     content: str,
     computing_id: str,
-    date_created: date,
+    date_created: datetime,
 ):
     """To create a new announcement entry"""
 

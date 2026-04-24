@@ -2,10 +2,10 @@ import logging
 from datetime import date, datetime
 
 import sqlalchemy
+from blog.models import BlogPosts
 from sqlalchemy import func
 
 import database
-from blog.models import BlogPosts
 
 
 async def create_new_entry(

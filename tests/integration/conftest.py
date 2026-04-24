@@ -40,7 +40,7 @@ async def db_session(database_setup: DatabaseSessionManager):
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def client() -> AsyncGenerator[Any, None]:
+async def client() -> AsyncGenerator[Any]:
     # base_url is just a random placeholder url
     # ASGITransport is just telling the async client to pass all requests to app
     # `async with` syntax used so that the connecton will automatically be closed once done

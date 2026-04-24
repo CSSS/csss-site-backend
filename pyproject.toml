@@ -1,27 +1,26 @@
 [project]
 name = "csss-site-backend"
 version = "0.1"
-requires-python = "~=3.11.0" # older versions untested, but we use new features often
+requires-python = "~=3.13.0"
 
 dependencies = [
     # major
-    "fastapi==0.115.6",
-    "gunicorn==21.2.0",
-    "uvicorn[standard]==0.27.1",
-    "sqlalchemy[asyncio]==2.0.27",
-    "asyncpg==0.29.0",
-    "alembic==1.13.1",
-    "google-api-python-client==2.143.0",
+    "fastapi==0.135.4",
+    "gunicorn==25.3.0",
+    "uvicorn[standard]==0.46.0",
+    "sqlalchemy[asyncio]==2.0.49",
+    "asyncpg==0.31.0",
+    "alembic==1.18.4",
+    "google-api-python-client==2.194.0",
 
     # minor
-    "pyOpenSSL==24.0.0", # for generating cryptographically secure random numbers
     "xmltodict==0.13.0",
-    "requests==2.31.0",
+    "httpx==0.28.1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff==0.6.9", # linting and formatter
+    "ruff==0.15.12", # linting and formatter
 ]
 
 test = [
@@ -49,7 +48,7 @@ asyncio_default_fixture_loop_scope = "function"
 [tool.ruff]
 line-length = 120
 indent-width = 4
-target-version = "py311"
+target-version = "py313"
 exclude = [
     "src/alembic/*"
 ]
@@ -66,8 +65,8 @@ ignore = ["E501", "F401", "N806"]
 # [Based]Pyright: Type checker/LSP
 [tool.pyright]
 executionEnvironments = [
-    { root = "src", pythonVersion = "3.11" },
-    { root = "tests", extraPaths=["src"], pythonVersion = "3.11" }
+    { root = "src", pythonVersion = "3.13" },
+    { root = "tests", extraPaths=["src"], pythonVersion = "3.13" }
 ]
 typeCheckingMode = "standard"
 reportAny = "none" # Allow the use of `Any` type

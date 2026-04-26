@@ -14,8 +14,7 @@ If you're planning to read through the source code, please check out this projec
 
 ### Quickstart
 
-1. Install [Python 3.11](https://www.python.org/downloads/), [git](https://git-scm.com/install/), and (optionally) [Docker](https://www.docker.com/get-started/)
-    Note: This may fail if you're using Python 3.12+
+1. Install [Python 3.13](https://www.python.org/downloads/), [git](https://git-scm.com/install/), and (optionally) [Docker](https://www.docker.com/get-started/)
 2. Clone this repository
 3. Create and activate a virtual environment for this project. This has been tested with `pip` and `uv`
 4. Install developer dependencies
@@ -57,5 +56,5 @@ export LOCAL=true # Should be true if you're running this locally
 
 ## Developer Tools
 
-We use `ruff 0.6.9` as our linter, which you can run with `ruff check --fix`. If you use a different version, it may be inconsistent with our CI checks.
+We use `ruff` as our linter, which you can run with `ruff check --fix`. If you use a different version, it may be inconsistent with our CI checks.
 We use `pyright/basedpyright` for typechecking. Language services have been left enabled and will be changed if it becomes an issue.

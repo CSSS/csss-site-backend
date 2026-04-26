@@ -3,7 +3,7 @@ import logging
 import os
 import urllib.parse
 
-import requests  # TODO: make this async
+import httpx
 import xmltodict
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -54,7 +54,9 @@ async def login_user(
     service_url = body.service
     service = urllib.parse.quote(service_url)
     service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={body.ticket}"
-    cas_response = xmltodict.parse(requests.get(service_validate_url).text)
+    async with httpx.AsyncClient() as client:
+        response = await client.get(service_validate_url)
+    cas_response = xmltodict.parse(response.text)
 
     if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
         _logger.info(f"User failed to login, with response {cas_response}")

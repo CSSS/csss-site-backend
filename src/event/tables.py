@@ -2,8 +2,9 @@ from sqlalchemy import (
     String,
     DateTime,
     Text,
+    Date
 )
-from sqlalchemy.org import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
 import datetime
@@ -12,7 +13,7 @@ class EventDB(Base):
     __tablename__ = "event_info"
 
     eid: Mapped[int] = mapped_column(
-        int, 
+        Integer, 
         primary_key=True
     )
     description: Mapped[str] = mapped_column(
@@ -20,14 +21,14 @@ class EventDB(Base):
         nullable=True
     )
     name: Mapped[str] = mapped_column(String(64))
-    start_time: Mapped[datetime.datetime()] = mapped_column(DateTime)
-    end_time: Mapped[datetime.datetime()] = mapped_column(DateTime)
+    start_time: Mapped[datetime.datetime] = mapped_column(DateTime)
+    end_time: Mapped[datetime.datetime] = mapped_column(DateTime)
     repeat: Mapped[str] = mapped_column(String(64))
-    start_date: Mapped[datetime.date()] = mapped_column(
+    start_date: Mapped[datetime.date] = mapped_column(
         Date,
         nullable=True
     )
-    end_date: Mapped[datetime.date()] = mapped_column(
+    end_date: Mapped[datetime.date] = mapped_column(
         Date,
         nullable=True
     )

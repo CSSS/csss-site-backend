@@ -7,7 +7,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
-import datetime
+from datetime import datetime, date
 
 class EventDB(Base):
     __tablename__ = "event_info"
@@ -21,14 +21,14 @@ class EventDB(Base):
         nullable=True
     )
     name: Mapped[str] = mapped_column(String(64))
-    start_time: Mapped[datetime.datetime] = mapped_column(DateTime)
-    end_time: Mapped[datetime.datetime] = mapped_column(DateTime)
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     repeat: Mapped[str] = mapped_column(String(64))
-    start_date: Mapped[datetime.date] = mapped_column(
+    start_date: Mapped[date] = mapped_column(
         Date,
         nullable=True
     )
-    end_date: Mapped[datetime.date] = mapped_column(
+    end_date: Mapped[date] = mapped_column(
         Date,
         nullable=True
     )

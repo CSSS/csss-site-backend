@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    Integer,
     String,
     DateTime,
     Text,
@@ -14,7 +15,8 @@ class EventDB(Base):
 
     eid: Mapped[int] = mapped_column(
         Integer, 
-        primary_key=True
+        primary_key=True,
+        autoincrement=True
     )
     description: Mapped[str] = mapped_column(
         Text,

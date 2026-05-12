@@ -21,7 +21,9 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD: trust
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Wait for PostgreSQL to be ready
         run: |
@@ -32,7 +34,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # for python3.11 (dear internet gods: we'll update to 3.13 or something in a year, i promise)
           sudo add-apt-repository ppa:deadsnakes/ppa
           sudo apt install python3.13 python3.13-venv
           python3.13 -m pip install --upgrade pip

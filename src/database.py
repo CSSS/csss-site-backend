@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 import asyncpg
+import httpx
 import sqlalchemy
 from fastapi import Depends, FastAPI
 from sqlalchemy import MetaData
@@ -115,7 +116,9 @@ async def lifespan(app: FastAPI):
     """
     Handles startup and shutdown events, see https://fastapi.tiangolo.com/advanced/events/
     """
+    app.state.http_client = httpx.AsyncClient()
     yield
+    await app.state.http_client.aclose()
     if sessionmanager._engine is not None:
         # Close the DB connection
         await sessionmanager.close()

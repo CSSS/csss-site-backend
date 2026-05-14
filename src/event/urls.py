@@ -91,3 +91,29 @@ async def create_event(
     await db_session.refresh(new_event)
 
     return new_event
+
+
+@router.delete(
+    "/{eid}",
+    description="Delete an event",
+    response_model=SuccessResponse,
+    responses={
+        404:{"description": "Event doesn't exist."}
+    },
+    operation_id="delete_event",
+    # dependecies=[Depends()],
+)
+async def delete_event(
+    db_session: database.DBSession,
+    eid: int
+):
+    rows_deleted = await event.crud.delete_event(db_session, eid)
+    
+    if rows_deleted == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event doesn't exist."
+        )
+
+    await db_session.commit()
+    return SuccessResponse(success=True)

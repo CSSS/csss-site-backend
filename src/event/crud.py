@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select, or_, and_, extract
+from sqlalchemy import select, or_, and_, extract, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from event.tables import EventDB
@@ -56,4 +56,15 @@ async def create_event(
     db_session: AsyncSession,
     info: EventDB
 ):
-    db_session.add(info)
+    await db_session.add(info)
+
+
+async def delete_event(
+    db_session: AsyncSession,
+    eid: int
+):
+    result = await db_session.execute(delete(EventDB).where(
+        EventDB.eid == eid
+    ))
+    # Return the number of rows affected
+    return result.rowcount

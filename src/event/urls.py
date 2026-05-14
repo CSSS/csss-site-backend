@@ -11,6 +11,7 @@ from event.models import (
 )
 from event.tables import EventDB
 from utils.shared_models import DetailModel, SuccessResponse
+from datetime import datetime, date
 
 router = APIRouter(
     prefix="/event",
@@ -30,5 +31,21 @@ async def get_all_events(
     db_session: database.DBSession,
 ):
     events_list = await event.crud.get_all_events(db_session)
+
+    return events_list
+
+
+@router.get(
+    "/{year}",
+    description="Get events that start OR end in this year",
+    response_model=list[EventPublic],
+    # responses= {}
+    operation_id="get_events_for_this_year"
+)
+async def get_events_for_this_year(
+    db_session: database.DBSession,
+    year: int,
+):
+    events_list = await event.crud.get_events_for_this_year(db_session, year)
 
     return events_list

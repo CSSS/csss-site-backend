@@ -52,6 +52,15 @@ async def get_events_for_this_year_month(
     return events
 
 
+async def get_event_by_eid(
+    db_session: AsyncSession,
+    eid: int
+) -> EventDB | None:
+    return (await db_session.execute(
+        select(EventDB).where(EventDB.eid == eid)
+    )).scalar_one_or_none()
+
+
 async def create_event(
     db_session: AsyncSession,
     info: EventDB

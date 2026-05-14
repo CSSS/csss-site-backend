@@ -94,6 +94,39 @@ async def create_event(
     return new_event
 
 
+@router.patch(
+    "/{eid}",
+    description="Update an Event detail",
+    response_model=Event,
+    responses={
+        404:{"description": "Event doesn't exist."}
+    },
+    operation_id="update_event"
+)
+async def update_event(
+    db_session: database.DBSession,
+    eid: int,
+    body: EventUpdate
+):
+    event_info = await event.crud.get_event_by_eid(db_session, eid)
+    
+    if event_info is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event doesn't exist."
+        )
+    
+    updated_event = body.model_dump(exclude_unset=True)
+    for key, value in updated_event.items():
+        setattr(event_info, key, value)
+    
+    await db_session.commit()
+    await db_session.refresh(event_info)
+
+    return event_info
+
+
+
 @router.delete(
     "/{eid}",
     description="Delete an event",

@@ -277,7 +277,7 @@ async def update_election(
     response_model=SuccessResponse,
     responses={
         401: {"description": "Need to be logged in as an admin.", "model": DetailModel},
-        409: {"description": "Election is still referenced by nominee applications.", "model": DetailModel}
+        409: {"description": "Election is still referenced by nominee applications.", "model": DetailModel},
     },
     operation_id="delete_election",
     dependencies=[Depends(perm_election)],

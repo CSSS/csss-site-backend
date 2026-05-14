@@ -286,14 +286,14 @@ async def delete_election(db_session: database.DBSession, election_name: str):
     slugified_name = slugify(election_name)
 
     existing_applications = await candidates.crud.get_all_candidates_in_election(db_session, slugified_name)
-    if existing_applications: 
+    if existing_applications:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"{election_name} is still referenced by nominee applications.",
         )
- 
+
     await elections.crud.delete_election(db_session, slugified_name)
     await db_session.commit()
-    
+
     old_election = await elections.crud.get_election(db_session, slugified_name)
     return JSONResponse({"success": old_election is None})

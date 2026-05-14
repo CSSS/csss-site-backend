@@ -49,3 +49,20 @@ async def get_events_for_this_year(
     events_list = await event.crud.get_events_for_this_year(db_session, year)
 
     return events_list
+
+
+@router.get(
+    "/{year}/{month}",
+    description="Get events that start OR end in the given year and month",
+    response_model=list[EventPublic],
+    # responses= {}
+    operation_id="get_events_for_this_year_month"
+)
+async def get_events_for_this_year_month(
+    db_session: database.DBSession,
+    year: int,
+    month: int
+):
+    events_list = await event.crud.get_events_for_this_year_month(db_session, year, month)
+
+    return events_list

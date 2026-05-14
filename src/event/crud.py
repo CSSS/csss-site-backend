@@ -27,3 +27,26 @@ async def get_events_for_this_year(
         )
     ))).all()
     return events
+
+async def get_events_for_this_year_month(
+    db_session: AsyncSession,
+    year: int,
+    month: int,
+) -> Sequence[EventDB]:
+    events = (
+        await db_session.scalars(
+            select(EventDB).where(
+                or_(
+                    and_(
+                        extract('year', EventDB.start_time) == year,
+                        extract('month', EventDB.start_time) == month
+                    ),
+                    and_(
+                        extract('year', EventDB.end_time) == year,
+                        extract('month', EventDB.end_time) == month
+                    )
+                )
+            )
+        )
+    ).all()
+    return events

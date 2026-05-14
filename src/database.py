@@ -1,18 +1,14 @@
 import asyncio
 import contextlib
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from typing import Annotated, Any
 
 import asyncpg
 import httpx
-import sqlalchemy
 from fastapi import Depends, FastAPI
 from sqlalchemy import MetaData
-from sqlalchemy.ext.asyncio import (
-    AsyncConnection,
-    AsyncSession,
-)
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 convention = {
@@ -31,8 +27,8 @@ class Base(DeclarativeBase):
 # from: https://medium.com/@tclaitken/setting-up-a-fastapi-app-with-async-sqlalchemy-2-0-pydantic-v2-e6c540be4308
 class DatabaseSessionManager:
     def __init__(self, db_url: str, engine_kwargs: dict[str, Any], check_db=True):
-        self._engine = sqlalchemy.ext.asyncio.create_async_engine(db_url, **engine_kwargs)
-        self._sessionmaker = sqlalchemy.ext.asyncio.async_sessionmaker(autocommit=False, bind=self._engine)
+        self._engine = create_async_engine(db_url, **engine_kwargs)
+        self._sessionmaker = async_sessionmaker(autocommit=False, bind=self._engine)
 
         if check_db:
             # check if the database exists by making a test connection
@@ -63,7 +59,7 @@ class DatabaseSessionManager:
         self._sessionmaker = None
 
     @contextlib.asynccontextmanager
-    async def connect(self) -> AsyncIterator[AsyncConnection]:
+    async def connect(self) -> AsyncGenerator[AsyncConnection]:
         if self._engine is None:
             raise Exception("DatabaseSessionManager is not initialized")
 
@@ -75,7 +71,7 @@ class DatabaseSessionManager:
                 raise
 
     @contextlib.asynccontextmanager
-    async def session(self) -> AsyncIterator[AsyncSession]:
+    async def session(self) -> AsyncGenerator[AsyncSession]:
         if self._sessionmaker is None:
             raise Exception("DatabaseSessionManager is not initialized")
 

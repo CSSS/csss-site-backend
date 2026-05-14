@@ -39,3 +39,7 @@ class EventUpdate(BaseModel):
     repeat: str | None = None
     start_date: datetime.date | None = None
     end_date: datetime.date | None = None
+
+class EventDelete(BaseModel):
+    result: bool
+    eid: int

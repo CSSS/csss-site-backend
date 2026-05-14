@@ -7,7 +7,8 @@ from event.models import (
     Event,
     EventPublic,
     EventCreate,
-    EventUpdate
+    EventUpdate,
+    EventDelete
 )
 from event.tables import EventDB
 from utils.shared_models import DetailModel, SuccessResponse
@@ -96,7 +97,7 @@ async def create_event(
 @router.delete(
     "/{eid}",
     description="Delete an event",
-    response_model=SuccessResponse,
+    response_model=EventDelete,
     responses={
         404:{"description": "Event doesn't exist."}
     },
@@ -108,7 +109,7 @@ async def delete_event(
     eid: int
 ):
     rows_deleted = await event.crud.delete_event(db_session, eid)
-    
+
     if rows_deleted == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -116,4 +117,4 @@ async def delete_event(
         )
 
     await db_session.commit()
-    return SuccessResponse(success=True)
+    return EventDelete(result=True, eid=eid)

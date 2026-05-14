@@ -50,3 +50,10 @@ async def get_events_for_this_year_month(
         )
     ).all()
     return events
+
+
+async def create_event(
+    db_session: AsyncSession,
+    info: EventDB
+):
+    db_session.add(info)

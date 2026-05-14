@@ -66,3 +66,28 @@ async def get_events_for_this_year_month(
     events_list = await event.crud.get_events_for_this_year_month(db_session, year, month)
 
     return events_list
+
+
+@router.post(
+    "",
+    description="Create a new event",
+    response_model=Event,
+    status_code=status.HTTP_201_CREATED,
+    responses={500: {"description": "failed to fetch new event", "model": DetailModel}},
+    operation_id="create_event",
+    # dependecies=[Depends()]
+)
+async def create_event(
+    db_session: database.DBSession,
+    body: EventCreate
+):
+    new_event = EventDB(**body.model_dump())
+    await event.crud.create_event(
+        db_session,
+        new_event,
+    )
+
+    await db_session.commit()
+    await db_session.refresh(new_event)
+
+    return new_event

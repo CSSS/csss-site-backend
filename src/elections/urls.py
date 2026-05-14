@@ -2,6 +2,7 @@ import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 import candidates.crud
 import database
@@ -275,15 +276,25 @@ async def update_election(
     "/{election_name}",
     description="Deletes an election from the database. Returns whether the election exists after deletion.",
     response_model=SuccessResponse,
-    responses={401: {"description": "Need to be logged in as an admin.", "model": DetailModel}},
+    responses={
+        401: {"description": "Need to be logged in as an admin.", "model": DetailModel},
+        409: {"description": "Election has associated nominees and cannot be deleted.", "model": DetailModel},
+    },
     operation_id="delete_election",
     dependencies=[Depends(perm_election)],
 )
 async def delete_election(db_session: database.DBSession, election_name: str):
     slugified_name = slugify(election_name)
 
-    await elections.crud.delete_election(db_session, slugified_name)
-    await db_session.commit()
+    try:
+        await elections.crud.delete_election(db_session, slugified_name)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot delete election '{slugified_name}' because it has associated nominees. Delete the nominees first.",
+        )
 
     old_election = await elections.crud.get_election(db_session, slugified_name)
     return JSONResponse({"success": old_election is None})

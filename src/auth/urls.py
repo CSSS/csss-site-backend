@@ -54,8 +54,8 @@ async def login_user(
     service_url = body.service
     service = urllib.parse.quote(service_url)
     service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={body.ticket}"
-    async with httpx.AsyncClient() as client:
-        response = await client.get(service_validate_url)
+    client = request.app.state.http_client
+    response = await client.get(service_validate_url)
     cas_response = xmltodict.parse(response.text)
 
     if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:

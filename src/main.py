@@ -14,6 +14,7 @@ import event.urls
 import nominees.urls
 import officers.urls
 import permission.urls
+from config import settings
 from constants import IS_PROD
 
 logging.basicConfig(level=logging.DEBUG)

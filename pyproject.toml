@@ -12,17 +12,16 @@ dependencies = [
     "asyncpg==0.31.0",
     "alembic==1.18.4",
     "google-api-python-client==2.194.0",
-
     # minor
     "xmltodict==0.13.0",
     "httpx==0.28.1",
+    "pydantic-settings==2.14.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "ruff==0.15.12", # linting and formatter
     "pre-commit",
-    "python-dotenv==1.2.2",
 ]
 
 test = [

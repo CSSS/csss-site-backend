@@ -21,13 +21,13 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff==0.15.12", # linting and formatter
-    "pre-commit"
+    "pre-commit",
+    "python-dotenv==1.2.2",
 ]
 
 test = [
     "pytest", # test framework
     "pytest-asyncio",
-    "httpx",
 ]
 
 [project.urls]

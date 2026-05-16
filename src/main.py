@@ -13,6 +13,7 @@ import elections.urls
 import nominees.urls
 import officers.urls
 import permission.urls
+import translink.urls
 from config import settings
 from constants import IS_PROD
 
@@ -59,6 +60,7 @@ app.include_router(candidates.urls.router)
 app.include_router(nominees.urls.router)
 app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
+app.include_router(translink.urls.router)
 
 
 @app.get("/")

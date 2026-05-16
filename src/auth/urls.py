@@ -3,7 +3,6 @@ import logging
 import os
 import urllib.parse
 
-import httpx
 import xmltodict
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse

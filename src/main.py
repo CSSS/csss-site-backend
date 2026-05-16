@@ -1,5 +1,8 @@
+# pyright: reportUnusedImport=false
+import contextlib
 import logging
 
+import httpx
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -20,6 +23,26 @@ from constants import IS_PROD
 logging.basicConfig(level=logging.DEBUG)
 database.setup_database()
 
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles startup and shutdown events, see https://fastapi.tiangolo.com/advanced/events/
+    """
+    app.state.http_client = httpx.AsyncClient()
+    # app.state.shared_state = shared_state
+
+    # with shared_lock:
+    #     if "static_translink_schedule" not in shared_state:
+    #         schedule = await load_static_schedule(app.state.http_client)
+    #         shared_state["static_schedule"] = schedule.to_dict(orient="records")
+    yield
+    await app.state.http_client.aclose()
+    if database.sessionmanager._engine is not None:
+        # Close the DB connection
+        await database.sessionmanager.close()
+
+
 # Enable OpenAPI docs only for local development
 if not IS_PROD:
     print("Running local environment")
@@ -28,7 +51,7 @@ if not IS_PROD:
         "http://localhost:8080",  # for existing applications/sites
     ]
     app = FastAPI(
-        lifespan=database.lifespan,
+        lifespan=lifespan,
         title="CSSS Site Backend",
         root_path="/api",
     )
@@ -42,7 +65,7 @@ else:
         "https://madness.sfucsss.org",
     ]
     app = FastAPI(
-        lifespan=database.lifespan,
+        lifespan=lifespan,
         title="CSSS Site Backend",
         root_path="/api",
         docs_url=None,  # disables Swagger UI

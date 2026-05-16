@@ -5,8 +5,7 @@ from collections.abc import AsyncGenerator
 from typing import Annotated, Any
 
 import asyncpg
-import httpx
-from fastapi import Depends, FastAPI
+from fastapi import Depends
 from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -105,19 +104,6 @@ def setup_database():
         SQLALCHEMY_TEST_DATABASE_URL if os.environ.get("LOCAL") else SQLALCHEMY_DATABASE_URL,
         {"echo": True},
     )
-
-
-@contextlib.asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Handles startup and shutdown events, see https://fastapi.tiangolo.com/advanced/events/
-    """
-    app.state.http_client = httpx.AsyncClient()
-    yield
-    await app.state.http_client.aclose()
-    if sessionmanager._engine is not None:
-        # Close the DB connection
-        await sessionmanager.close()
 
 
 async def get_db_session():

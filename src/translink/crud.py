@@ -54,7 +54,7 @@ def _get_active_service_ids(z: zipfile.ZipFile) -> set[str]:
     return active
 
 
-async def load_static_schedule(client: AsyncClient) -> pd.DataFrame:
+async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
     """
     Gets the static bus schedule from the static TransLink GTFS API
     """
@@ -91,9 +91,23 @@ async def load_static_schedule(client: AsyncClient) -> pd.DataFrame:
     merged = merged.copy()  # stops pandas from complaining about modifying original data
     merged["bus_number"] = merged["route_id"].map(lambda r: BUS_DATA[r][2])
     merged["departure_seconds"] = merged["departure_time"].map(_gtfs_time_to_seconds)
-    print(merged)
 
     return cast(
         pd.DataFrame,
         merged[["trip_id", "route_id", "bus_number", "departure_seconds"]].reset_index(drop=True),
+    )
+
+
+def get_next_departures(schedule: pd.DataFrame, n: int = 3) -> pd.DataFrame:
+    """
+    Gets the next departure time for each bus based on the current time in seconds since midnight
+    """
+    now = datetime.now(tz=TZ_INFO)
+    current_seconds = int((now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds())
+    upcoming = cast(pd.DataFrame, schedule[schedule["departure_seconds"] > current_seconds])
+    return (
+        upcoming.sort_values("departure_seconds")
+        .groupby("route_id")
+        .head(n)
+        .sort_values(["route_id", "departure_seconds"])
     )

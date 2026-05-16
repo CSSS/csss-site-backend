@@ -93,6 +93,8 @@ else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
     SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"
 
+print(f"Using database: {SQLALCHEMY_DATABASE_URL}")
+
 
 # also TODO: make this nicer, using a class to hold state...
 # and use this in load_test_db for the test db as well?

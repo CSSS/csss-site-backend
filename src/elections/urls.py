@@ -2,6 +2,7 @@ import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 import candidates.crud
 import database
@@ -288,7 +289,7 @@ async def delete_election(db_session: database.DBSession, election_name: str):
     try:
         await elections.crud.delete_election(db_session, slugified_name)
         await db_session.commit()
-    except IntegrityError as error:
+    except IntegrityError:
         await db_session.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

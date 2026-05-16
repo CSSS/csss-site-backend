@@ -9,23 +9,12 @@ from google.protobuf.message import Message
 from google.transit import gtfs_realtime_pb2
 
 from config import settings
+from translink.crud import BUS_DATA, load_static_schedule
 from translink.models import BusScheduleEntry, BusStatus
 from translink.types import FeedMessage
 
 REALTIME_URL = "https://gtfsapi.translink.ca/v3/gtfsrealtime"
 POSITION_URL = "https://gtfsapi.translink.ca/v3/gtfsposition"
-
-
-# Taken from the static data.
-# 0: Direction ID (always starts from SFU)
-# 1: SFU origin bus stop number
-# 2: Bus number
-BUS_DATA = {
-    "6656": (0, "2836", "143"),  # Burquitlam
-    "6657": (1, "12972", "144"),  # Metrotown
-    "6658": (1, "1875", "145"),  # Production
-    "37807": (1, "3129", "R5"),  # Hastings
-}
 
 
 def get_bus_status_string(status: int) -> BusStatus:
@@ -115,3 +104,13 @@ async def get_bus_schedules(request: Request):
         )
 
     return result
+
+
+@router.get(
+    "/static",
+    description="Get the static TransLink schedule",
+    response_description="Static TransLink schedule",
+    operation_id="get_static_schedule",
+)
+async def get_static_schedule(request: Request):
+    return (await load_static_schedule(request.app.state.http_client)).to_dict(orient="records")

@@ -3,13 +3,10 @@ from typing import Any, cast
 
 import httpx
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
-from google.protobuf.json_format import MessageToDict
-from google.protobuf.message import Message
 from google.transit import gtfs_realtime_pb2
 
 from config import settings
-from translink.crud import BUS_DATA, load_static_schedule
+from translink.crud import BUS_DATA, fetch_static_schedule, get_next_departures
 from translink.models import BusScheduleEntry, BusStatus
 from translink.types import FeedMessage
 
@@ -113,4 +110,5 @@ async def get_bus_schedules(request: Request):
     operation_id="get_static_schedule",
 )
 async def get_static_schedule(request: Request):
-    return (await load_static_schedule(request.app.state.http_client)).to_dict(orient="records")
+    schedule = await fetch_static_schedule(request.app.state.http_client)
+    return get_next_departures(schedule).to_dict(orient="records")

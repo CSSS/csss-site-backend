@@ -65,7 +65,7 @@ async def create_event(
     db_session: AsyncSession,
     info: EventDB
 ):
-    await db_session.add(info)
+    db_session.add(info)
 
 
 async def delete_event(

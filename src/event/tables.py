@@ -3,7 +3,8 @@ from sqlalchemy import (
     String,
     DateTime,
     Text,
-    Date
+    Date,
+    CheckConstraint
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,15 +36,27 @@ class EventDB(Base):
         nullable=True
     )
 
+    __table_args__ = (
+        CheckConstraint(
+            'start_time < end_time',
+            name='check_start_time_before_end_time'
+        ),
+        CheckConstraint(
+            'start_date < end_date',
+            name='check_start_date_before_end_date'
+        )
+    )
+    
+
     def serialize(self) -> dict:
         return{
             "eid": self.eid,
             "name": self.name,
             "description": self.description,
             "start_time": self.start_time,
-            "end_time": self.start_time,
-            "start_date": self.start_time,
-            "end_date": self.start_time,
+            "end_time": self.end_time,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
         }
 
     

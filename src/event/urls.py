@@ -74,7 +74,9 @@ async def get_events_for_this_year_month(
     description="Create a new event",
     response_model=Event,
     status_code=status.HTTP_201_CREATED,
-    responses={500: {"description": "failed to fetch new event", "model": DetailModel}},
+    responses={
+        500: {"description": "failed to fetch new event", "model": DetailModel},
+    },
     operation_id="create_event",
     # dependecies=[Depends()]
 )
@@ -108,22 +110,53 @@ async def update_event(
     eid: int,
     body: EventUpdate
 ):
-    event_info = await event.crud.get_event_by_eid(db_session, eid)
-    
-    if event_info is None:
+    db_event = await event.crud.get_event_by_eid(db_session, eid)
+    if db_event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event doesn't exist."
         )
+
+    final_start_time = body.start_time if body.start_time is not None else db_event.start_time
+    final_end_time = body.end_time if body.end_time is not None else db_event.end_time
+
+    if final_start_time > final_end_time:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The event start time must be before the end time"
+        )
     
-    updated_event = body.model_dump(exclude_unset=True)
-    for key, value in updated_event.items():
-        setattr(event_info, key, value)
+    if not body.start_date and body.end_date:
+        if not db_event.start_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The event start date and event end date must be initilized at the same time"
+            )
+        if db_event.start_date > body.end_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The event start date must be before the event end date"
+            )
+    if body.start_date and not body.end_date:
+        if not db_event.end_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The event start date and event end date must be initilized at the same time"
+            )
+        if body.start_date > db_event.end_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The event start date must be before the event end date"
+            )
+
+    updated_data = body.model_dump(exclude_unset=True)
+    for key, value in updated_data.items():
+        setattr(db_event, key, value)
     
     await db_session.commit()
-    await db_session.refresh(event_info)
+    await db_session.refresh(db_event)
 
-    return event_info
+    return db_event
 
 
 

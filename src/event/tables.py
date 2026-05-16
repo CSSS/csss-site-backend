@@ -23,10 +23,18 @@ class EventDB(Base):
         Text,
         nullable=True
     )
-    name: Mapped[str] = mapped_column(String(64))
-    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    repeat: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(
+        String(64)
+    )
+    start_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True)
+    )
+    end_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True)
+    )
+    repeat: Mapped[str] = mapped_column(
+        String(64)
+    )
     start_date: Mapped[date] = mapped_column(
         Date,
         nullable=True

@@ -7,6 +7,7 @@ class BusStatus(Enum):
     Arrived = 1
     Delayed = 2
     OnTime = 3
+    Cancelled = 4
 
 
 class BusRealtimeResponse(BaseModel):
@@ -21,5 +22,6 @@ class BusRealtimeResponse(BaseModel):
 
 class BusScheduleResponse(BusRealtimeResponse):
     status: BusStatus = Field(
-        ..., description="Enum that indicates if the bus has arrived (1), is delayed (2), or is on time (3)"
+        ...,
+        description="Enum that indicates if the bus has arrived (1), is delayed (2), is on time (3), or cancelled (4)",
     )

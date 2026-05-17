@@ -83,7 +83,7 @@ async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
 
     # Join the data from the trips and the stops
     # Casts are done to avoid some typing issues, but they might be unnecessary
-    merged = stop_times.merge(cast(pd.DataFrame, filtered_trips[["trip_id", "route_id"]]), on="trip_id")  # cross join
+    merged = stop_times.merge(cast(pd.DataFrame, filtered_trips[["trip_id", "route_id"]]), on="trip_id")
     merged = cast(
         pd.DataFrame, merged[merged.apply(lambda row: row["stop_id"] == BUS_DATA[row["route_id"]][1], axis=1)]
     )  # filter for the stops we care about

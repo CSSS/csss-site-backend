@@ -2,8 +2,6 @@
 from collections.abc import Iterator
 from typing import Protocol
 
-from translink.models import BusStatus
-
 
 class Trip(Protocol):
     trip_id: str
@@ -35,12 +33,7 @@ class TripUpdate(Protocol):
 
 
 class FeedEntity(Protocol):
-    class _Vehicle(Protocol):
-        trip: Trip
-        current_status: BusStatus
-
     trip_update: TripUpdate
-    vehicle: _Vehicle
 
     def HasField(self, name: str) -> bool: ...
 

@@ -2,11 +2,14 @@
 from collections.abc import Iterator
 from typing import Protocol
 
+from google.transit import gtfs_realtime_pb2
+
 
 class Trip(Protocol):
     trip_id: str
     route_id: str
     direction_id: int
+    schedule_relationship: gtfs_realtime_pb2.TripDescriptor  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class StopTimeUpdate(Protocol):

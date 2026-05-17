@@ -190,6 +190,10 @@ async def get_route_statuses(client: AsyncClient) -> list[BusScheduleResponse]:
         if bus_data is None or trip.direction_id != bus_data[0]:
             continue
 
+        if trip.schedule_relationship == gtfs_realtime_pb2.TripDescriptor.CANCELED:  # pyright: ignore[reportAttributeAccessIssue]
+            realtime_map[trip.trip_id] = (0, BusStatus.Cancelled)
+            continue
+
         _, stop_id, _ = bus_data
         stop = next((s for s in trip_update.stop_time_update if s.stop_id == stop_id), None)
         if stop is None:

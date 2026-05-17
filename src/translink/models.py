@@ -1,15 +1,15 @@
-from enum import StrEnum
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
 
-class BusStatus(StrEnum):
-    INCOMING_AT = "INCOMING_AT"  # The vehicle is going to stop at the next bus stop
-    STOPPED_AT = "STOPPED_AT"  # The vehicle is currently waiting at a bus stop
-    IN_TRANSIT_TO = "IN_TRANSIT_TO"  # The vehicle has departed its previous stop and in transit
+class BusStatus(Enum):
+    Arrived = 1
+    Delayed = 2
+    OnTime = 3
 
 
-class BusScheduleEntry(BaseModel):
+class BusRealtimeResponse(BaseModel):
     route_number: str = Field(..., description="The bus route number.")
     scheduled_departure_time: int = Field(..., description="Unix timestamp for the scheduled arrival time, in seconds.")
     realtime_time: int = Field(..., description="Unix timestamp for the buses actual arrival time, in seconds.")
@@ -17,4 +17,9 @@ class BusScheduleEntry(BaseModel):
         ...,
         description="How delayed the bus is, in seconds. Positive numbers indicate the bus is late, negative is early.",
     )
-    status: BusStatus = Field(..., description="The bus status: incoming, stopped, or in transit to")
+
+
+class BusScheduleResponse(BusRealtimeResponse):
+    status: BusStatus = Field(
+        ..., description="Enum that indicates if the bus has arrived (1), is delayed (2), or is on time (3)"
+    )

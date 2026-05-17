@@ -1,17 +1,15 @@
-import asyncio
 import io
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, cast
 
-import httpx
 import pandas as pd
 from google.transit import gtfs_realtime_pb2
 from httpx import AsyncClient
 
 from config import settings
 from constants import TZ_INFO
-from translink.models import BusScheduleEntry, BusStatus
+from translink.models import BusRealtimeResponse, BusScheduleResponse, BusStatus
 from translink.types import FeedMessage
 
 REALTIME_URL = "https://gtfsapi.translink.ca/v3/gtfsrealtime"
@@ -29,18 +27,6 @@ BUS_DATA = {
     "6658": (1, "1875", "145"),  # Production
     "37807": (1, "3129", "R5"),  # Hastings
 }
-
-
-def get_bus_status_string(status: int) -> BusStatus:
-    match status:
-        case 0:
-            return BusStatus.INCOMING_AT
-        case 1:
-            return BusStatus.STOPPED_AT
-        case 2:
-            return BusStatus.IN_TRANSIT_TO
-        case _:
-            raise ValueError(f"Unknown bus status: {status}")
 
 
 def _gtfs_time_to_seconds(time_str: str) -> int:
@@ -142,39 +128,58 @@ def get_next_departures(schedule: pd.DataFrame, n: int = 3) -> pd.DataFrame:
     )
 
 
-async def fetch_feed(client: httpx.AsyncClient, url: str, params: dict[str, Any]):
+async def fetch_feed(client: AsyncClient, url: str, params: dict[str, Any]):
     response = await client.get(url, params=params)
     feed = cast(FeedMessage, gtfs_realtime_pb2.FeedMessage())  # pyright: ignore[reportAttributeAccessIssue]
     feed.ParseFromString(response.content)
     return feed
 
 
-async def fetch_realtime_schedule(client: AsyncClient) -> list[BusScheduleEntry]:
-    """
-    Gets the real-time bus schedule from the TransLink GTFS Realtime API.
-    """
+async def fetch_realtime_schedule(client: AsyncClient) -> list[BusRealtimeResponse]:
     # FeedMessage is generated at runtime, so the type checker can't find this function
-    params = {"apikey": settings.translink_api_key}
+    trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
 
-    trip_feed, position_feed = await asyncio.gather(
-        fetch_feed(client, REALTIME_URL, params=params),
-        fetch_feed(client, POSITION_URL, params=params),
-    )
-
-    # Filter for the relevant vehicles
-    vehicle_positions = {}
-    for entity in position_feed.entity:
-        if not entity.HasField("vehicle"):
+    result: list[BusRealtimeResponse] = []
+    for entity in trip_feed.entity:
+        if not entity.HasField("trip_update"):
             continue
 
-        trip = entity.vehicle.trip
-        if trip.route_id not in BUS_DATA or trip.direction_id != BUS_DATA[trip.route_id][0]:
-            continue
-        vehicle_positions[trip.trip_id] = entity.vehicle
+        tu = entity.trip_update
+        trip = tu.trip
+        bus_data = BUS_DATA.get(trip.route_id)
 
-    # Go through all of the trips occurring and filter for the relevant ones,
-    # then determine which ones are delayed.
-    result: list[BusScheduleEntry] = []
+        if bus_data is None or trip.direction_id != bus_data[0]:
+            continue
+
+        _, stop_id, bus_number = bus_data
+        stop = next((s for s in tu.stop_time_update if s.stop_id == stop_id), None)
+        if stop is None:
+            continue
+
+        result.append(
+            BusRealtimeResponse(
+                route_number=bus_number,
+                scheduled_departure_time=stop.departure.time - stop.departure.delay,
+                realtime_time=stop.departure.time,
+                delay_seconds=stop.departure.delay,
+            )
+        )
+
+    result.sort(key=lambda e: e.realtime_time)
+    return result
+
+
+async def get_route_statuses(client: AsyncClient) -> list[BusScheduleResponse]:
+    """
+    Gets the real-time bus schedule from the TransLink GTFS Realtime API and merge it with the static data.
+    """
+    schedule = await fetch_static_schedule(client)
+    next_departures = get_next_departures(schedule)
+    # FeedMessage is generated at runtime, so the type checker can't find this function
+    trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
+
+    # Map all the realtime data to each bus's status
+    realtime_map: dict[str, tuple[int, BusStatus]] = {}
     for entity in trip_feed.entity:
         if not entity.HasField("trip_update"):
             continue
@@ -182,29 +187,40 @@ async def fetch_realtime_schedule(client: AsyncClient) -> list[BusScheduleEntry]
         trip_update = entity.trip_update
         trip = trip_update.trip
         bus_data = BUS_DATA.get(trip.route_id)
-
         if bus_data is None or trip.direction_id != bus_data[0]:
             continue
 
-        _, stop_id, route_number = bus_data
+        _, stop_id, _ = bus_data
         stop = next((s for s in trip_update.stop_time_update if s.stop_id == stop_id), None)
         if stop is None:
             continue
 
-        scheduled_time = stop.departure.time - stop.departure.delay
+        first_stop = min(trip_update.stop_time_update, key=lambda s: s.stop_sequence)
+        if first_stop.stop_id == stop_id:
+            status = BusStatus.Arrived
+        elif stop.departure.delay > 0:
+            status = BusStatus.Delayed
+        else:
+            status = BusStatus.OnTime
 
-        trip_id = trip.trip_id
-        status = BusStatus.INCOMING_AT
-        vehicle = vehicle_positions.get(trip_id)
-        if vehicle:
-            status = get_bus_status_string(vehicle.current_status)
+        realtime_map[trip.trip_id] = (stop.departure.delay, status)
+
+    result: list[BusScheduleResponse] = []
+    now = datetime.now(tz=TZ_INFO)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    for _, row in next_departures.iterrows():
+        scheduled_time = int((midnight + timedelta(seconds=cast(int, row["departure_seconds"]))).timestamp())
+
+        delay, status = realtime_map.get(
+            cast(str, row["trip_id"]), (0, BusStatus.OnTime)
+        )  # default to on time if no realtime info
 
         result.append(
-            BusScheduleEntry(
-                route_number=route_number,
+            BusScheduleResponse(
+                route_number=cast(str, row["bus_number"]),
                 scheduled_departure_time=scheduled_time,
-                realtime_time=stop.departure.time,
-                delay_seconds=stop.departure.delay,
+                realtime_time=scheduled_time + delay,
+                delay_seconds=delay,
                 status=status,
             )
         )

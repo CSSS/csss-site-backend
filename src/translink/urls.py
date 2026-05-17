@@ -40,14 +40,14 @@ router = APIRouter(
 
 
 @router.get(
-    "/schedule",
+    "/realtime",
     description="Get TransLink bus schedule",
-    response_description="Real-time information for bus schedules",
+    response_description="Realtime information for bus schedules",
     response_model=list[BusScheduleEntry],
-    operation_id="get_bus_schedules",
+    operation_id="get_realtime_schedule",
 )
-async def get_bus_schedules(request: Request):
-    # FeedMessage is generated at runtime, so the LSP can't find this function
+async def get_realtime_schedule(request: Request):
+    # FeedMessage is generated at runtime, so the type checker can't find this function
     params = {"apikey": settings.translink_api_key}
 
     trip_feed, position_feed = await asyncio.gather(
@@ -55,6 +55,7 @@ async def get_bus_schedules(request: Request):
         fetch_feed(request.app.state.http_client, POSITION_URL, params=params),
     )
 
+    # Filter for the relevant vehicles
     vehicle_positions = {}
     for entity in position_feed.entity:
         if not entity.HasField("vehicle"):
@@ -65,6 +66,8 @@ async def get_bus_schedules(request: Request):
             continue
         vehicle_positions[trip.trip_id] = entity.vehicle
 
+    # Go through all of the trips occurring and filter for the relevant ones,
+    # then determine which ones are delayed.
     result: list[BusScheduleEntry] = []
     for entity in trip_feed.entity:
         if not entity.HasField("trip_update"):
@@ -77,7 +80,7 @@ async def get_bus_schedules(request: Request):
         if bus_data is None or trip.direction_id != bus_data[0]:
             continue
 
-        _, stop_id, bus_number = bus_data
+        _, stop_id, route_number = bus_data
         stop = next((s for s in trip_update.stop_time_update if s.stop_id == stop_id), None)
         if stop is None:
             continue
@@ -92,7 +95,7 @@ async def get_bus_schedules(request: Request):
 
         result.append(
             BusScheduleEntry(
-                bus_number=bus_number,
+                route_number=route_number,
                 scheduled_departure_time=scheduled_time,
                 realtime_time=stop.departure.time,
                 delay_seconds=stop.departure.delay,

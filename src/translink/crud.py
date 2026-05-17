@@ -12,7 +12,7 @@ from constants import TZ_INFO
 # Key: Route ID
 # 0: Direction ID (always starts from SFU)
 # 1: SFU Stop ID
-# 2: Bus number
+# 2: Route number
 BUS_DATA = {
     "6656": (0, "2836", "143"),  # Burquitlam
     "6657": (1, "12972", "144"),  # Metrotown
@@ -23,8 +23,8 @@ BUS_DATA = {
 
 def _gtfs_time_to_seconds(time_str: str) -> int:
     """
-    Stop times are in HH:MM:SS format as a 24-hour clock, but they sometimes display times beyond 24:00:00.
-    This will handle those cases as well.
+    Stop times are in HH:MM:SS format as a 24-hour clock, but they sometimes display times beyond 24:00:00,
+    so everything is converted to be an offset of midnight of the day the ride was scheduled.
     """
     h, m, s = map(int, time_str.split(":"))
     return h * 3600 + m * 60 + s
@@ -100,7 +100,14 @@ async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
 
 def get_next_departures(schedule: pd.DataFrame, n: int = 3) -> pd.DataFrame:
     """
-    Gets the next departure time for each bus based on the current time in seconds since midnight
+    Get the next few departures for today.
+
+    Args:
+        schedule: static schedule filtered out for the relevant routes
+        n: the number of departures to get for each route
+
+    Returns:
+        A dataframe with the next n departures for each route, sorted by route ID and departure time (in seconds).
     """
     now = datetime.now(tz=TZ_INFO)
     current_seconds = int((now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds())

@@ -5,8 +5,8 @@ All dates are adjusted for the America/Vancouver timezone.
 
 ## Quickstart
 1. You need an API key to do anything with realtime data. You can sign up for one [here](https://www.translink.ca/about-us/doing-business-with-translink/app-developer-resources/register
-2. Put the API key in `src/.env` with the key `TRANSLINK_API_KEY=<your API key>`
-3. Make sure your database has the correct migrations `alembic upgrade head`. Reload the your test database as well `python src/load_test_db.py`
+2. Put the API key in `src/.env` with the key `TRANSLINK_API_KEY=<your API key>` or create an environment variable `export TRANSLINK_API_KEY=<your api key>`.
+3. Make sure your database has the correct migrations `alembic upgrade head`. Reload your test database as well `python src/load_test_db.py`
 4. Start (or restart) the web server to test the endpoints
 
 ## Endpoints

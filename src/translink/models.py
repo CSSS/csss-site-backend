@@ -15,7 +15,8 @@ class TransLinkStaticScheduleEntry(BaseModel):
     trip_id: str = Field(..., description="The GTFS Trip ID for this bus.")
     route_id: str = Field(..., description="The GTFS Route ID for this bus.")
     bus_number: str = Field(..., description="The bus route number.")
-    departure_seconds: int = Field(..., description="Unix timestamp for the scheduled departure time, in seconds.")
+    departure_seconds: int = Field(..., description="The number of seconds after midnight for this departure.")
+    departure_time: str = Field(..., description="Time that the bus is departing as a HH:MM:SS string.")
 
 
 class TransLinkStaticResponse(BaseModel):

@@ -1,10 +1,13 @@
 import io
+import logging
 import zipfile
 from datetime import date, datetime, timedelta
 from typing import Any, cast
 
+import httpx
 import pandas as pd
 import sqlalchemy
+import sqlalchemy.exc
 from google.transit import gtfs_realtime_pb2
 from httpx import AsyncClient
 
@@ -70,8 +73,15 @@ async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
     Gets the static bus schedule from the static TransLink GTFS API
     """
     # Retrieve the static TransLink bus schedule data
-    static_response = await client.get("https://gtfs-static.translink.ca/gtfs/google_transit.zip")
-    z = zipfile.ZipFile(io.BytesIO(static_response.content))
+    try:
+        static_response = await client.get("https://gtfs-static.translink.ca/gtfs/google_transit.zip")
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"Failed to fetch static schedule: {e}") from e
+
+    try:
+        z = zipfile.ZipFile(io.BytesIO(static_response.content))
+    except zipfile.BadZipFile as e:
+        raise RuntimeError(f"Failed to read static schedule zip file: {e}") from e
 
     # A trip is from one stop to the next one
     active_services = _get_active_service_ids(z)
@@ -102,15 +112,21 @@ async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
     merged = merged.copy()  # stops pandas from complaining about modifying original data
     merged["bus_number"] = merged["route_id"].map(lambda r: BUS_DATA[r][2])
     merged["departure_seconds"] = merged["departure_time"].map(_gtfs_time_to_seconds)
-    return cast(pd.DataFrame, merged[["trip_id", "route_id", "bus_number", "departure_seconds"]]).reset_index(drop=True)
+    return cast(
+        pd.DataFrame, merged[["trip_id", "route_id", "bus_number", "departure_time", "departure_seconds"]]
+    ).reset_index(drop=True)
 
 
 async def get_or_fetch_static_schedule(db_session: DBSession, client: AsyncClient) -> tuple[date, pd.DataFrame]:
     today = datetime.now(tz=TZ_INFO).date()
 
-    result = await db_session.scalar(
-        sqlalchemy.select(TransLinkStaticScheduleDB).where(TransLinkStaticScheduleDB.id == 1)
-    )
+    try:
+        result = await db_session.scalar(
+            sqlalchemy.select(TransLinkStaticScheduleDB).where(TransLinkStaticScheduleDB.date_fetched == today)
+        )
+    except sqlalchemy.exc.SQLAlchemyError as e:
+        logging.error(f"Failed to query static schedule from database: {e}")
+        result = None
 
     if result is not None:
         return (result.date_fetched, pd.DataFrame(result.schedule))
@@ -119,10 +135,14 @@ async def get_or_fetch_static_schedule(db_session: DBSession, client: AsyncClien
     if result.empty:
         raise ValueError("No active schedule found for today")
 
-    await db_session.merge(
-        TransLinkStaticScheduleDB(id=1, date_fetched=today, schedule=result.to_dict(orient="records"))
-    )
-    await db_session.commit()
+    try:
+        await db_session.merge(
+            TransLinkStaticScheduleDB(id=1, date_fetched=today, schedule=result.to_dict(orient="records"))
+        )
+        await db_session.commit()
+    except sqlalchemy.exc.SQLAlchemyError as e:
+        logging.warning(f"Failed to cache static schedule to database: {e}")
+        await db_session.rollback()
 
     return (today, result)
 
@@ -149,16 +169,23 @@ def get_next_departures(schedule: pd.DataFrame, n: int = 3) -> pd.DataFrame:
     )
 
 
-async def fetch_feed(client: AsyncClient, url: str, params: dict[str, Any]):
-    response = await client.get(url, params=params)
-    feed = cast(FeedMessage, gtfs_realtime_pb2.FeedMessage())  # pyright: ignore[reportAttributeAccessIssue]
-    feed.ParseFromString(response.content)
-    return feed
+async def fetch_feed(client: AsyncClient, url: str, params: dict[str, Any]) -> FeedMessage | None:
+    try:
+        response = await client.get(url, params=params)
+        feed = cast(FeedMessage, gtfs_realtime_pb2.FeedMessage())  # pyright: ignore[reportAttributeAccessIssue]
+        feed.ParseFromString(response.content)
+        return feed
+    except httpx.HTTPError as e:
+        logging.error(f"Failed to fetch feed from {url}: {e}")
+        return None
 
 
 async def fetch_realtime_schedule(client: AsyncClient) -> list[TransLinkRealtimeResponse]:
     # FeedMessage is generated at runtime, so the type checker can't find this function
     trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
+
+    if trip_feed is None:
+        return []
 
     result: list[TransLinkRealtimeResponse] = []
     for entity in trip_feed.entity:
@@ -190,14 +217,25 @@ async def fetch_realtime_schedule(client: AsyncClient) -> list[TransLinkRealtime
     return result
 
 
-async def get_route_statuses(db_session: DBSession, client: AsyncClient) -> list[TransLinkScheduleResponse]:
+async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> list[TransLinkScheduleResponse]:
     """
     Gets the real-time bus schedule from the TransLink GTFS Realtime API and merge it with the static data.
     """
     _, schedule = await get_or_fetch_static_schedule(db_session, client)
     next_departures = get_next_departures(schedule)
-    # FeedMessage is generated at runtime, so the type checker can't find this function
     trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
+    if trip_feed is None:
+        return [
+            TransLinkScheduleResponse(
+                route_number=cast(str, row["bus_number"]),
+                scheduled_departure_time=cast(int, row["departure_time"]),
+                realtime_time=cast(int, row["departure_time"]),
+                delay_seconds=0,
+                status=BusStatus.OnTime,
+            )
+            for _, row in next_departures.iterrows()
+        ]
+    # FeedMessage is generated at runtime, so the type checker can't find this function
 
     # Map all the realtime data to each bus's status
     realtime_map: dict[str, tuple[int, BusStatus]] = {}

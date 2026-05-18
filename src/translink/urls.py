@@ -3,8 +3,8 @@ from fastapi import APIRouter, Request
 from database import DBSession
 from translink.crud import (
     fetch_realtime_schedule,
+    get_departure_statuses,
     get_or_fetch_static_schedule,
-    get_route_statuses,
 )
 from translink.models import TransLinkRealtimeResponse, TransLinkStaticResponse, TransLinkStaticScheduleEntry
 
@@ -41,10 +41,10 @@ async def get_static_schedule(db_session: DBSession, request: Request):
 
 @router.get(
     "/schedule",
-    description="Get the departure schedule with bus status. Uses the cached version of the static schedule if it exists, otherwise it fetches the newest schedule.",
+    description="Get the departure schedule with bus status. Attempts to use the cached static schedule first.",
     response_description="The next three depature times with bus status information.",
     response_model=list[TransLinkRealtimeResponse],
     operation_id="get_departure_schedule",
 )
 async def get_departure_schedule(db_session: DBSession, request: Request):
-    return await get_route_statuses(db_session, request.app.state.http_client)
+    return await get_departure_statuses(db_session, request.app.state.http_client)

@@ -1,15 +1,18 @@
 import io
 import zipfile
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, cast
 
 import pandas as pd
+import sqlalchemy
 from google.transit import gtfs_realtime_pb2
 from httpx import AsyncClient
 
 from config import settings
 from constants import TZ_INFO
-from translink.models import BusRealtimeResponse, BusScheduleResponse, BusStatus
+from database import DBSession
+from translink.models import BusStatus, TransLinkRealtimeResponse, TransLinkScheduleResponse
+from translink.tables import TransLinkStaticScheduleDB
 from translink.types import FeedMessage
 
 REALTIME_URL = "https://gtfsapi.translink.ca/v3/gtfsrealtime"
@@ -99,11 +102,29 @@ async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
     merged = merged.copy()  # stops pandas from complaining about modifying original data
     merged["bus_number"] = merged["route_id"].map(lambda r: BUS_DATA[r][2])
     merged["departure_seconds"] = merged["departure_time"].map(_gtfs_time_to_seconds)
+    return cast(pd.DataFrame, merged[["trip_id", "route_id", "bus_number", "departure_seconds"]]).reset_index(drop=True)
 
-    return cast(
-        pd.DataFrame,
-        merged[["trip_id", "route_id", "bus_number", "departure_seconds"]].reset_index(drop=True),
+
+async def get_or_fetch_static_schedule(db_session: DBSession, client: AsyncClient) -> tuple[date, pd.DataFrame]:
+    today = datetime.now(tz=TZ_INFO).date()
+
+    result = await db_session.scalar(
+        sqlalchemy.select(TransLinkStaticScheduleDB).where(TransLinkStaticScheduleDB.id == 1)
     )
+
+    if result is not None:
+        return (result.date_fetched, pd.DataFrame(result.schedule))
+
+    result = await fetch_static_schedule(client)
+    if result.empty:
+        raise ValueError("No active schedule found for today")
+
+    await db_session.merge(
+        TransLinkStaticScheduleDB(id=1, date_fetched=today, schedule=result.to_dict(orient="records"))
+    )
+    await db_session.commit()
+
+    return (today, result)
 
 
 def get_next_departures(schedule: pd.DataFrame, n: int = 3) -> pd.DataFrame:
@@ -135,11 +156,11 @@ async def fetch_feed(client: AsyncClient, url: str, params: dict[str, Any]):
     return feed
 
 
-async def fetch_realtime_schedule(client: AsyncClient) -> list[BusRealtimeResponse]:
+async def fetch_realtime_schedule(client: AsyncClient) -> list[TransLinkRealtimeResponse]:
     # FeedMessage is generated at runtime, so the type checker can't find this function
     trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
 
-    result: list[BusRealtimeResponse] = []
+    result: list[TransLinkRealtimeResponse] = []
     for entity in trip_feed.entity:
         if not entity.HasField("trip_update"):
             continue
@@ -157,7 +178,7 @@ async def fetch_realtime_schedule(client: AsyncClient) -> list[BusRealtimeRespon
             continue
 
         result.append(
-            BusRealtimeResponse(
+            TransLinkRealtimeResponse(
                 route_number=bus_number,
                 scheduled_departure_time=stop.departure.time - stop.departure.delay,
                 realtime_time=stop.departure.time,
@@ -169,11 +190,11 @@ async def fetch_realtime_schedule(client: AsyncClient) -> list[BusRealtimeRespon
     return result
 
 
-async def get_route_statuses(client: AsyncClient) -> list[BusScheduleResponse]:
+async def get_route_statuses(db_session: DBSession, client: AsyncClient) -> list[TransLinkScheduleResponse]:
     """
     Gets the real-time bus schedule from the TransLink GTFS Realtime API and merge it with the static data.
     """
-    schedule = await fetch_static_schedule(client)
+    _, schedule = await get_or_fetch_static_schedule(db_session, client)
     next_departures = get_next_departures(schedule)
     # FeedMessage is generated at runtime, so the type checker can't find this function
     trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
@@ -209,7 +230,7 @@ async def get_route_statuses(client: AsyncClient) -> list[BusScheduleResponse]:
 
         realtime_map[trip.trip_id] = (stop.departure.delay, status)
 
-    result: list[BusScheduleResponse] = []
+    result: list[TransLinkScheduleResponse] = []
     now = datetime.now(tz=TZ_INFO)
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     for _, row in next_departures.iterrows():
@@ -220,7 +241,7 @@ async def get_route_statuses(client: AsyncClient) -> list[BusScheduleResponse]:
         )  # default to on time if no realtime info
 
         result.append(
-            BusScheduleResponse(
+            TransLinkScheduleResponse(
                 route_number=cast(str, row["bus_number"]),
                 scheduled_departure_time=scheduled_time,
                 realtime_time=scheduled_time + delay,

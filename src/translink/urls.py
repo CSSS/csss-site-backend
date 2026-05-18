@@ -6,7 +6,12 @@ from translink.crud import (
     get_departure_statuses,
     get_or_fetch_static_schedule,
 )
-from translink.models import TransLinkRealtimeResponse, TransLinkStaticResponse, TransLinkStaticScheduleEntry
+from translink.models import (
+    TransLinkRealtimeResponse,
+    TransLinkScheduleResponse,
+    TransLinkStaticResponse,
+    TransLinkStaticScheduleEntry,
+)
 
 router = APIRouter(
     prefix="/translink",
@@ -43,7 +48,7 @@ async def get_static_schedule(db_session: DBSession, request: Request):
     "/schedule",
     description="Get the departure schedule with bus status. Attempts to use the cached static schedule first.",
     response_description="The next three depature times with bus status information.",
-    response_model=list[TransLinkRealtimeResponse],
+    response_model=list[TransLinkScheduleResponse],
     operation_id="get_departure_schedule",
 )
 async def get_departure_schedule(db_session: DBSession, request: Request):

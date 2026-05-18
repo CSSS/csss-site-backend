@@ -30,12 +30,6 @@ async def lifespan(app: FastAPI):
     Handles startup and shutdown events, see https://fastapi.tiangolo.com/advanced/events/
     """
     app.state.http_client = httpx.AsyncClient()
-    # app.state.shared_state = shared_state
-
-    # with shared_lock:
-    #     if "static_translink_schedule" not in shared_state:
-    #         schedule = await load_static_schedule(app.state.http_client)
-    #         shared_state["static_schedule"] = schedule.to_dict(orient="records")
     yield
     await app.state.http_client.aclose()
     if database.sessionmanager._engine is not None:

@@ -26,6 +26,7 @@ from officers.crud import (
     update_officer_term,
 )
 from officers.tables import OfficerInfoDB, OfficerTermDB
+from translink.tables import TransLinkStaticScheduleDB
 
 
 async def reset_db(engine):

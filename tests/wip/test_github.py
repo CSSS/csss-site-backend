@@ -4,10 +4,12 @@ import github.internals
 
 # NOTE: must export API key to use github api (mostly...)
 
+
 @pytest.mark.asyncio
 async def test__list_users():
     member_list = await github.internals.list_members()
     print(member_list)
+
 
 @pytest.mark.asyncio
 async def test__get_user_by_name():

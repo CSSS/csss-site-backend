@@ -12,16 +12,6 @@ class Event(BaseModel):
     repeat_start_date: datetime.date | None = None
     repeat_end_date: datetime.date | None = None
 
-class Event(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    name: str
-    start_time: datetime.datetime
-    end_time: datetime.datetime
-    description: str | None = None
-    repeat: str | None = None
-    repeat_start_date: datetime.date | None = None
-    repeat_end_date: datetime.date | None = None
-
 class EventCreate(BaseModel):
     name: str
     start_time: datetime.datetime

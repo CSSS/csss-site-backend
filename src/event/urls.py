@@ -5,7 +5,6 @@ import database
 import event.crud
 from event.models import (
     Event,
-    Event,
     EventCreate,
     EventUpdate,
     EventDelete
@@ -23,7 +22,6 @@ router = APIRouter(
     "",
     description="Get all events",
     response_model=list[Event],
-    # responses={},
     operation_id="get_all_events",
     # probably want it to be public so no dependecies?
     # dependecies=[Depends()] 
@@ -40,7 +38,6 @@ async def get_all_events(
     "/{year}",
     description="Get events that start OR end in this year",
     response_model=list[Event],
-    # responses= {}
     operation_id="get_events_for_this_year"
 )
 async def get_events_for_this_year(
@@ -56,7 +53,6 @@ async def get_events_for_this_year(
     "/{year}/{month}",
     description="Get events that start OR end in the given year and month",
     response_model=list[Event],
-    # responses= {}
     operation_id="get_events_for_this_year_month"
 )
 async def get_events_for_this_year_month(

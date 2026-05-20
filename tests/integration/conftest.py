@@ -1,28 +1,18 @@
 # Configuration of Pytest
-import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from auth.crud import create_user_session, remove_user_session
-from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager
+from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager, get_db_session
 from load_test_db import SYSADMIN_COMPUTING_ID, async_main
 from main import app
 
 
-# This might be able to be moved to `package` scope as long as I inject it to every test function
-@pytest.fixture(scope="session")
-def suppress_sqlalchemy_logs():
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-    yield
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
-
-
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def database_setup():
+async def test_database():
     # reset the database again, just in case
     print("Resetting DB...")
     sessionmanager = DatabaseSessionManager(SQLALCHEMY_TEST_DATABASE_URL, {"echo": False}, check_db=False)
@@ -34,25 +24,32 @@ async def database_setup():
 
 
 @pytest_asyncio.fixture(scope="function", loop_scope="session")
-async def db_session(database_setup: DatabaseSessionManager):
-    async with database_setup.session() as session:
+async def db_session(test_database: DatabaseSessionManager):
+    async with test_database.session() as session:
         yield session
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def client() -> AsyncGenerator[Any]:
+async def client(test_database: DatabaseSessionManager) -> AsyncGenerator[Any]:
+    async def override_get_db_session():
+        async with test_database.session() as session:
+            yield session
+
+    app.dependency_overrides[get_db_session] = override_get_db_session
     # base_url is just a random placeholder url
     # ASGITransport is just telling the async client to pass all requests to app
     # `async with` syntax used so that the connecton will automatically be closed once done
     async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
         yield client
 
+    app.dependency_overrides.clear()
+
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def admin_client(database_setup: DatabaseSessionManager, client: AsyncClient):
+async def admin_client(test_database: DatabaseSessionManager, client: AsyncClient):
     session_id = "temp_id_" + SYSADMIN_COMPUTING_ID
     client.cookies = {"session_id": session_id}
-    async with database_setup.session() as session:
+    async with test_database.session() as session:
         await create_user_session(session, session_id, SYSADMIN_COMPUTING_ID)
         yield client
         await remove_user_session(session, session_id)

@@ -12,7 +12,7 @@ class Event(BaseModel):
     repeat_start_date: datetime.date | None = None
     repeat_end_date: datetime.date | None = None
 
-class EventPublic(BaseModel):
+class Event(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     name: str
     start_time: datetime.datetime

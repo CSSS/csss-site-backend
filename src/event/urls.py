@@ -126,24 +126,24 @@ async def update_event(
             detail="The event start time must be before the end time"
         )
     
-    if not body.start_date and body.end_date:
-        if not db_event.start_date:
+    if not body.repeat_start_date and body.repeat_end_date:
+        if not db_event.repeat_start_date:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="The event start date and event end date must be initilized at the same time"
             )
-        if db_event.start_date > body.end_date:
+        if db_event.repeat_start_date > body.repeat_end_date:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="The event start date must be before the event end date"
             )
-    if body.start_date and not body.end_date:
-        if not db_event.end_date:
+    if body.repeat_start_date and not body.repeat_end_date:
+        if not db_event.repeat_end_date:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="The event start date and event end date must be initilized at the same time"
             )
-        if body.start_date > db_event.end_date:
+        if body.repeat_start_date > db_event.repeat_end_date:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="The event start date must be before the event end date"

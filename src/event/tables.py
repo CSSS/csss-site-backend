@@ -35,11 +35,11 @@ class EventDB(Base):
     repeat: Mapped[str] = mapped_column(
         String(64)
     )
-    start_date: Mapped[date] = mapped_column(
+    repeat_start_date: Mapped[date] = mapped_column(
         Date,
         nullable=True
     )
-    end_date: Mapped[date] = mapped_column(
+    repeat_end_date: Mapped[date] = mapped_column(
         Date,
         nullable=True
     )
@@ -50,8 +50,8 @@ class EventDB(Base):
             name='check_start_time_before_end_time'
         ),
         CheckConstraint(
-            'start_date < end_date',
-            name='check_start_date_before_end_date'
+            'repeat_start_date < repeat_end_date',
+            name='check_repeat_start_date_before_repeat_end_date'
         )
     )
     
@@ -63,8 +63,8 @@ class EventDB(Base):
             "description": self.description,
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
+            "repeat_start_date": self.repeat_start_date,
+            "repeat_end_date": self.repeat_end_date,
         }
 
     

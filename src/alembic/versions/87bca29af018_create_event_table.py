@@ -1,8 +1,8 @@
 """create_event_table
 
-Revision ID: f4c493a24799
+Revision ID: 87bca29af018
 Revises: 0a2c458d1ddd
-Create Date: 2026-05-15 23:00:45.680647
+Create Date: 2026-05-20 16:40:02.515549
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f4c493a24799'
+revision: str = '87bca29af018'
 down_revision: Union[str, None] = '0a2c458d1ddd'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -27,9 +27,9 @@ def upgrade() -> None:
     sa.Column('start_time', sa.DateTime(timezone=True), nullable=False),
     sa.Column('end_time', sa.DateTime(timezone=True), nullable=False),
     sa.Column('repeat', sa.String(length=64), nullable=False),
-    sa.Column('start_date', sa.Date(), nullable=True),
-    sa.Column('end_date', sa.Date(), nullable=True),
-    sa.CheckConstraint('start_date < end_date', name=op.f('ck_event_info_check_start_date_before_end_date')),
+    sa.Column('repeat_start_date', sa.Date(), nullable=True),
+    sa.Column('repeat_end_date', sa.Date(), nullable=True),
+    sa.CheckConstraint('repeat_start_date < repeat_end_date', name=op.f('ck_event_info_check_repeat_start_date_before_repeat_end_date')),
     sa.CheckConstraint('start_time < end_time', name=op.f('ck_event_info_check_start_time_before_end_time')),
     sa.PrimaryKeyConstraint('eid', name=op.f('pk_event_info'))
     )

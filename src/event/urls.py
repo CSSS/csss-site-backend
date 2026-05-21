@@ -113,40 +113,13 @@ async def update_event(
             detail="Event doesn't exist."
         )
 
-    final_start_time = body.start_time if body.start_time is not None else db_event.start_time
-    final_end_time = body.end_time if body.end_time is not None else db_event.end_time
+    db_data = Event.model_validate(db_event).model_dump()
+    patch_data = body.model_dump(exclude_unset=True)
 
-    if final_start_time > final_end_time:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="The event start time must be before the end time"
-        )
-    
-    if not body.repeat_start_date and body.repeat_end_date:
-        if not db_event.repeat_start_date:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="The event start date and event end date must be initilized at the same time"
-            )
-        if db_event.repeat_start_date > body.repeat_end_date:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="The event start date must be before the event end date"
-            )
-    if body.repeat_start_date and not body.repeat_end_date:
-        if not db_event.repeat_end_date:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="The event start date and event end date must be initilized at the same time"
-            )
-        if body.repeat_start_date > db_event.repeat_end_date:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="The event start date must be before the event end date"
-            )
+    merged_data = { **db_data, **patch_data}
+    Event.model_validate(merged_data)
 
-    updated_data = body.model_dump(exclude_unset=True)
-    for key, value in updated_data.items():
+    for key, value in patch_data.model_dump().items():
         setattr(db_event, key, value)
     
     await db_session.commit()

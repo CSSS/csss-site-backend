@@ -53,18 +53,4 @@ class EventDB(Base):
             'repeat_start_date < repeat_end_date',
             name='check_repeat_start_date_before_repeat_end_date'
         )
-    )
-    
-
-    def serialize(self) -> dict:
-        return{
-            "eid": self.eid,
-            "name": self.name,
-            "description": self.description,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "repeat_start_date": self.repeat_start_date,
-            "repeat_end_date": self.repeat_end_date,
-        }
-
-    
+    )    

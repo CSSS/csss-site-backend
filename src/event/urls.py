@@ -73,7 +73,7 @@ async def get_events_for_this_year_month(
         500: {"description": "failed to fetch new event", "model": DetailModel},
     },
     operation_id="create_event",
-    dependecies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_admin)],
 )
 async def create_event(
     db_session: database.DBSession,
@@ -99,7 +99,7 @@ async def create_event(
         404:{"description": "Event doesn't exist."}
     },
     operation_id="update_event",
-    dependecies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_admin)],
 )
 async def update_event(
     db_session: database.DBSession,
@@ -164,7 +164,7 @@ async def update_event(
         404:{"description": "Event doesn't exist."}
     },
     operation_id="delete_event",
-    dependecies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_admin)],
 )
 async def delete_event(
     db_session: database.DBSession,

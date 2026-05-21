@@ -10,10 +10,10 @@ import auth.urls
 import candidates.urls
 import database
 import elections.urls
+import event.urls
 import nominees.urls
 import officers.urls
 import permission.urls
-import event.urls
 from constants import IS_PROD
 
 logging.basicConfig(level=logging.DEBUG)

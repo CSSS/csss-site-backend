@@ -13,6 +13,8 @@ from event.models import (
 from event.tables import EventDB
 from utils.shared_models import DetailModel, SuccessResponse
 from datetime import datetime, date
+from pydantic import ValidationError
+from fastapi.encoders import jsonable_encoder
 
 router = APIRouter(
     prefix="/event",
@@ -73,7 +75,7 @@ async def get_events_for_this_year_month(
         500: {"description": "failed to fetch new event", "model": DetailModel},
     },
     operation_id="create_event",
-    dependencies=[Depends(perm_admin)],
+    # dependencies=[Depends(perm_admin)],
 )
 async def create_event(
     db_session: database.DBSession,
@@ -99,7 +101,7 @@ async def create_event(
         404:{"description": "Event doesn't exist."}
     },
     operation_id="update_event",
-    dependencies=[Depends(perm_admin)],
+    # dependencies=[Depends(perm_admin)],
 )
 async def update_event(
     db_session: database.DBSession,
@@ -117,9 +119,15 @@ async def update_event(
     patch_data = body.model_dump(exclude_unset=True)
 
     merged_data = { **db_data, **patch_data}
-    Event.model_validate(merged_data)
+    try:
+        Event.model_validate(merged_data)
+    except ValidationError as e:
+        raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=jsonable_encoder(e.errors())
+            )
 
-    for key, value in patch_data.model_dump().items():
+    for key, value in patch_data.items():
         setattr(db_event, key, value)
     
     await db_session.commit()
@@ -137,7 +145,7 @@ async def update_event(
         404:{"description": "Event doesn't exist."}
     },
     operation_id="delete_event",
-    dependencies=[Depends(perm_admin)],
+    # dependencies=[Depends(perm_admin)],
 )
 async def delete_event(
     db_session: database.DBSession,

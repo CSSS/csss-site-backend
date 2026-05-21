@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 
 import database
 import event.crud
+from dependencies import perm_admin
 from event.models import (
     Event,
     EventCreate,
@@ -23,8 +24,6 @@ router = APIRouter(
     description="Get all events",
     response_model=list[Event],
     operation_id="get_all_events",
-    # probably want it to be public so no dependecies?
-    # dependecies=[Depends()] 
 )
 async def get_all_events(
     db_session: database.DBSession,
@@ -74,7 +73,7 @@ async def get_events_for_this_year_month(
         500: {"description": "failed to fetch new event", "model": DetailModel},
     },
     operation_id="create_event",
-    # dependecies=[Depends()]
+    dependecies=[Depends(perm_admin)],
 )
 async def create_event(
     db_session: database.DBSession,
@@ -99,7 +98,8 @@ async def create_event(
     responses={
         404:{"description": "Event doesn't exist."}
     },
-    operation_id="update_event"
+    operation_id="update_event",
+    dependecies=[Depends(perm_admin)],
 )
 async def update_event(
     db_session: database.DBSession,
@@ -164,7 +164,7 @@ async def update_event(
         404:{"description": "Event doesn't exist."}
     },
     operation_id="delete_event",
-    # dependecies=[Depends()],
+    dependecies=[Depends(perm_admin)],
 )
 async def delete_event(
     db_session: database.DBSession,

@@ -177,7 +177,7 @@ async def get_active_officer_terms(
     )
     query = utils.is_active_officer(query)
     if positions:
-        query.where(OfficerTermDB.position.in_(positions))
+        query = query.where(OfficerTermDB.position.in_(positions))
 
     return list((await db_session.scalars(query)).all())
 

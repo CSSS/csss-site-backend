@@ -1,5 +1,6 @@
 from enum import StrEnum
 
+
 class EventFrequencyEnum(StrEnum):
     NONE = "NONE"
     DAILY = "DAILY"

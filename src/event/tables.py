@@ -1,10 +1,10 @@
 from datetime import date, datetime
-from event.constants import EventFrequencyEnum
 
 from sqlalchemy import CheckConstraint, Date, DateTime, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
+from event.constants import EventFrequencyEnum
 
 
 class EventDB(Base):

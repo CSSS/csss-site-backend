@@ -1,6 +1,8 @@
 import datetime
-from event.constants import EventFrequencyEnum
+
 from pydantic import BaseModel, ConfigDict, model_validator
+
+from event.constants import EventFrequencyEnum
 
 
 class BaseEvent(BaseModel):

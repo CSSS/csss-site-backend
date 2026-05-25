@@ -1,8 +1,8 @@
 """create_event_table
 
-Revision ID: 87bca29af018
+Revision ID: 4928dc3f0b07
 Revises: 0a2c458d1ddd
-Create Date: 2026-05-20 16:40:02.515549
+Create Date: 2026-05-24 17:39:22.538239
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '87bca29af018'
+revision: str = '4928dc3f0b07'
 down_revision: Union[str, None] = '0a2c458d1ddd'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,9 +26,10 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=64), nullable=False),
     sa.Column('start_time', sa.DateTime(timezone=True), nullable=False),
     sa.Column('end_time', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('repeat', sa.String(length=64), nullable=False),
+    sa.Column('frequency', sa.String(length=64), server_default=sa.text("'NONE'"), nullable=True),
     sa.Column('repeat_start_date', sa.Date(), nullable=True),
     sa.Column('repeat_end_date', sa.Date(), nullable=True),
+    sa.CheckConstraint("frequency IN ('NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'SEMESTERLY', 'YEARLY')", name=op.f('ck_event_info_valid_frequency_value')),
     sa.CheckConstraint('repeat_start_date < repeat_end_date', name=op.f('ck_event_info_check_repeat_start_date_before_repeat_end_date')),
     sa.CheckConstraint('start_time < end_time', name=op.f('ck_event_info_check_start_time_before_end_time')),
     sa.PrimaryKeyConstraint('eid', name=op.f('pk_event_info'))

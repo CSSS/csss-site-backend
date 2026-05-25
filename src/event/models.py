@@ -1,5 +1,5 @@
 import datetime
-
+from event.constants import EventFrequencyEnum
 from pydantic import BaseModel, ConfigDict, model_validator
 
 
@@ -8,7 +8,7 @@ class BaseEvent(BaseModel):
     start_time: datetime.datetime
     end_time: datetime.datetime
     description: str | None = None
-    repeat: str | None = None
+    frequency: EventFrequencyEnum | None = None
     repeat_start_date: datetime.date | None = None
     repeat_end_date: datetime.date | None = None
 
@@ -42,7 +42,7 @@ class EventUpdate(BaseModel):
     start_time: datetime.datetime | None = None
     end_time: datetime.datetime | None = None
     description: str | None = None
-    repeat: str | None = None
+    frequency: EventFrequencyEnum | None = None
     repeat_start_date: datetime.date | None = None
     repeat_end_date: datetime.date | None = None
 

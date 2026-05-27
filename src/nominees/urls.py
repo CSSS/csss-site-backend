@@ -84,7 +84,7 @@ async def get_nominee_info(db_session: database.DBSession, computing_id: str):
     operation_id="delete_nominee",
     dependencies=[Depends(perm_election)],
 )
-async def delete_nominee_info(db_session: database.DBSession, computing_id: str):
+async def delete_nominee_info(db_session: database.tDBSession, computing_id: str):
     try:
         await nominees.crud.delete_nominee_info(db_session, computing_id)
         await db_session.commit()

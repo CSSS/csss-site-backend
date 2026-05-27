@@ -20,22 +20,22 @@ If you're planning to read through the source code, please check out this projec
 4. Install developer dependencies
 ```bash
 # Install main dependencies
-pip install .        # or: uv pip install .
+pip install .        # or: uv sync
 
 # Install with dev dependencies
-pip install ".[dev]" # or: uv pip install ".[dev]"
+pip install ".[dev]" # or: uv sync --extra dev
 
 # Install with test dependencies
-pip install ".[test]" # or: uv pip install ".[test]"
+pip install ".[test]" # or: uv sync --extra test
 
 # Install with all dependencies
-pip install ".[dev, test]" # or: uv pip install ".[dev, test]"
+pip install ".[dev, test]" # or: uv sync --all-extras
 ```
 
 5. Follow the database setup instructions on the [wiki](https://github.com/CSSS/csss-site-backend/wiki/1.-Local-Setup#database-setup). The recommended way is to do it through Docker, but both should work.
 6. You will need to set the following environment variables
 ```bash
-export DB_PORT=5444 # The port your database is listening at
+export DB_PORT=5444 # If you're using Docker
 export LOCAL=true # Should be true if you're running this locally
 ```
 

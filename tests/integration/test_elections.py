@@ -164,17 +164,21 @@ async def test__delete_candidate(client: AsyncClient):
 
 # Admin API testing (with AUTH)-----------------------------------
 async def test__admin_get_all_elections(admin_client: AsyncClient):
-    # Login in as the website admin
-    # session_id = "temp_id_" + load_test_db.SYSADMIN_COMPUTING_ID
-    # async with database_setup.session() as db_session:
-    #     await create_user_session(db_session, session_id, load_test_db.SYSADMIN_COMPUTING_ID)
-
-    # client.cookies = {"session_id": session_id}
-
-    # test that more info is given if logged in & with access to it
     response = await admin_client.get("/election")
     assert response.status_code == 200
     assert response.json() != {}
+    for election in response.json():
+        assert "candidates" not in election
+
+
+async def test__admin_get_all_elections_with_nominees(admin_client: AsyncClient):
+    response = await admin_client.get("/election", params={"with_nominees": "true"})
+    assert response.status_code == 200
+    by_slug = {election["slug"]: election for election in response.json()}
+    assert "survey_link" in by_slug[TEST_ELECTION_2_SLUG]
+    assert "candidates" in by_slug[TEST_ELECTION_2_SLUG]
+    _assert_admin_nominee_entry(by_slug[TEST_ELECTION_2_SLUG]["candidates"][0])
+    assert by_slug[TEST_ELECTION_2_SLUG]["candidates"][0]["computing_id"] == load_test_db.SYSADMIN_COMPUTING_ID
 
 
 async def test__admin_get_single_election(admin_client: AsyncClient):
@@ -182,10 +186,19 @@ async def test__admin_get_single_election(admin_client: AsyncClient):
     response = await admin_client.get(f"/election/{TEST_ELECTION_2}")
     assert response.status_code == 200
     assert response.json() != {}
-    # if candidates filled, enure unauthorized values remain hidden
-    if "candidates" in response.json() and response.json()["candidates"]:
-        for cand in response.json()["candidates"]:
-            assert "computing_id" in cand
+    assert "candidates" not in response.json()
+    assert "survey_link" in response.json()
+
+
+async def test__admin_get_single_election_with_nominees(admin_client: AsyncClient):
+    response = await admin_client.get(f"/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
+    assert response.status_code == 200
+    body = response.json()
+    assert "survey_link" in body
+    assert "candidates" in body
+    assert len(body["candidates"]) >= 1
+    _assert_admin_nominee_entry(body["candidates"][0])
+    assert body["candidates"][0]["computing_id"] == load_test_db.SYSADMIN_COMPUTING_ID
 
 
 async def test__admin_create_election(admin_client: AsyncClient):

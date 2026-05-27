@@ -3,7 +3,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from candidates.models import Candidate
 from officers.constants import OfficerPositionEnum
 
 
@@ -20,6 +19,17 @@ class ElectionStatusEnum(StrEnum):
     AFTER_VOTING = "after_voting"
 
 
+class ElectionNomineeSummary(BaseModel):
+    full_name: str
+    position: OfficerPositionEnum
+    speech: str | None = None
+    computing_id: str | None = None
+    linked_in: str | None = None
+    instagram: str | None = None
+    email: str | None = None
+    discord_username: str | None = None
+
+
 class ElectionResponse(BaseModel):
     slug: str
     name: str
@@ -32,9 +42,12 @@ class ElectionResponse(BaseModel):
 
     # Private fields
     survey_link: str | None = Field(None, description="Only available to admins")
-    candidates: list[Candidate] | None = Field(None, description="Only available to admins")
+    candidates: list[ElectionNomineeSummary] | None = Field(
+        None,
+        description="Included when with_nominees is true, contact fields only for election admins",
+    )
 
-
+    
 class ElectionParams(BaseModel):
     name: str
     type: ElectionTypeEnum

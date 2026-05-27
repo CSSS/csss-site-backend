@@ -82,10 +82,6 @@ async def _get_election_nominees(
         return []
     available_positions_list = election_row.available_positions
     for nomination in all_nominations:
-        # if nomination.position not in available_positions_list:
-        #     # ignore any positions that are **no longer** active
-        #     continue
-
         # NOTE: if a nominee does not input their legal name, they are not considered a nominee
         nominee_info = await nominees.crud.get_nominee_info(db_session, nomination.computing_id)
         if nominee_info is None:
@@ -154,8 +150,8 @@ async def list_elections(
     "/{election_name}",
     description="""
     Retrieves the election data for an election by name.
-    Returns private details when the time is allowed.
-    If user is an admin or election officer, returns computing ids for each candidate as well.
+    Returns private details when user is admin or election officer.
+    If user is an admin or election officer, returns complete nominee information (if requested).
     """,
     response_model=ElectionResponse,
     responses={404: {"description": "Election of that name doesn't exist", "model": DetailModel}},

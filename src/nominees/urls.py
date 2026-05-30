@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 import database
 import nominees.crud
@@ -77,12 +78,22 @@ async def get_nominee_info(db_session: database.DBSession, computing_id: str):
     "/{computing_id}",
     description="Delete a nominee",
     response_model=SuccessResponse,
+    responses={
+        409: {"description": "Nominee is still referenced by election applications.", "model": DetailModel},
+    },
     operation_id="delete_nominee",
     dependencies=[Depends(perm_election)],
 )
-async def delete_nominee_info(db_session: database.DBSession, computing_id: str):
-    await nominees.crud.delete_nominee_info(db_session, computing_id)
-    await db_session.commit()
+async def delete_nominee_info(db_session: database.tDBSession, computing_id: str):
+    try:
+        await nominees.crud.delete_nominee_info(db_session, computing_id)
+        await db_session.commit()
+    except IntegrityError as err:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{computing_id} is still referenced by election applications.",
+        ) from err
 
     return SuccessResponse(success=True)
 

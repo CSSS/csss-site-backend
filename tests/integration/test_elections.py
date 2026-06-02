@@ -57,22 +57,57 @@ async def test_read_elections(db_session: DBSession):
 
 
 # API endpoint testing (without AUTH)--------------------------------------
-async def test__get_all_elections(client):
+async def test__get_all_elections(client: AsyncClient):
     response = await client.get("/election")
     assert response.status_code == 200
     assert response.json() != {}
+    for election in response.json():
+        assert "candidates" not in election
 
+async def test__get_all_elections_with_nominees_true(client: AsyncClient):
+    # Test on election 2, because it has candidates
+    response = await client.get("/election", params={"with_nominees": "true"})
+    assert response.status_code == 200
+    elections_list = {election["slug"]: election for election in response.json()}
+    election_2_response = elections_list[slugify(TEST_ELECTION_2)]
+    assert "survey_link" not in election_2_response
+    assert "candidates" in election_2_response
+    assert len(election_2_response["candidates"]) >= 1
+    for candidate in election_2_response["candidates"]:
+        assert "full_name" in candidate
+        assert "position" in candidate
+        assert "speech" in candidate
+        assert "computing_id" not in candidate
+        assert "linked_in" not in candidate
+        assert "instagram" not in candidate
+        assert "email" not in candidate
+        assert "discord_username" not in candidate
 
-async def test__get_single_election(client):
+async def test__get_single_election(client: AsyncClient):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
     response = await client.get(f"/election/{TEST_ELECTION_2}")
     assert response.status_code == 200
     assert response.json() != {}
-    # if candidates filled, enure unauthorized values remain hidden
-    if "candidates" in response.json() and response.json()["candidates"]:
-        for cand in response.json()["candidates"]:
-            assert "computing_id" not in cand
+    assert "candidates" not in response.json()
+    assert "survey_link" not in response.json()
 
+async def test__get_single_election_with_nominees_true(client: AsyncClient):
+    response = await client.get(f"/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
+    assert response.status_code == 200
+    election_2_response = response.json()
+    assert election_2_response != {}
+    assert "candidates" in election_2_response
+    assert "survey_link" not in election_2_response
+    assert len(election_2_response["candidates"]) >= 1
+    for candidate in election_2_response["candidates"]:
+        assert "full_name" in candidate
+        assert "position" in candidate
+        assert "speech" in candidate
+        assert "computing_id" not in candidate
+        assert "linked_in" not in candidate
+        assert "instagram" not in candidate
+        assert "email" not in candidate
+        assert "discord_username" not in candidate
 
 async def test__get_single_candidates(client: AsyncClient):
     # ensure that candidates can be viewed
@@ -170,16 +205,24 @@ async def test__admin_get_all_elections(admin_client: AsyncClient):
     for election in response.json():
         assert "candidates" not in election
 
-
-async def test__admin_get_all_elections_with_nominees(admin_client: AsyncClient):
+async def test__admin_get_all_elections_with_nominees_true(admin_client: AsyncClient):
+    # Test on election 2, because it has candidates
     response = await admin_client.get("/election", params={"with_nominees": "true"})
     assert response.status_code == 200
-    by_slug = {election["slug"]: election for election in response.json()}
-    assert "survey_link" in by_slug[TEST_ELECTION_2_SLUG]
-    assert "candidates" in by_slug[TEST_ELECTION_2_SLUG]
-    _assert_admin_nominee_entry(by_slug[TEST_ELECTION_2_SLUG]["candidates"][0])
-    assert by_slug[TEST_ELECTION_2_SLUG]["candidates"][0]["computing_id"] == load_test_db.SYSADMIN_COMPUTING_ID
-
+    elections_list = {election["slug"]: election for election in response.json()}
+    election_2_response = elections_list[slugify(TEST_ELECTION_2)]
+    assert "survey_link" in election_2_response
+    assert "candidates" in election_2_response
+    assert len(election_2_response["candidates"]) >= 1
+    for candidate in election_2_response["candidates"]:
+        assert "full_name" in candidate
+        assert "position" in candidate
+        assert "speech" in candidate
+        assert "computing_id" in candidate
+        assert "linked_in" in candidate
+        assert "instagram" in candidate
+        assert "email" in candidate
+        assert "discord_username" in candidate
 
 async def test__admin_get_single_election(admin_client: AsyncClient):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
@@ -189,17 +232,23 @@ async def test__admin_get_single_election(admin_client: AsyncClient):
     assert "candidates" not in response.json()
     assert "survey_link" in response.json()
 
-
-async def test__admin_get_single_election_with_nominees(admin_client: AsyncClient):
+async def test__admin_get_single_election_with_nominees_true(admin_client: AsyncClient):
     response = await admin_client.get(f"/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
     assert response.status_code == 200
-    body = response.json()
-    assert "survey_link" in body
-    assert "candidates" in body
-    assert len(body["candidates"]) >= 1
-    _assert_admin_nominee_entry(body["candidates"][0])
-    assert body["candidates"][0]["computing_id"] == load_test_db.SYSADMIN_COMPUTING_ID
-
+    election_2_response = response.json()
+    assert election_2_response != {}
+    assert "survey_link" in election_2_response
+    assert "candidates" in election_2_response
+    assert len(election_2_response["candidates"]) >= 1
+    for candidate in election_2_response["candidates"]:
+        assert "full_name" in candidate
+        assert "position" in candidate
+        assert "speech" in candidate
+        assert "computing_id" in candidate
+        assert "linked_in" in candidate
+        assert "instagram" in candidate
+        assert "email" in candidate
+        assert "discord_username" in candidate
 
 async def test__admin_create_election(admin_client: AsyncClient):
     # ensure that authorized users can create an election

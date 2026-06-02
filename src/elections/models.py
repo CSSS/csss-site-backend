@@ -22,7 +22,7 @@ class ElectionStatusEnum(StrEnum):
 class ElectionNomineeSummary(BaseModel):
     full_name: str
     position: OfficerPositionEnum
-    speech: str | None = None
+    speech: str
     computing_id: str | None = None
     linked_in: str | None = None
     instagram: str | None = None

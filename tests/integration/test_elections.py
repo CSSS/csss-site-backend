@@ -64,6 +64,7 @@ async def test__get_all_elections(client: AsyncClient):
     for election in response.json():
         assert "candidates" not in election
 
+
 async def test__get_all_elections_with_nominees_true(client: AsyncClient):
     # Test on election 2, because it has candidates
     response = await client.get("/election", params={"with_nominees": "true"})
@@ -83,6 +84,7 @@ async def test__get_all_elections_with_nominees_true(client: AsyncClient):
         assert "email" not in candidate
         assert "discord_username" not in candidate
 
+
 async def test__get_single_election(client: AsyncClient):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
     response = await client.get(f"/election/{TEST_ELECTION_2}")
@@ -90,6 +92,7 @@ async def test__get_single_election(client: AsyncClient):
     assert response.json() != {}
     assert "candidates" not in response.json()
     assert "survey_link" not in response.json()
+
 
 async def test__get_single_election_with_nominees_true(client: AsyncClient):
     response = await client.get(f"/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
@@ -108,6 +111,7 @@ async def test__get_single_election_with_nominees_true(client: AsyncClient):
         assert "instagram" not in candidate
         assert "email" not in candidate
         assert "discord_username" not in candidate
+
 
 async def test__get_single_candidates(client: AsyncClient):
     # ensure that candidates can be viewed
@@ -205,6 +209,7 @@ async def test__admin_get_all_elections(admin_client: AsyncClient):
     for election in response.json():
         assert "candidates" not in election
 
+
 async def test__admin_get_all_elections_with_nominees_true(admin_client: AsyncClient):
     # Test on election 2, because it has candidates
     response = await admin_client.get("/election", params={"with_nominees": "true"})
@@ -224,6 +229,7 @@ async def test__admin_get_all_elections_with_nominees_true(admin_client: AsyncCl
         assert "email" in candidate
         assert "discord_username" in candidate
 
+
 async def test__admin_get_single_election(admin_client: AsyncClient):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
     response = await admin_client.get(f"/election/{TEST_ELECTION_2}")
@@ -231,6 +237,7 @@ async def test__admin_get_single_election(admin_client: AsyncClient):
     assert response.json() != {}
     assert "candidates" not in response.json()
     assert "survey_link" in response.json()
+
 
 async def test__admin_get_single_election_with_nominees_true(admin_client: AsyncClient):
     response = await admin_client.get(f"/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
@@ -249,6 +256,7 @@ async def test__admin_get_single_election_with_nominees_true(admin_client: Async
         assert "instagram" in candidate
         assert "email" in candidate
         assert "discord_username" in candidate
+
 
 async def test__admin_create_election(admin_client: AsyncClient):
     # ensure that authorized users can create an election

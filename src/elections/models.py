@@ -47,7 +47,7 @@ class ElectionResponse(BaseModel):
         description="Included when with_nominees is true, contact fields only for election admins",
     )
 
-    
+
 class ElectionParams(BaseModel):
     name: str
     type: ElectionTypeEnum

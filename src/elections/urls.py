@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
@@ -73,7 +73,7 @@ def _raise_if_bad_election_data(
 
 
 async def _get_election_nominees(
-    db_session: database.DBSession, 
+    db_session: database.DBSession,
     election_row: ElectionDB,
     has_permission: bool,
 ) -> list[dict]:
@@ -81,7 +81,6 @@ async def _get_election_nominees(
     all_nominations = await candidates.crud.get_all_candidates_in_election(db_session, election_row.slug)
     if not all_nominations:
         return []
-    available_positions_list = election_row.available_positions
     for nomination in all_nominations:
         # NOTE: if a nominee does not input their legal name, they are not considered a nominee
         nominee_info = await nominees.crud.get_nominee_info(db_session, nomination.computing_id)
@@ -159,8 +158,8 @@ async def list_elections(
     operation_id="get_election_by_name",
 )
 async def get_election(
-    db_session: database.DBSession, 
-    computing_id: SessionUser, 
+    db_session: database.DBSession,
+    computing_id: SessionUser,
     election_name: str,
     with_nominees: bool = Query(False),
 ):
@@ -171,7 +170,7 @@ async def get_election(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"election with slug {slugified_name} does not exist"
         )
-    
+
     has_permission = await is_user_election_admin(computing_id, db_session)
     if has_permission:
         election_json = election.private_details(current_time)

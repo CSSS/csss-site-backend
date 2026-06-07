@@ -16,6 +16,7 @@ dependencies = [
     "xmltodict==0.13.0",
     "httpx==0.28.1",
     "pydantic-settings==2.14.1",
+    "gtfs-realtime-bindings==2.0.0",
 ]
 
 [project.optional-dependencies]

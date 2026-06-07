@@ -14,7 +14,7 @@ import event.urls
 import nominees.urls
 import officers.urls
 import permission.urls
-from config import settings
+import translink.urls
 from constants import IS_PROD
 
 logging.basicConfig(level=logging.DEBUG)
@@ -61,6 +61,7 @@ app.include_router(nominees.urls.router)
 app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
 app.include_router(event.urls.router)
+app.include_router(translink.urls.router)
 
 
 @app.get("/")

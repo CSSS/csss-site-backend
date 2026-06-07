@@ -1,8 +1,8 @@
 """create_event_table
 
-Revision ID: 4928dc3f0b07
+Revision ID: 42f855bec532
 Revises: 0a2c458d1ddd
-Create Date: 2026-05-24 17:39:22.538239
+Create Date: 2026-06-06 21:58:57.956340
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4928dc3f0b07'
+revision: str = '42f855bec532'
 down_revision: Union[str, None] = '0a2c458d1ddd'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=64), nullable=False),
     sa.Column('start_time', sa.DateTime(timezone=True), nullable=False),
     sa.Column('end_time', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('frequency', sa.String(length=64), server_default=sa.text("'NONE'"), nullable=True),
+    sa.Column('frequency', sa.String(length=64), server_default=sa.text("'NONE'"), nullable=False),
     sa.Column('repeat_start_date', sa.Date(), nullable=True),
     sa.Column('repeat_end_date', sa.Date(), nullable=True),
     sa.CheckConstraint("frequency IN ('NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'SEMESTERLY', 'YEARLY')", name=op.f('ck_event_info_valid_frequency_value')),

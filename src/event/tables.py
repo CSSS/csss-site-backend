@@ -15,7 +15,7 @@ class EventDB(Base):
     name: Mapped[str] = mapped_column(String(64))
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    frequency: Mapped[EventFrequencyEnum] = mapped_column(String(64), server_default=text("'NONE'"), nullable=True)
+    frequency: Mapped[EventFrequencyEnum] = mapped_column(String(64), server_default=text("'NONE'"))
     repeat_start_date: Mapped[date] = mapped_column(Date, nullable=True)
     repeat_end_date: Mapped[date] = mapped_column(Date, nullable=True)
 

@@ -72,45 +72,9 @@ def _raise_if_bad_election_data(
         )
 
 
-async def _get_election_nominees(
-    db_session: database.DBSession,
-    election_row: ElectionDB,
-    has_permission: bool,
-) -> list[dict]:
-    candidates_list = []
-    all_nominations = await candidates.crud.get_all_candidates_in_election(db_session, election_row.slug)
-    if not all_nominations:
-        return []
-    for nomination in all_nominations:
-        # NOTE: if a nominee does not input their legal name, they are not considered a nominee
-        nominee_info = await nominees.crud.get_nominee_info(db_session, nomination.computing_id)
-        if nominee_info is None:
-            continue
-
-        if has_permission:
-            candidate_entry = {
-                "full_name": nominee_info.full_name,
-                "position": nomination.position,
-                "speech": ("No speech provided by this candidate" if nomination.speech is None else nomination.speech),
-                "computing_id": nomination.computing_id,
-                "linked_in": nominee_info.linked_in,
-                "instagram": nominee_info.instagram,
-                "email": nominee_info.email,
-                "discord_username": nominee_info.discord_username,
-            }
-        else:
-            candidate_entry = {
-                "full_name": nominee_info.full_name,
-                "position": nomination.position,
-                "speech": ("No speech provided by this candidate" if nomination.speech is None else nomination.speech),
-            }
-        candidates_list.append(candidate_entry)
-    return candidates_list
-
-
 @router.get(
     "",
-    description="Returns a list of all election, their status and nominees (if requested)",
+    description="Return a list of all elections, their statuses and nominees (if requested)",
     response_model=list[ElectionResponse],
     responses={status.HTTP_404_NOT_FOUND: {"description": "No election found", "model": DetailModel}},
     operation_id="get_all_elections",
@@ -128,20 +92,22 @@ async def list_elections(
     election_metadata_list = []
     has_permission = await is_user_election_admin(computing_id, db_session)
 
-    if has_permission:
-        for election in election_list:
+    nominees_by_election = {}
+    if with_nominees:
+        nominees_by_election = await elections.crud.get_all_nominees_by_election(db_session, has_permission)
+
+    for election in election_list:
+        if has_permission:
             election_data = election.private_details(current_time)
-            # Get the nominees for the election
-            if with_nominees:
-                election_data["candidates"] = await _get_election_nominees(db_session, election, has_permission)
-            election_metadata_list.append(election_data)
-    else:
-        for election in election_list:
+        else:
             election_data = election.public_details(current_time)
-            # Get the nominees for the election
-            if with_nominees:
-                election_data["candidates"] = await _get_election_nominees(db_session, election, has_permission)
-            election_metadata_list.append(election_data)
+        if with_nominees:
+            election_nominees = nominees_by_election.get(election.slug, [])
+            candidates_list = []
+            for nominee in election_nominees:
+                candidates_list.append(nominee.model_dump(exclude_none=True))
+            election_data["candidates"] = candidates_list
+        election_metadata_list.append(election_data)
 
     return JSONResponse(election_metadata_list)
 
@@ -150,7 +116,6 @@ async def list_elections(
     "/{election_name}",
     description="""
     Retrieves the election data for an election by name.
-    Returns private details when user is admin or election officer.
     If user is an admin or election officer, returns complete nominee information (if requested).
     """,
     response_model=ElectionResponse,
@@ -174,12 +139,14 @@ async def get_election(
     has_permission = await is_user_election_admin(computing_id, db_session)
     if has_permission:
         election_json = election.private_details(current_time)
-        if with_nominees:
-            election_json["candidates"] = await _get_election_nominees(db_session, election, has_permission)
     else:
         election_json = election.public_details(current_time)
-        if with_nominees:
-            election_json["candidates"] = await _get_election_nominees(db_session, election, has_permission)
+    if with_nominees:
+        nominees = await elections.crud._get_election_nominees(db_session, election, has_permission)
+        candidates_list = []
+        for nominee in nominees:
+            candidates_list.append(nominee.model_dump(exclude_none=True))
+        election_json["candidates"] = candidates_list
 
     return JSONResponse(election_json)
 

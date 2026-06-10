@@ -21,6 +21,18 @@ TEST_ELECTION_2 = "test election 2"
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+CANDIDATE_CONTACT_FIELDS = ["computing_id", "linked_in", "instagram", "email", "discord_username"]
+
+
+def assert_public_candidate_fields(candidate: dict):
+    for field in CANDIDATE_CONTACT_FIELDS:
+        assert field not in candidate
+
+
+def assert_private_candidate_fields(candidate: dict):
+    for field in CANDIDATE_CONTACT_FIELDS:
+        assert field in candidate
+
 
 # TODO: Split the candidate tests into their own file
 # database testing-------------------------------
@@ -75,14 +87,7 @@ async def test__get_all_elections_with_nominees_true(client: AsyncClient):
     assert "candidates" in election_2_response
     assert len(election_2_response["candidates"]) >= 1
     for candidate in election_2_response["candidates"]:
-        assert "full_name" in candidate
-        assert "position" in candidate
-        assert "speech" in candidate
-        assert "computing_id" not in candidate
-        assert "linked_in" not in candidate
-        assert "instagram" not in candidate
-        assert "email" not in candidate
-        assert "discord_username" not in candidate
+        assert_public_candidate_fields(candidate)
 
 
 async def test__get_single_election(client: AsyncClient):
@@ -103,14 +108,7 @@ async def test__get_single_election_with_nominees_true(client: AsyncClient):
     assert "survey_link" not in election_2_response
     assert len(election_2_response["candidates"]) >= 1
     for candidate in election_2_response["candidates"]:
-        assert "full_name" in candidate
-        assert "position" in candidate
-        assert "speech" in candidate
-        assert "computing_id" not in candidate
-        assert "linked_in" not in candidate
-        assert "instagram" not in candidate
-        assert "email" not in candidate
-        assert "discord_username" not in candidate
+        assert_public_candidate_fields(candidate)
 
 
 async def test__get_single_candidates(client: AsyncClient):
@@ -220,14 +218,7 @@ async def test__admin_get_all_elections_with_nominees_true(admin_client: AsyncCl
     assert "candidates" in election_2_response
     assert len(election_2_response["candidates"]) >= 1
     for candidate in election_2_response["candidates"]:
-        assert "full_name" in candidate
-        assert "position" in candidate
-        assert "speech" in candidate
-        assert "computing_id" in candidate
-        assert "linked_in" in candidate
-        assert "instagram" in candidate
-        assert "email" in candidate
-        assert "discord_username" in candidate
+        assert_private_candidate_fields(candidate)
 
 
 async def test__admin_get_single_election(admin_client: AsyncClient):
@@ -248,14 +239,7 @@ async def test__admin_get_single_election_with_nominees_true(admin_client: Async
     assert "candidates" in election_2_response
     assert len(election_2_response["candidates"]) >= 1
     for candidate in election_2_response["candidates"]:
-        assert "full_name" in candidate
-        assert "position" in candidate
-        assert "speech" in candidate
-        assert "computing_id" in candidate
-        assert "linked_in" in candidate
-        assert "instagram" in candidate
-        assert "email" in candidate
-        assert "discord_username" in candidate
+        assert_private_candidate_fields(candidate)
 
 
 async def test__admin_create_election(admin_client: AsyncClient):

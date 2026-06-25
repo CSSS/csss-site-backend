@@ -112,9 +112,11 @@ async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
     merged = merged.copy()  # stops pandas from complaining about modifying original data
     merged["bus_number"] = merged["route_id"].map(lambda r: BUS_DATA[r][2])
     merged["departure_seconds"] = merged["departure_time"].map(_gtfs_time_to_seconds)
-    return cast(
-        pd.DataFrame, merged[["trip_id", "route_id", "bus_number", "departure_time", "departure_seconds"]]
-    ).reset_index(drop=True)
+    return (
+        cast(pd.DataFrame, merged[["trip_id", "route_id", "bus_number", "departure_time", "departure_seconds"]])
+        .reset_index(drop=True)
+        .sort_values(by=["route_id", "departure_seconds"])
+    )
 
 
 async def get_or_fetch_static_schedule(db_session: DBSession, client: AsyncClient) -> tuple[date, pd.DataFrame]:

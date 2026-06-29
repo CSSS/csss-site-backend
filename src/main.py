@@ -11,6 +11,7 @@ import candidates.urls
 import database
 import elections.urls
 import event.urls
+import honourary.urls
 import nominees.urls
 import officers.urls
 import permission.urls
@@ -60,6 +61,7 @@ app.include_router(nominees.urls.router)
 app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
 app.include_router(event.urls.router)
+app.include_router(honourary.urls.router)
 
 
 @app.get("/")

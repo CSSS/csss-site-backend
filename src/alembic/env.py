@@ -13,6 +13,7 @@ import nominees.tables
 import officers.tables
 import candidates.tables
 import event.tables
+import honourary.tables
 from alembic import context
 
 # this is the Alembic Config object, which provides

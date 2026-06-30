@@ -1,0 +1,47 @@
+# ruff: noqa: N802
+from collections.abc import Iterator
+from typing import Protocol
+
+from google.transit import gtfs_realtime_pb2
+
+
+class Trip(Protocol):
+    trip_id: str
+    route_id: str
+    direction_id: int
+    schedule_relationship: gtfs_realtime_pb2.TripDescriptor  # pyright: ignore[reportAttributeAccessIssue]
+
+
+class StopTimeUpdate(Protocol):
+    stop_sequence: int
+    stop_id: str
+
+    class _Time(Protocol):
+        time: int
+        delay: int
+
+    arrival: _Time
+    departure: _Time
+
+
+class TripUpdate(Protocol):
+    class _Vehicle(Protocol):
+        id: str
+
+    trip: Trip
+    vehicle: _Vehicle
+    stop_time_update: list[StopTimeUpdate]
+
+    def HasField(self, name: str) -> bool: ...
+
+
+class FeedEntity(Protocol):
+    trip_update: TripUpdate
+
+    def HasField(self, name: str) -> bool: ...
+
+
+class FeedMessage(Protocol):
+    entity: Iterator[FeedEntity]
+
+    def ParseFromString(self, data: bytes) -> int: ...

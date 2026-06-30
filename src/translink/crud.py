@@ -8,6 +8,7 @@ import httpx
 import pandas as pd
 import sqlalchemy
 import sqlalchemy.exc
+from google.protobuf.message import DecodeError
 from google.transit import gtfs_realtime_pb2
 from httpx import AsyncClient
 
@@ -181,6 +182,20 @@ def _parse_feed(content: bytes) -> FeedMessage:
     return feed
 
 
+def _parse_cached_feed(cached_feed: TransLinkRealtimeCacheDB) -> FeedMessage | None:
+    try:
+        return _parse_feed(cached_feed.response_bytes)
+    except DecodeError as e:
+        logging.error(f"Failed to parse cached TransLink realtime feed: {e}")
+        return None
+
+
+def _scheduled_timestamp(departure_seconds: int) -> int:
+    now = datetime.now(tz=TZ_INFO)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return int((midnight + timedelta(seconds=departure_seconds)).timestamp())
+
+
 def _is_realtime_cache_fresh(cached_feed: TransLinkRealtimeCacheDB) -> bool:
     fetched_at = cached_feed.fetched_at
     if fetched_at.tzinfo is None:
@@ -192,8 +207,9 @@ def _is_realtime_cache_fresh(cached_feed: TransLinkRealtimeCacheDB) -> bool:
 async def fetch_feed(client: AsyncClient, url: str, params: dict[str, Any]) -> FeedMessage | None:
     try:
         response = await client.get(url, params=params)
+        response.raise_for_status()
         return _parse_feed(response.content)
-    except httpx.HTTPError as e:
+    except (httpx.HTTPError, DecodeError) as e:
         logging.error(f"Failed to fetch feed from {url}: {e}")
         return None
 
@@ -206,7 +222,7 @@ async def get_or_fetch_realtime_feed(db_session: DBSession, client: AsyncClient)
             sqlalchemy.select(TransLinkRealtimeCacheDB).where(TransLinkRealtimeCacheDB.id == REALTIME_CACHE_ID)
         )
         if cached_feed is not None and _is_realtime_cache_fresh(cached_feed):
-            return _parse_feed(cached_feed.response_bytes)
+            return _parse_cached_feed(cached_feed)
 
         # Transaction lock, released on commit or rollback.
         # This prevents multiple requests from fetching the feed at the same time.
@@ -219,9 +235,11 @@ async def get_or_fetch_realtime_feed(db_session: DBSession, client: AsyncClient)
 
         if cached_feed is not None and _is_realtime_cache_fresh(cached_feed):
             await db_session.commit()
-            return _parse_feed(cached_feed.response_bytes)
+            return _parse_cached_feed(cached_feed)
 
         response = await client.get(REALTIME_URL, params={"apikey": settings.translink_api_key})
+        response.raise_for_status()
+        feed = _parse_feed(response.content)
         await db_session.merge(
             TransLinkRealtimeCacheDB(
                 id=REALTIME_CACHE_ID,
@@ -230,12 +248,12 @@ async def get_or_fetch_realtime_feed(db_session: DBSession, client: AsyncClient)
             )
         )
         await db_session.commit()
-        return _parse_feed(response.content)
-    except httpx.HTTPError as e:
+        return feed
+    except (httpx.HTTPError, DecodeError) as e:
         logging.error(f"Failed to fetch realtime feed from {REALTIME_URL}: {e}")
         await db_session.rollback()
         if cached_feed is not None:
-            return _parse_feed(cached_feed.response_bytes)
+            return _parse_cached_feed(cached_feed)
         return None
     except sqlalchemy.exc.SQLAlchemyError as e:
         logging.error(f"Failed to use TransLink realtime cache: {e}")
@@ -284,21 +302,23 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
     """
     Gets the real-time bus schedule from the TransLink GTFS Realtime API and merge it with the static data.
     """
+
+    def _response_from_static_row(row: Any, delay: int = 0, status: BusStatus = BusStatus.OnTime):
+        scheduled_time = _scheduled_timestamp(cast(int, row["departure_seconds"]))
+        return TransLinkScheduleResponse(
+            route_number=cast(str, row["bus_number"]),
+            scheduled_departure_time=scheduled_time,
+            realtime_time=scheduled_time + delay,
+            delay_seconds=delay,
+            status=status,
+        )
+
     _, schedule = await get_or_fetch_static_schedule(db_session, client)
     next_departures = get_next_departures(schedule)
     trip_feed = await get_or_fetch_realtime_feed(db_session, client)
     # If the trip feed fails to fetch then just return information from the static schedule.
     if trip_feed is None:
-        return [
-            TransLinkScheduleResponse(
-                route_number=cast(str, row["bus_number"]),
-                scheduled_departure_time=cast(int, row["departure_time"]),
-                realtime_time=cast(int, row["departure_time"]),
-                delay_seconds=0,
-                status=BusStatus.OnTime,
-            )
-            for _, row in next_departures.iterrows()
-        ]
+        return [_response_from_static_row(row) for _, row in next_departures.iterrows()]
     # FeedMessage is generated at runtime, so the type checker can't find this function
 
     # Map all the realtime data to each bus's status
@@ -332,24 +352,10 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
 
         realtime_map[trip.trip_id] = (stop.departure.delay, status)
 
-    result: list[TransLinkScheduleResponse] = []
-    now = datetime.now(tz=TZ_INFO)
-    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    for _, row in next_departures.iterrows():
-        scheduled_time = int((midnight + timedelta(seconds=cast(int, row["departure_seconds"]))).timestamp())
-
-        delay, status = realtime_map.get(
-            cast(str, row["trip_id"]), (0, BusStatus.OnTime)
-        )  # default to on time if no realtime info
-
-        result.append(
-            TransLinkScheduleResponse(
-                route_number=cast(str, row["bus_number"]),
-                scheduled_departure_time=scheduled_time,
-                realtime_time=scheduled_time + delay,
-                delay_seconds=delay,
-                status=status,
-            )
+    return [
+        _response_from_static_row(
+            row,
+            *realtime_map.get(cast(str, row["trip_id"]), (0, BusStatus.OnTime)),
         )
-
-    return result
+        for _, row in next_departures.iterrows()
+    ]

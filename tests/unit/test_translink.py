@@ -3,11 +3,12 @@ import zipfile
 from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pandas as pd
 import pytest
 from fastapi import status
 from google.transit import gtfs_realtime_pb2
-from httpx import AsyncClient, Response
+from httpx import AsyncClient, Request, Response
 
 from constants import TZ_INFO
 from translink.crud import (
@@ -15,6 +16,7 @@ from translink.crud import (
     _gtfs_time_to_seconds,
     fetch_realtime_schedule,
     fetch_static_schedule,
+    get_departure_statuses,
     get_next_departures,
     get_or_fetch_realtime_feed,
     get_or_fetch_static_schedule,
@@ -439,6 +441,24 @@ async def test__get_or_fetch_realtime_feed_refreshes_stale_cache():
     session.commit.assert_awaited_once()
 
 
+async def test__get_or_fetch_realtime_feed_returns_none_on_http_error_status():
+    session = mock_db_session(cached_row=None)
+    client = AsyncMock(spec=AsyncClient)
+    client.get = AsyncMock(
+        return_value=Response(
+            status_code=401,
+            request=Request("GET", "https://gtfsapi.translink.ca/v3/gtfsrealtime"),
+            content=b"Unauthorized",
+        )
+    )
+
+    result = await get_or_fetch_realtime_feed(session, client)
+
+    assert result is None
+    session.merge.assert_not_called()
+    session.rollback.assert_awaited_once()
+
+
 # ---------------------------------------------------------------------------
 # Tests for get_or_fetch_static_schedule
 # ---------------------------------------------------------------------------
@@ -493,6 +513,42 @@ async def test__get_or_fetch_static_schedule_db_write_failure_still_returns():
     assert result_date == date.today()
     assert not result_df.empty
     session.rollback.assert_awaited_once()
+
+
+async def test__get_departure_statuses_uses_timestamps_when_realtime_unavailable():
+    now = datetime.now(tz=TZ_INFO)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    departure_seconds = int((now - midnight).total_seconds()) + 600
+    cached_row = TransLinkStaticScheduleDB(
+        id=1,
+        date_fetched=now.date(),
+        schedule=[
+            {
+                "trip_id": "trip_143",
+                "route_id": "6656",
+                "bus_number": "143",
+                "departure_time": "23:00:00",
+                "departure_seconds": departure_seconds,
+            }
+        ],
+    )
+    session = mock_db_session()
+    session.scalar = AsyncMock(side_effect=[cached_row, None, None])
+    client = AsyncMock(spec=AsyncClient)
+    client.get = AsyncMock(side_effect=httpx.ConnectError("realtime unavailable"))
+
+    result = await get_departure_statuses(session, client)
+
+    expected_timestamp = int((midnight + timedelta(seconds=departure_seconds)).timestamp())
+    assert result == [
+        TransLinkScheduleResponse(
+            route_number="143",
+            scheduled_departure_time=expected_timestamp,
+            realtime_time=expected_timestamp,
+            delay_seconds=0,
+            status=BusStatus.OnTime,
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------

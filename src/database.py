@@ -93,17 +93,16 @@ else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
     SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"
 
-print(f"Using database: {SQLALCHEMY_DATABASE_URL}")
-
 
 # also TODO: make this nicer, using a class to hold state...
 # and use this in load_test_db for the test db as well?
 def setup_database():
     global sessionmanager
 
+    db_url = SQLALCHEMY_TEST_DATABASE_URL if os.environ.get("ENV") == "test" else SQLALCHEMY_DATABASE_URL
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
     sessionmanager = DatabaseSessionManager(
-        SQLALCHEMY_DATABASE_URL,
+        db_url,
         {"echo": True},
     )
 

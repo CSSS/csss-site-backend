@@ -2,11 +2,12 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from honorary.constants import HONORARY_MEMBER_MAX_LENGTH
 from utils import is_active_term
 
 
 class HonoraryMemberCreate(BaseModel):
-    name: str = Field(..., max_length=128)
+    name: str = Field(..., max_length=HONORARY_MEMBER_MAX_LENGTH)
     start_date: date
     end_date: date | None = None
 
@@ -23,6 +24,6 @@ class HonoraryMember(HonoraryMemberCreate):
 
 
 class HonoraryMemberUpdate(BaseModel):
-    name: str | None = Field(None, max_length=128)
+    name: str | None = Field(None, max_length=HONORARY_MEMBER_MAX_LENGTH)
     start_date: date | None = None
     end_date: date | None = None

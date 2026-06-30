@@ -1,10 +1,9 @@
 from datetime import date
 
-from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 
 import database
-from honourary.tables import HonoraryMemberDB
+from honorary.tables import HonoraryMemberDB
 
 
 async def get_all_honorary_members(db_session: database.DBSession) -> list[HonoraryMemberDB]:
@@ -25,25 +24,15 @@ async def get_current_honorary_members(db_session: database.DBSession) -> list[H
     return list((await db_session.scalars(query)).all())
 
 
-async def get_honorary_member_by_id_or_raise(
+async def get_honorary_member_by_id(
     db_session: database.DBSession,
     term_id: int,
-) -> HonoraryMemberDB:
-    honorary_member = await db_session.scalar(select(HonoraryMemberDB).where(HonoraryMemberDB.id == term_id))
-    if honorary_member is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"honorary member term with id={term_id} does not exist",
-        )
-    return honorary_member
+) -> HonoraryMemberDB | None:
+    return await db_session.scalar(select(HonoraryMemberDB).where(HonoraryMemberDB.id == term_id))
 
 
-def ensure_term_has_not_ended(honorary_member: HonoraryMemberDB) -> None:
-    if honorary_member.end_date is not None and honorary_member.end_date < date.today():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="cannot update or delete a term that has already ended",
-        )
+def has_term_ended(honorary_member: HonoraryMemberDB) -> bool:
+    return honorary_member.end_date is not None and honorary_member.end_date < date.today()
 
 
 async def create_honorary_members(
@@ -51,8 +40,6 @@ async def create_honorary_members(
     honorary_members: list[HonoraryMemberDB],
 ) -> list[HonoraryMemberDB]:
     db_session.add_all(honorary_members)
-    await db_session.flush()
-
     return honorary_members
 
 

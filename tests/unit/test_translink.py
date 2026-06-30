@@ -1,6 +1,6 @@
 import io
 import zipfile
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
@@ -16,10 +16,11 @@ from translink.crud import (
     fetch_realtime_schedule,
     fetch_static_schedule,
     get_next_departures,
+    get_or_fetch_realtime_feed,
     get_or_fetch_static_schedule,
 )
 from translink.models import BusStatus, TransLinkRealtimeResponse, TransLinkScheduleResponse
-from translink.tables import TransLinkStaticScheduleDB
+from translink.tables import TransLinkRealtimeCacheDB, TransLinkStaticScheduleDB
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -309,7 +310,7 @@ async def test__fetch_realtime_schedule_parses_single_entity():
         departure_unix=departure_unix,
         delay=120,
     )
-    results = await fetch_realtime_schedule(mock_http_client(feed_bytes))
+    results = await fetch_realtime_schedule(mock_db_session(), mock_http_client(feed_bytes))
 
     assert len(results) == 1
     r = results[0]
@@ -328,7 +329,7 @@ async def test__fetch_realtime_schedule_ignores_wrong_direction():
         stop_id="2836",
         departure_unix=1_700_000_000,
     )
-    results = await fetch_realtime_schedule(mock_http_client(feed_bytes))
+    results = await fetch_realtime_schedule(mock_db_session(), mock_http_client(feed_bytes))
     assert results == []
 
 
@@ -340,7 +341,7 @@ async def test__fetch_realtime_schedule_ignores_unknown_route():
         stop_id="9999",
         departure_unix=1_700_000_000,
     )
-    results = await fetch_realtime_schedule(mock_http_client(feed_bytes))
+    results = await fetch_realtime_schedule(mock_db_session(), mock_http_client(feed_bytes))
     assert results == []
 
 
@@ -359,12 +360,12 @@ async def test__fetch_realtime_schedule_ignores_missing_stop():
     stu.stop_id = "0000"
     stu.departure.time = 1_700_000_000
 
-    results = await fetch_realtime_schedule(mock_http_client(feed.SerializeToString()))
+    results = await fetch_realtime_schedule(mock_db_session(), mock_http_client(feed.SerializeToString()))
     assert results == []
 
 
 async def test__fetch_realtime_schedule_empty_feed():
-    results = await fetch_realtime_schedule(mock_http_client(make_empty_feed_bytes()))
+    results = await fetch_realtime_schedule(mock_db_session(), mock_http_client(make_empty_feed_bytes()))
     assert results == []
 
 
@@ -389,9 +390,53 @@ async def test__fetch_realtime_schedule_sorted_by_time():
         stu.stop_id = sid
         stu.departure.time = t
 
-    results = await fetch_realtime_schedule(mock_http_client(feed.SerializeToString()))
+    results = await fetch_realtime_schedule(mock_db_session(), mock_http_client(feed.SerializeToString()))
     assert len(results) == 2
     assert results[0].realtime_time < results[1].realtime_time
+
+
+async def test__get_or_fetch_realtime_feed_uses_fresh_cache():
+    feed_bytes = make_empty_feed_bytes()
+    cached_row = TransLinkRealtimeCacheDB(
+        id=1,
+        fetched_at=datetime.now(tz=TZ_INFO),
+        response_bytes=feed_bytes,
+    )
+    session = mock_db_session(cached_row=cached_row)
+    client = AsyncMock(spec=AsyncClient)
+
+    result = await get_or_fetch_realtime_feed(session, client)
+
+    assert result is not None
+    assert len(result.entity) == 0
+    client.get.assert_not_called()
+    session.execute.assert_not_called()
+    session.commit.assert_not_called()
+
+
+async def test__get_or_fetch_realtime_feed_refreshes_stale_cache():
+    stale_row = TransLinkRealtimeCacheDB(
+        id=1,
+        fetched_at=datetime.now(tz=TZ_INFO) - timedelta(seconds=120),
+        response_bytes=make_empty_feed_bytes(),
+    )
+    new_feed_bytes = make_feed_bytes(
+        trip_id="trip_143",
+        route_id="6656",
+        direction_id=0,
+        stop_id="2836",
+        departure_unix=1_700_000_000,
+    )
+    session = mock_db_session(cached_row=stale_row)
+    client = mock_http_client(new_feed_bytes)
+
+    result = await get_or_fetch_realtime_feed(session, client)
+
+    assert result is not None
+    assert len(result.entity) == 1
+    client.get.assert_awaited_once()
+    session.merge.assert_awaited_once()
+    session.commit.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

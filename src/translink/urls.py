@@ -26,8 +26,8 @@ router = APIRouter(
     response_model=list[TransLinkRealtimeResponse],
     operation_id="get_realtime_schedule",
 )
-async def get_realtime_schedule(request: Request):
-    return await fetch_realtime_schedule(request.app.state.http_client)
+async def get_realtime_schedule(db_session: DBSession, request: Request):
+    return await fetch_realtime_schedule(db_session, request.app.state.http_client)
 
 
 @router.get(

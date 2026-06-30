@@ -15,11 +15,15 @@ from config import settings
 from constants import TZ_INFO
 from database import DBSession
 from translink.models import BusStatus, TransLinkRealtimeResponse, TransLinkScheduleResponse
-from translink.tables import TransLinkStaticScheduleDB
+from translink.tables import TransLinkRealtimeCacheDB, TransLinkStaticScheduleDB
 from translink.types import FeedMessage
 
 REALTIME_URL = "https://gtfsapi.translink.ca/v3/gtfsrealtime"
 POSITION_URL = "https://gtfsapi.translink.ca/v3/gtfsposition"
+STATIC_URL = "https://gtfs-static.translink.ca/gtfs/google_transit.zip"
+REALTIME_CACHE_ID = 1
+REALTIME_CACHE_TTL_SECONDS = 90
+REALTIME_CACHE_LOCK_ID = 2026062601
 
 
 # Taken from the static data.
@@ -74,7 +78,7 @@ async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
     """
     # Retrieve the static TransLink bus schedule data
     try:
-        static_response = await client.get("https://gtfs-static.translink.ca/gtfs/google_transit.zip")
+        static_response = await client.get(STATIC_URL)
     except httpx.HTTPError as e:
         raise RuntimeError(f"Failed to fetch static schedule: {e}") from e
 
@@ -171,20 +175,77 @@ def get_next_departures(schedule: pd.DataFrame, n: int = 3) -> pd.DataFrame:
     )
 
 
+def _parse_feed(content: bytes) -> FeedMessage:
+    feed = cast(FeedMessage, gtfs_realtime_pb2.FeedMessage())  # pyright: ignore[reportAttributeAccessIssue]
+    feed.ParseFromString(content)
+    return feed
+
+
+def _is_realtime_cache_fresh(cached_feed: TransLinkRealtimeCacheDB) -> bool:
+    fetched_at = cached_feed.fetched_at
+    if fetched_at.tzinfo is None:
+        fetched_at = fetched_at.replace(tzinfo=TZ_INFO)
+
+    return datetime.now(tz=TZ_INFO) - fetched_at < timedelta(seconds=REALTIME_CACHE_TTL_SECONDS)
+
+
 async def fetch_feed(client: AsyncClient, url: str, params: dict[str, Any]) -> FeedMessage | None:
     try:
         response = await client.get(url, params=params)
-        feed = cast(FeedMessage, gtfs_realtime_pb2.FeedMessage())  # pyright: ignore[reportAttributeAccessIssue]
-        feed.ParseFromString(response.content)
-        return feed
+        return _parse_feed(response.content)
     except httpx.HTTPError as e:
         logging.error(f"Failed to fetch feed from {url}: {e}")
         return None
 
 
-async def fetch_realtime_schedule(client: AsyncClient) -> list[TransLinkRealtimeResponse]:
+async def get_or_fetch_realtime_feed(db_session: DBSession, client: AsyncClient) -> FeedMessage | None:
+    cached_feed: TransLinkRealtimeCacheDB | None = None
+
+    try:
+        cached_feed = await db_session.scalar(
+            sqlalchemy.select(TransLinkRealtimeCacheDB).where(TransLinkRealtimeCacheDB.id == REALTIME_CACHE_ID)
+        )
+        if cached_feed is not None and _is_realtime_cache_fresh(cached_feed):
+            return _parse_feed(cached_feed.response_bytes)
+
+        # Transaction lock, released on commit or rollback.
+        # This prevents multiple requests from fetching the feed at the same time.
+        await db_session.execute(
+            sqlalchemy.text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": REALTIME_CACHE_LOCK_ID}
+        )
+        cached_feed = await db_session.scalar(
+            sqlalchemy.select(TransLinkRealtimeCacheDB).where(TransLinkRealtimeCacheDB.id == REALTIME_CACHE_ID)
+        )
+
+        if cached_feed is not None and _is_realtime_cache_fresh(cached_feed):
+            await db_session.commit()
+            return _parse_feed(cached_feed.response_bytes)
+
+        response = await client.get(REALTIME_URL, params={"apikey": settings.translink_api_key})
+        await db_session.merge(
+            TransLinkRealtimeCacheDB(
+                id=REALTIME_CACHE_ID,
+                fetched_at=datetime.now(tz=TZ_INFO),
+                response_bytes=response.content,
+            )
+        )
+        await db_session.commit()
+        return _parse_feed(response.content)
+    except httpx.HTTPError as e:
+        logging.error(f"Failed to fetch realtime feed from {REALTIME_URL}: {e}")
+        await db_session.rollback()
+        if cached_feed is not None:
+            return _parse_feed(cached_feed.response_bytes)
+        return None
+    except sqlalchemy.exc.SQLAlchemyError as e:
+        logging.error(f"Failed to use TransLink realtime cache: {e}")
+        await db_session.rollback()
+        return None
+
+
+async def fetch_realtime_schedule(db_session: DBSession, client: AsyncClient) -> list[TransLinkRealtimeResponse]:
     # FeedMessage is generated at runtime, so the type checker can't find this function
-    trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
+    trip_feed = await get_or_fetch_realtime_feed(db_session, client)
 
     if trip_feed is None:
         return []
@@ -225,7 +286,8 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
     """
     _, schedule = await get_or_fetch_static_schedule(db_session, client)
     next_departures = get_next_departures(schedule)
-    trip_feed = await fetch_feed(client, REALTIME_URL, params={"apikey": settings.translink_api_key})
+    trip_feed = await get_or_fetch_realtime_feed(db_session, client)
+    # If the trip feed fails to fetch then just return information from the static schedule.
     if trip_feed is None:
         return [
             TransLinkScheduleResponse(

@@ -1,26 +1,28 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
 
 
 class LoginBodyParams(BaseModel):
     service: str = Field(description="Service URL used for SFU's CAS system")
     ticket: str = Field(description="Ticket return from SFU's CAS system")
-    redirect_url: str | None = Field(None, description="Optional redirect URL")
 
 
-class UpdateUserParams(BaseModel):
-    profile_picture_url: str
+class UserBaseModel(BaseModel):
+    computing_id: str = Field(..., max_length=COMPUTING_ID_LEN, description="Student's computing ID")
 
 
-class UserSessionModel(BaseModel):
-    computing_id: str
-    issue_time: datetime
-    session_id: str
+class UserSession(UserBaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    issue_time: datetime = Field(..., description="Time the session was created")
+    session_id: str = Field(..., max_length=SESSION_ID_LEN, description="Unique session ID of the user")
 
 
-class SiteUserModel(BaseModel):
-    computing_id: str
-    first_logged_in: datetime
-    last_logged_in: datetime
-    profile_picture_url: str | None = None
+class SiteUser(UserBaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    first_logged_in: datetime | None = Field(..., description="Time the user was created")
+    last_logged_in: datetime | None = Field(..., description="Time the user last logged in")

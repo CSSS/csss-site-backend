@@ -17,6 +17,7 @@ _logger = logging.getLogger(__name__)
 
 # ----------------------- #
 # utils
+SESSION_ID_KEY = "session_id"
 
 
 def generate_session_id() -> str:
@@ -73,7 +74,7 @@ async def login_user(
 
         response = RedirectResponse(settings.frontend_origin)
         response.set_cookie(
-            key="session_id",
+            key=SESSION_ID_KEY,
             value=session_id,
             secure=settings.cookie_secure,
             httponly=True,
@@ -104,7 +105,13 @@ async def logout_user(
         response_dict = {"message": "user was not logged in"}
 
     response = JSONResponse(response_dict)
-    response.delete_cookie(key="session_id")
+    response.delete_cookie(
+        key=SESSION_ID_KEY,
+        domain=settings.cookie_domain,
+        secure=settings.cookie_secure,
+        httponly=True,
+        samesite="strict",
+    )
     return response
 
 

@@ -4,7 +4,7 @@ from fastapi import HTTPException, Request, status
 
 import auth
 import database
-import officers
+import officers.crud
 from officers.constants import OfficerPositionEnum
 
 WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [

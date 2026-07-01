@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import urllib.parse
+from typing import Any
 
 import xmltodict
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
@@ -9,7 +10,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 import database
 from auth import crud
-from auth.models import LoginBodyParams, SiteUserModel, UpdateUserParams
+from auth.models import LoginBodyParams, SiteUser
 from config import settings
 from utils.shared_models import DetailModel, MessageModel
 
@@ -38,10 +39,9 @@ router = APIRouter(
     "/login",
     description="Create a login session.",
     response_description="Successfully validated with SFU's CAS",
-    response_model=str,
+    status_code=303,
     responses={
-        307: {"description": "Successful validation, with redirect"},
-        400: {"description": "Origin is missing.", "model": DetailModel},
+        303: {"description": "Successful validation, with redirect"},
         401: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
     },
     operation_id="login",
@@ -52,37 +52,55 @@ async def login_user(
     # verify the ticket is valid
     service = urllib.parse.quote(body.service)
     ticket = urllib.parse.quote(body.ticket)
+    if not settings.auth_url:
+        raise HTTPException(status_code=503, detail="authentication error")
     service_validate_url = f"{settings.auth_url}?service={service}&ticket={ticket}"
     client = request.app.state.http_client
-    response = await client.get(service_validate_url)
-    cas_response = xmltodict.parse(response.text)
 
-    if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
-        _logger.info(f"User failed to login, with response {cas_response}")
+    try:
+        response = await client.get(service_validate_url)
+        response.raise_for_status()
+        cas_response = xmltodict.parse(response.text)
+    except Exception:
+        _logger.exception(f"CAS Login failure: service={body.service}")
+        raise HTTPException(status_code=502, detail="authentication error") from None
+
+    service_response = cas_response.get("cas:serviceResponse")
+    if not isinstance(service_response, dict):
+        raise HTTPException(status_code=502, detail="authentication error")
+
+    if "cas:authenticationFailure" in service_response:
+        _logger.info(f"CAS Login failure: service={body.service}")
         raise HTTPException(status_code=401, detail="authentication error")
-    else:
-        session_id = generate_session_id()
-        computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
 
-        await crud.create_user_session(db_session, session_id, computing_id)
+    auth_success = service_response.get("cas:authenticationSuccess")
+    if not isinstance(auth_success, dict):
+        raise HTTPException(status_code=502, detail="authentication error")
 
-        # clean old sessions after sending the response
-        background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
+    session_id = generate_session_id()
+    computing_id = auth_success.get("cas:user")
+    if not isinstance(computing_id, str) or not computing_id:
+        raise HTTPException(status_code=502, detail="authentication error")
 
-        if not settings.frontend_origin:
-            raise HTTPException(status_code=500, detail="authentication error")
+    # clean old sessions after sending the response
+    # TODO: Convert this to a daily CRON job
+    background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
 
-        response = RedirectResponse(settings.frontend_origin)
-        response.set_cookie(
-            key=SESSION_ID_KEY,
-            value=session_id,
-            secure=settings.cookie_secure,
-            httponly=True,
-            samesite="strict",
-            domain=settings.cookie_domain,
-        )  # this overwrites any past, possibly invalid, session_id
-        await db_session.commit()
-        return response
+    if not settings.frontend_origin:
+        raise HTTPException(status_code=500, detail="authentication error")
+
+    response = RedirectResponse(url=settings.frontend_origin, status_code=303)
+    response.set_cookie(
+        key=SESSION_ID_KEY,
+        value=session_id,
+        secure=settings.cookie_secure,
+        httponly=True,
+        samesite="strict",
+        domain=settings.cookie_domain,
+    )  # this overwrites any past, possibly invalid, session_id
+    await crud.create_user_session(db_session, session_id, computing_id)
+    await db_session.commit()
+    return response
 
 
 @router.get(
@@ -119,7 +137,7 @@ async def logout_user(
     "/user",
     operation_id="get_user",
     description="Get info about the current user. Only accessible by that user",
-    response_model=SiteUserModel,
+    response_model=SiteUser,
     responses={401: {"description": "Not logged in.", "model": DetailModel}},
 )
 async def get_user(
@@ -137,30 +155,4 @@ async def get_user(
     if user_info is None:
         raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")
 
-    return JSONResponse(user_info.serialize())
-
-
-# TODO: We should change this so that the admins can change people's pictures too, so they can remove offensive stuff
-@router.patch(
-    "/user",
-    operation_id="update_user",
-    description="Update information for the currently logged in user. Only accessible by that user",
-    response_model=str,
-    responses={401: {"description": "Not logged in.", "model": DetailModel}},
-)
-async def update_user(
-    body: UpdateUserParams,
-    request: Request,
-    db_session: database.DBSession,
-):
-    """
-    Returns the info stored in the site_user table in the auth module, if the user is logged in.
-    """
-    session_id = request.cookies.get("session_id")
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="user must be authenticated to get their info")
-
-    ok = await crud.update_site_user(db_session, session_id, body.profile_picture_url)
-    await db_session.commit()
-    if not ok:
-        raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")
+    return user_info

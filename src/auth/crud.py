@@ -2,6 +2,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 import sqlalchemy
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.tables import SiteUserDB, UserSessionDB
@@ -17,37 +18,33 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 
     Also, adds the new user to the SiteUser table if it's their first time logging in.
     """
-    existing_user_session = await db_session.scalar(
-        sqlalchemy.select(UserSessionDB).where(UserSessionDB.computing_id == computing_id)
+    now = datetime.now(UTC)
+
+    # Upsert the site user
+    # Create a new user if it's their first login...
+    user_query = insert(SiteUserDB).values(
+        computing_id=computing_id,
+        first_logged_in=now,
+        last_logged_in=now,
     )
-    existing_user = await db_session.scalar(
-        sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == computing_id)
+    # ...or just update their "last_logged_in" time
+    user_query = user_query.on_conflict_do_update(
+        index_elements=[SiteUserDB.computing_id], set_={"last_logged_in": now}
     )
+    await db_session.execute(user_query)
 
-    if existing_user is None:
-        if existing_user_session is not None:
-            # log this strange case that shouldn't be possible
-            _logger.warning(f"User session {session_id} exists for non-existent user {computing_id} ... !")
-
-        # add new user to User table if it's their first time logging in
-        db_session.add(
-            SiteUserDB(computing_id=computing_id, first_logged_in=datetime.now(UTC), last_logged_in=datetime.now(UTC))
-        )
-
-    if existing_user_session is not None:
-        existing_user_session.issue_time = datetime.now(UTC)
-        existing_user_session.session_id = session_id
-        if existing_user is not None:
-            # update the last time the user logged in to now
-            existing_user.last_logged_in = datetime.now(UTC)
-    else:
-        db_session.add(
-            UserSessionDB(
-                session_id=session_id,
-                computing_id=computing_id,
-                issue_time=datetime.now(UTC),
-            )
-        )
+    # Upsert the user session
+    # Create a new session...
+    session_query = insert(UserSessionDB).values(
+        session_id=session_id,
+        computing_id=computing_id,
+        issue_time=now,
+    )
+    # ...or update their current session
+    session_query = session_query.on_conflict_do_update(
+        index_elements=[UserSessionDB.computing_id], set_={"session_id": session_id, "issue_time": now}
+    )
+    await db_session.execute(session_query)
 
 
 async def remove_user_session(db_session: AsyncSession, session_id: str):

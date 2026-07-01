@@ -115,13 +115,12 @@ async def logout_user(
 ):
     session_id = request.cookies.get("session_id", None)
 
-    if session_id:
-        await crud.remove_user_session(db_session, session_id)
-        await db_session.commit()
-        response_dict = {"message": "logout successful"}
-    else:
+    if not session_id:
         response_dict = {"message": "user was not logged in"}
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session provided")
 
+    await crud.remove_user_session(db_session, session_id)
+    response_dict = {"message": "logout successful"}
     response = JSONResponse(response_dict)
     response.delete_cookie(
         key=SESSION_ID_KEY,
@@ -130,6 +129,7 @@ async def logout_user(
         httponly=True,
         samesite="strict",
     )
+    await db_session.commit()
     return response
 
 

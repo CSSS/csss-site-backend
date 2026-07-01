@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from auth.urls import generate_session_id
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
 from database import Base
 
@@ -22,8 +23,8 @@ class UserSessionDB(Base):
     issue_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     session_id: Mapped[str] = mapped_column(
-        String(SESSION_ID_LEN), nullable=False, unique=True
-    )  # the space needed to store 256 bytes in base64
+        String(SESSION_ID_LEN), nullable=False, unique=True, default=generate_session_id
+    )  # the space needed to store 32 bytes in base64
 
 
 class SiteUserDB(Base):

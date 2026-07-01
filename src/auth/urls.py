@@ -20,8 +20,8 @@ _logger = logging.getLogger(__name__)
 
 
 # ex: rsa4096 is 512 bytes
-def generate_session_id_b64(num_bytes: int) -> str:
-    return base64.b64encode(os.urandom(num_bytes)).decode("utf-8")
+def generate_session_id() -> str:
+    return base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8").rstrip("=")
 
 
 # ----------------------- #
@@ -61,7 +61,7 @@ async def login_user(
         _logger.info(f"User failed to login, with response {cas_response}")
         raise HTTPException(status_code=401, detail="authentication error")
     else:
-        session_id = generate_session_id_b64(256)
+        session_id = generate_session_id()
         computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
 
         await crud.create_user_session(db_session, session_id, computing_id)

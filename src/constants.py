@@ -12,7 +12,7 @@ W3_GUILD_ID = "1260652618875797504"
 CSSS_GUILD_ID = "228761314644852736"
 ACTIVE_GUILD_ID = W3_GUILD_ID if not IS_PROD else CSSS_GUILD_ID
 
-SESSION_ID_LEN = 512
+SESSION_ID_LEN = 43
 # technically a max of 8 digits https://www.sfu.ca/computing/about/support/tips/sfu-userid.html
 COMPUTING_ID_LEN = 32
 COMPUTING_ID_MAX = 8

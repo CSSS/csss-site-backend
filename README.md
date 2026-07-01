@@ -33,11 +33,12 @@ pip install ".[dev, test]" # or: uv sync --all-extras
 ```
 
 5. Follow the database setup instructions on the [wiki](https://github.com/CSSS/csss-site-backend/wiki/1.-Local-Setup#database-setup). The recommended way is to do it through Docker, but both should work.
-6. You will need to set the following environment variables
+6. You will need to set the following environment variables set
 ```bash
-export DB_PORT=5444 # If you're using Docker
-export LOCAL=true # Should be true if you're running this locally
+DB_PORT=5444 # If you're using Docker
+ENVIRONMENT=dev # Set this to `test` if you want to use the test database instead
 ```
+You can also create a `src/.env` file and set those in there. See `src/.env.example` for more information.
 
 
 ## Important Directories

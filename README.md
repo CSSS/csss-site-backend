@@ -45,15 +45,15 @@ You can also create a `src/.env` file and set those in there. See `src/.env.exam
 
 - `config/` configuration files for the server machine
 - `src/`
-    - `alembic` for database migrations
-    - `access/` for controlling officer access to the google drive, bitwarden, and github. TODO: discord as well?
-    - `blog/` for running an editable csss-blog
-    - `dashboard/` for controlling the server, website, jobs, and access to services & stuff.
-    - `elections/` for the mangement of current elections & past elections
-    - `jobs/` for cronjobs that run regularly on the server
-    - `misc/` for anything that can't be easily categorized or is very small
-    - `officers/` for officer contact information + photos
-- `test/` for html pages which interact with the backend's local api
+    - `alembic` database migrations
+    - `auth/` controlling authentication and sessions
+    - `candidates/` management of those who run in large elections
+    - `elections/` mangement of current elections & past elections
+    - `event/` management of events
+    - `nominees/` management of nominees to large elections
+    - `officers/` management of officer information and terms
+    - `translink/` management of TransLink REST API
+- `test/` unit and integration tests
 
 ## Developer Tools
 

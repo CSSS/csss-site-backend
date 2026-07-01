@@ -50,8 +50,9 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 
 async def remove_user_session(db_session: AsyncSession, session_id: str):
     query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
-    user_session = await db_session.scalars(query)
-    await db_session.delete(user_session.first())
+    user_session = await db_session.scalar(query)
+    if user_session is not None:
+        await db_session.delete(user_session)
 
 
 async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | None:

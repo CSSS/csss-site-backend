@@ -10,6 +10,8 @@ from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
+from config import settings
+
 convention = {
     "ix": "ix_%(column_0_label)s",  # index
     "uq": "uq_%(table_name)s_%(column_0_name)s",  # unique
@@ -84,11 +86,10 @@ class DatabaseSessionManager:
             await session.close()
 
 
-if os.environ.get("DB_PORT") is not None:
+if settings.db_port:
     # using a remote (or docker) database
-    db_port = os.environ.get("DB_PORT")
-    SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/main"
-    SQLALCHEMY_TEST_DATABASE_URL = f"postgresql+asyncpg://localhost:{db_port}/test"
+    SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://localhost:{settings.db_port}/main"
+    SQLALCHEMY_TEST_DATABASE_URL = f"postgresql+asyncpg://localhost:{settings.db_port}/test"
 else:
     SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg:///main"
     SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"

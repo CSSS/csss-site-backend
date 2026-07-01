@@ -4,13 +4,13 @@ import os
 import urllib.parse
 
 import xmltodict
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 import database
 from auth import crud
 from auth.models import LoginBodyParams, SiteUserModel, UpdateUserParams
-from constants import DOMAIN, IS_PROD, SAMESITE
+from config import settings
 from utils.shared_models import DetailModel, MessageModel
 
 _logger = logging.getLogger(__name__)
@@ -19,7 +19,6 @@ _logger = logging.getLogger(__name__)
 # utils
 
 
-# ex: rsa4096 is 512 bytes
 def generate_session_id() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8").rstrip("=")
 
@@ -50,9 +49,9 @@ async def login_user(
     request: Request, db_session: database.DBSession, background_tasks: BackgroundTasks, body: LoginBodyParams
 ):
     # verify the ticket is valid
-    service_url = body.service
-    service = urllib.parse.quote(service_url)
-    service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={body.ticket}"
+    service = urllib.parse.quote(body.service)
+    ticket = urllib.parse.quote(body.ticket)
+    service_validate_url = f"{settings.auth_url}?service={service}&ticket={ticket}"
     client = request.app.state.http_client
     response = await client.get(service_validate_url)
     cas_response = xmltodict.parse(response.text)
@@ -65,23 +64,23 @@ async def login_user(
         computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
 
         await crud.create_user_session(db_session, session_id, computing_id)
-        await db_session.commit()
 
         # clean old sessions after sending the response
         background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
 
-        if body.redirect_url:
-            origin = request.headers.get("origin")
-            if origin:
-                response = RedirectResponse(origin + body.redirect_url)
-            else:
-                raise HTTPException(status_code=400, detail="bad origin")
-        else:
-            response = Response()
+        if not settings.frontend_origin:
+            raise HTTPException(status_code=500, detail="authentication error")
 
+        response = RedirectResponse(settings.frontend_origin)
         response.set_cookie(
-            key="session_id", value=session_id, secure=IS_PROD, httponly=True, samesite=SAMESITE, domain=DOMAIN
+            key="session_id",
+            value=session_id,
+            secure=settings.cookie_secure,
+            httponly=True,
+            samesite="strict",
+            domain=settings.cookie_domain,
         )  # this overwrites any past, possibly invalid, session_id
+        await db_session.commit()
         return response
 
 

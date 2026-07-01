@@ -40,8 +40,9 @@ router = APIRouter(
     response_description="Successfully validated with SFU's CAS",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        303: {"description": "Successful validation, with redirect"},
         401: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
+        502: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
+        503: {"description": "Authentication not configured", "model": DetailModel},
     },
     operation_id="login",
 )
@@ -148,10 +149,12 @@ async def get_user(
     """
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
-        raise HTTPException(status_code=401, detail="user must be authenticated to get their info")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="user must be authenticated to get their info"
+        )
 
     user_info = await crud.get_site_user(db_session, session_id)
     if user_info is None:
-        raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="could not find user with session_id")
 
     return user_info

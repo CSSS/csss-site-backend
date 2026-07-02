@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 import database
 from auth import crud
+from auth.constants import COOKIE_MAX_AGE, COOKIE_SESSION_KEY
 from auth.models import LoginBodyParams, SiteUser
 from config import settings
 from utils.shared_models import DetailModel, MessageModel
@@ -17,10 +18,9 @@ _logger = logging.getLogger(__name__)
 
 # ----------------------- #
 # utils
-SESSION_ID_KEY = "session_id"
 
 
-def generate_session_id() -> str:
+def _generate_session_id() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8").rstrip("=")
 
 
@@ -77,7 +77,7 @@ async def login_user(
     if not isinstance(auth_success, dict):
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error")
 
-    session_id = generate_session_id()
+    session_id = _generate_session_id()
     computing_id = auth_success.get("cas:user")
     if not isinstance(computing_id, str) or not computing_id:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error")
@@ -91,12 +91,13 @@ async def login_user(
 
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.set_cookie(
-        key=SESSION_ID_KEY,
+        key=COOKIE_SESSION_KEY,
         value=session_id,
         secure=settings.cookie_secure,
         httponly=True,
         samesite="strict",
         domain=settings.cookie_domain,
+        max_age=COOKIE_MAX_AGE,
     )  # this overwrites any past, possibly invalid, session_id
     await crud.create_user_session(db_session, session_id, computing_id)
     await db_session.commit()
@@ -123,7 +124,7 @@ async def logout_user(
     response_dict = {"message": "logout successful"}
     response = JSONResponse(response_dict)
     response.delete_cookie(
-        key=SESSION_ID_KEY,
+        key=COOKIE_SESSION_KEY,
         domain=settings.cookie_domain,
         secure=settings.cookie_secure,
         httponly=True,

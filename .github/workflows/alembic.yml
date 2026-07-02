@@ -4,6 +4,11 @@ on: pull_request
 jobs:
   alembic_upgrade_head:
     runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: dev
+      DB_PORT: "5432"
+      COOKIE_SECURE: "false"
+      FRONTEND_ORIGIN: http://localhost:8080
 
     services:
       postgres:
@@ -32,19 +37,18 @@ jobs:
             sleep 1
           done
 
-      - name: Install dependencies
-        run: |
-          sudo add-apt-repository ppa:deadsnakes/ppa
-          sudo apt install python3.13 python3.13-venv
-          python3.13 -m pip install --upgrade pip
-          python3.13 -m venv venv
-          source ./venv/bin/activate
-          pip install .
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
 
-      # This will fail if there are divergent heads and alembic gets confused;
-      #   e.g., un-sanitarily merging main into a dev branch.
+      - name: Install Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # This will fail if there are divergent heads and alembic gets confused
+      #   e.g. merging into main without passing this check
       - name: Run alembic upgrade head
-        run: |
-          source ./venv/bin/activate
-          cd src
-          alembic upgrade head
+        working-directory: src
+        run: uv run alembic upgrade head

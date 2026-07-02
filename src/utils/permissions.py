@@ -3,6 +3,7 @@ from enum import Enum
 from fastapi import HTTPException, Request, status
 
 import auth
+import auth.crud
 import database
 import officers.crud
 from officers.constants import OfficerPositionEnum
@@ -54,7 +55,7 @@ async def get_user(request: Request, db_session: database.DBSession) -> tuple[st
     if session_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session id")
 
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    session_computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
     if session_computing_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no computing id")
 

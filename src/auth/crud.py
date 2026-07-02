@@ -53,10 +53,23 @@ async def remove_user_session(db_session: AsyncSession, session_id: str):
         await db_session.delete(user_session)
 
 
-async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
+async def get_session_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
+    """
+    Retrieves the computing ID from a session.
+
+    Args:
+        db_session: database transaction
+        session_id: session ID the computing ID is using
+
+    Returns:
+        The computing ID associated with the session, or None if the session is invalid or expired.
+    """
     query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     existing_user_session = (await db_session.scalars(query)).first()
-    return existing_user_session.computing_id if existing_user_session else None
+    if existing_user_session is None or existing_user_session.issue_time < datetime.now(UTC) - SESSION_MAX_AGE:
+        return None
+
+    return existing_user_session.computing_id
 
 
 # remove all out of date user sessions
@@ -72,7 +85,8 @@ async def task_clean_expired_user_sessions(db_session: AsyncSession):
 async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB | None:
     query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     user_session = await db_session.scalar(query)
-    if user_session is None:
+
+    if user_session is None or user_session.issue_time < datetime.now(UTC) - SESSION_MAX_AGE:
         return None
 
     query = sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == user_session.computing_id)

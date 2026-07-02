@@ -37,7 +37,7 @@ async def _has_officer_private_info_access(
     if session_id is None:
         return False, None
 
-    computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
     if computing_id is None:
         return False, None
 

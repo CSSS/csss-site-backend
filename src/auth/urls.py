@@ -37,11 +37,11 @@ router = APIRouter(
 @router.post(
     "/login",
     description="Create a login session.",
-    response_description="Successfully validated with SFU's CAS",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
+        204: {"description": "Successfully validated with SFU's CAS"},
         401: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
-        502: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
+        502: {"description": "Failed to connect to SFU's CAS", "model": DetailModel},
         503: {"description": "Authentication not configured", "model": DetailModel},
     },
     operation_id="login",

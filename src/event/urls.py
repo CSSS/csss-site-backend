@@ -1,8 +1,5 @@
-from datetime import date, datetime
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 import database
@@ -10,7 +7,7 @@ import event.crud
 from dependencies import perm_admin
 from event.models import Event, EventCreate, EventDelete, EventUpdate
 from event.tables import EventDB
-from utils.shared_models import DetailModel, SuccessResponse
+from utils.shared_models import DetailModel
 
 router = APIRouter(
     prefix="/event",

@@ -86,9 +86,6 @@ async def login_user(
     # TODO: Convert this to a daily CRON job
     background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
 
-    if not settings.frontend_origin:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="authentication error")
-
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.set_cookie(
         key=COOKIE_SESSION_KEY,

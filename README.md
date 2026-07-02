@@ -38,7 +38,7 @@ pip install ".[dev, test]" # or: uv sync --all-extras
 DB_PORT=5444 # If you're using Docker
 ENVIRONMENT=dev # Set this to `test` if you want to use the test database instead
 ```
-You can also create a `src/.env` file and set those in there. See `src/.env.example` for more information.
+You can also create a `.env` file and set those in there. See `.env.example` for more information.
 
 
 ## Important Directories

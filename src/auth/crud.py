@@ -1,15 +1,14 @@
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import sqlalchemy
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth.constants import SESSION_MAX_AGE
 from auth.tables import SiteUserDB, UserSessionDB
 
 _logger = logging.getLogger(__name__)
-
-SESSION_EXPIRATION = timedelta(hours=12)
 
 
 async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str):
@@ -62,7 +61,7 @@ async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | N
 
 # remove all out of date user sessions
 async def task_clean_expired_user_sessions(db_session: AsyncSession):
-    expiration = datetime.now(UTC) - SESSION_EXPIRATION
+    expiration = datetime.now(UTC) - SESSION_MAX_AGE
 
     query = sqlalchemy.delete(UserSessionDB).where(UserSessionDB.issue_time < expiration)
     await db_session.execute(query)

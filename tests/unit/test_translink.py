@@ -1,6 +1,6 @@
 import io
 import zipfile
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -466,6 +466,7 @@ async def test__get_or_fetch_realtime_feed_returns_none_on_http_error_status():
 
 async def test__get_or_fetch_static_schedule_cache_hit():
     """When the DB has today's row, no HTTP call should be made."""
+    today = datetime.now(tz=TZ_INFO).date()
     cached_records = [
         {
             "trip_id": "trip_143",
@@ -475,13 +476,13 @@ async def test__get_or_fetch_static_schedule_cache_hit():
             "departure_seconds": 82800,
         }
     ]
-    cached_row = TransLinkStaticScheduleDB(id=1, date_fetched=date.today(), schedule=cached_records)
+    cached_row = TransLinkStaticScheduleDB(id=1, date_fetched=today, schedule=cached_records)
     session = mock_db_session(cached_row=cached_row)
     client = AsyncMock(spec=AsyncClient)
 
     result_date, result_df = await get_or_fetch_static_schedule(session, client)
 
-    assert result_date == date.today()
+    assert result_date == today
     assert not result_df.empty
     assert result_df.iloc[0]["bus_number"] == "143"
     client.get.assert_not_called()
@@ -489,12 +490,13 @@ async def test__get_or_fetch_static_schedule_cache_hit():
 
 async def test__get_or_fetch_static_schedule_cache_miss_fetches():
     """On a cache miss the function should call the API and persist the result."""
+    today = datetime.now(tz=TZ_INFO).date()
     session = mock_db_session(cached_row=None)
     client = mock_http_client(make_gtfs_zip())
 
     result_date, result_df = await get_or_fetch_static_schedule(session, client)
 
-    assert result_date == date.today()
+    assert result_date == today
     assert not result_df.empty
     session.merge.assert_awaited_once()
     session.commit.assert_awaited_once()
@@ -504,13 +506,14 @@ async def test__get_or_fetch_static_schedule_db_write_failure_still_returns():
     """If the DB write fails, the function should still return the fetched data."""
     import sqlalchemy.exc
 
+    today = datetime.now(tz=TZ_INFO).date()
     session = mock_db_session(cached_row=None)
     session.merge = AsyncMock(side_effect=sqlalchemy.exc.SQLAlchemyError("disk full"))
     client = mock_http_client(make_gtfs_zip())
 
     result_date, result_df = await get_or_fetch_static_schedule(session, client)
 
-    assert result_date == date.today()
+    assert result_date == today
     assert not result_df.empty
     session.rollback.assert_awaited_once()
 
@@ -578,7 +581,7 @@ async def test__endpoint_realtime_returns_200(client):
 
 
 async def test__endpoint_static_returns_schedule(client):
-    today = date.today()
+    today = datetime.now(tz=TZ_INFO).date()
     mock_df = pd.DataFrame(
         [
             {

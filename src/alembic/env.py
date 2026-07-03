@@ -14,6 +14,7 @@ import event.tables
 import honorary.tables
 import nominees.tables
 import officers.tables
+import translink.tables
 from alembic import context
 
 # this is the Alembic Config object, which provides

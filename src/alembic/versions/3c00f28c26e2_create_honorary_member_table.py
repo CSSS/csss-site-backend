@@ -12,11 +12,10 @@ from typing import Union
 import sqlalchemy as sa
 
 from alembic import op
-from honorary.constants import HONORARY_MEMBER_MAX_LENGTH
 
 # revision identifiers, used by Alembic.
 revision: str = "3c00f28c26e2"
-down_revision: str | None = "42f855bec532"
+down_revision: str | None = "f0c99d0db277"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -26,7 +25,7 @@ def upgrade() -> None:
     op.create_table(
         "honorary_member",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("name", sa.String(length=HONORARY_MEMBER_MAX_LENGTH), nullable=False),
+        sa.Column("name", sa.String(length=128), nullable=False),
         sa.Column("start_date", sa.Date(), nullable=False),
         sa.Column("end_date", sa.Date(), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_honorary_member")),

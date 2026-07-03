@@ -8,6 +8,8 @@ from datetime import UTC, date, datetime, timedelta
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import honorary.tables
+
 # NOTE: make sure you import from a file in your module which (at least) indirectly contains those
 # tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session, update_site_user

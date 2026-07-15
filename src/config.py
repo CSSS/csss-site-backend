@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     translink_api_key: str | None = None
+    kiosk_secret: str | None = None
 
 
 settings = Settings()

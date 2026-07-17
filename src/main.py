@@ -15,10 +15,10 @@ import database
 import elections.urls
 import event.urls
 import honorary.urls
+import kiosk.urls
 import nominees.urls
 import officers.urls
 import permission.urls
-import translink.urls
 from constants import IS_PROD
 
 logging.basicConfig(level=logging.DEBUG)
@@ -80,7 +80,7 @@ app.include_router(officers.urls.router)
 app.include_router(permission.urls.router)
 app.include_router(event.urls.router)
 app.include_router(honorary.urls.router)
-app.include_router(translink.urls.router)
+app.include_router(kiosk.urls.router)
 
 
 @app.get("/")

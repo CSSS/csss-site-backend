@@ -23,7 +23,6 @@ import translink.urls
 from config import settings
 
 logging.basicConfig(level=logging.DEBUG)
-database.setup_database()
 
 
 @contextlib.asynccontextmanager
@@ -31,12 +30,15 @@ async def lifespan(app: FastAPI):
     """
     Handles startup and shutdown events, see https://fastapi.tiangolo.com/advanced/events/
     """
+    await database.setup_database()
     app.state.http_client = httpx.AsyncClient()
-    yield
-    await app.state.http_client.aclose()
-    if database.sessionmanager._engine is not None:
-        # Close the DB connection
-        await database.sessionmanager.close()
+    try:
+        yield
+    finally:
+        await app.state.http_client.aclose()
+        if database.sessionmanager is not None:
+            # Close the DB connection
+            await database.sessionmanager.close()
 
 
 # If on production, disable viewing the docs

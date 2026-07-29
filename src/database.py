@@ -95,20 +95,29 @@ else:
     SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg:///test"
 
 
+sessionmanager: DatabaseSessionManager | None = None
+
+
 # also TODO: make this nicer, using a class to hold state...
 # and use this in load_test_db for the test db as well?
-def setup_database():
+async def setup_database():
     global sessionmanager
 
     db_url = SQLALCHEMY_TEST_DATABASE_URL if settings.environment == "test" else SQLALCHEMY_DATABASE_URL
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
-    sessionmanager = DatabaseSessionManager(
+    manager = DatabaseSessionManager(
         db_url,
         {"echo": True},
+        check_db=False,
     )
+    await DatabaseSessionManager.test_connection(db_url)
+    sessionmanager = manager
 
 
 async def get_db_session():
+    if sessionmanager is None:
+        raise RuntimeError("Database has not been initialized")
+
     async with sessionmanager.session() as session:
         yield session
 

@@ -15,7 +15,7 @@ from constants import SESSION_ID_LEN
 
 # revision identifiers, used by Alembic.
 revision: str = '060623cf940f'
-down_revision: Union[str, None] = 'f0c99d0db277'
+down_revision: Union[str, None] = '3c00f28c26e2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

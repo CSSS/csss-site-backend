@@ -84,30 +84,28 @@ async def list_elections(
     db_session: database.DBSession,
     with_nominees: bool = Query(False),
 ):
-    election_list = await elections.crud.get_all_elections(db_session)
-    if election_list is None or len(election_list) == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
-
     current_time = datetime.datetime.now(datetime.UTC)
-    election_metadata_list = []
     has_permission = await is_user_election_admin(computing_id, db_session)
 
-    nominees_by_election = {}
     if with_nominees:
-        nominees_by_election = await elections.crud.get_all_nominees_by_election(db_session, has_permission)
-
-    for election in election_list:
-        if has_permission:
-            election_data = election.private_details(current_time)
-        else:
-            election_data = election.public_details(current_time)
-        if with_nominees:
-            election_nominees = nominees_by_election.get(election.slug, [])
-            candidates_list = []
-            for nominee in election_nominees:
-                candidates_list.append(nominee.model_dump(exclude_none=True))
-            election_data["candidates"] = candidates_list
-        election_metadata_list.append(election_data)
+        election_responses = await elections.crud.get_all_elections_with_nominees(
+            db_session, current_time, has_permission
+        )
+        if not election_responses:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
+        election_metadata_list = [
+            election.model_dump(mode="json", exclude_none=True) for election in election_responses
+        ]
+    else:
+        election_list = await elections.crud.get_all_elections(db_session)
+        if election_list is None or len(election_list) == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
+        election_metadata_list = []
+        for election in election_list:
+            if has_permission:
+                election_metadata_list.append(election.private_details(current_time))
+            else:
+                election_metadata_list.append(election.public_details(current_time))
 
     return JSONResponse(election_metadata_list)
 
@@ -142,7 +140,7 @@ async def get_election(
     else:
         election_json = election.public_details(current_time)
     if with_nominees:
-        nominees = await elections.crud._get_election_nominees(db_session, election, has_permission)
+        nominees = await elections.crud.get_election_nominees(db_session, election.slug, has_permission)
         candidates_list = []
         for nominee in nominees:
             candidates_list.append(nominee.model_dump(exclude_none=True))

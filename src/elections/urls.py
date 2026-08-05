@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
@@ -74,7 +74,7 @@ def _raise_if_bad_election_data(
 
 @router.get(
     "",
-    description="Returns a list of all election & their status",
+    description="Return a list of all elections, their statuses and nominees (if requested)",
     response_model=list[ElectionResponse],
     responses={status.HTTP_404_NOT_FOUND: {"description": "No election found", "model": DetailModel}},
     operation_id="get_all_elections",
@@ -82,16 +82,30 @@ def _raise_if_bad_election_data(
 async def list_elections(
     computing_id: SessionUser,
     db_session: database.DBSession,
+    with_nominees: bool = Query(False),
 ):
-    election_list = await elections.crud.get_all_elections(db_session)
-    if election_list is None or len(election_list) == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
-
     current_time = datetime.datetime.now(datetime.UTC)
-    if await is_user_election_admin(computing_id, db_session):
-        election_metadata_list = [election.private_details(current_time) for election in election_list]
+    has_permission = await is_user_election_admin(computing_id, db_session)
+
+    if with_nominees:
+        election_responses = await elections.crud.get_all_elections_with_nominees(
+            db_session, current_time, has_permission
+        )
+        if not election_responses:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
+        election_metadata_list = [
+            election.model_dump(mode="json", exclude_none=True) for election in election_responses
+        ]
     else:
-        election_metadata_list = [election.public_details(current_time) for election in election_list]
+        election_list = await elections.crud.get_all_elections(db_session)
+        if election_list is None or len(election_list) == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
+        election_metadata_list = []
+        for election in election_list:
+            if has_permission:
+                election_metadata_list.append(election.private_details(current_time))
+            else:
+                election_metadata_list.append(election.public_details(current_time))
 
     return JSONResponse(election_metadata_list)
 
@@ -100,14 +114,18 @@ async def list_elections(
     "/{election_name}",
     description="""
     Retrieves the election data for an election by name.
-    Returns private details when the time is allowed.
-    If user is an admin or election officer, returns computing ids for each candidate as well.
+    If user is an admin or election officer, returns complete nominee information (if requested).
     """,
     response_model=ElectionResponse,
     responses={404: {"description": "Election of that name doesn't exist", "model": DetailModel}},
     operation_id="get_election_by_name",
 )
-async def get_election(db_session: database.DBSession, computing_id: SessionUser, election_name: str):
+async def get_election(
+    db_session: database.DBSession,
+    computing_id: SessionUser,
+    election_name: str,
+    with_nominees: bool = Query(False),
+):
     current_time = datetime.datetime.now(datetime.UTC)
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
@@ -117,41 +135,16 @@ async def get_election(db_session: database.DBSession, computing_id: SessionUser
         )
 
     has_permission = await is_user_election_admin(computing_id, db_session)
-    if current_time >= election.datetime_start_voting or has_permission:
+    if has_permission:
         election_json = election.private_details(current_time)
-        all_nominations = await candidates.crud.get_all_candidates_in_election(db_session, slugified_name)
-        if not all_nominations:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no candidates found")
-        election_json["candidates"] = []
-
-        available_positions_list = election.available_positions
-        for nomination in all_nominations:
-            if nomination.position not in available_positions_list:
-                # ignore any positions that are **no longer** active
-                continue
-
-            # NOTE: if a nominee does not input their legal name, they are not considered a nominee
-            nominee_info = await nominees.crud.get_nominee_info(db_session, nomination.computing_id)
-            if nominee_info is None:
-                continue
-
-            candidate_entry = {
-                "position": nomination.position,
-                "full_name": nominee_info.full_name,
-                "linked_in": nominee_info.linked_in,
-                "instagram": nominee_info.instagram,
-                "email": nominee_info.email,
-                "discord_username": nominee_info.discord_username,
-                "speech": ("No speech provided by this candidate" if nomination.speech is None else nomination.speech),
-            }
-            if has_permission:
-                candidate_entry["computing_id"] = nomination.computing_id
-            election_json["candidates"].append(candidate_entry)
-
-        # after the voting period starts, all election data becomes public
-        return JSONResponse(election_json)
     else:
         election_json = election.public_details(current_time)
+    if with_nominees:
+        nominees = await elections.crud.get_election_nominees(db_session, election.slug, has_permission)
+        candidates_list = []
+        for nominee in nominees:
+            candidates_list.append(nominee.model_dump(exclude_none=True))
+        election_json["candidates"] = candidates_list
 
     return JSONResponse(election_json)
 

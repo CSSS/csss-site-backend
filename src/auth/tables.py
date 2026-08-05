@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
@@ -23,7 +23,7 @@ class UserSessionDB(Base):
 
     session_id: Mapped[str] = mapped_column(
         String(SESSION_ID_LEN), nullable=False, unique=True
-    )  # the space needed to store 256 bytes in base64
+    )  # the space needed to store 32 bytes in base64
 
 
 class SiteUserDB(Base):
@@ -39,15 +39,3 @@ class SiteUserDB(Base):
     # first and last time logged into the CSSS API
     first_logged_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_logged_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    # optional user information for display purposes
-    profile_picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    def serialize(self) -> dict[str, str | int | bool | None]:
-        res = {"computing_id": self.computing_id, "profile_picture_url": self.profile_picture_url}
-        if self.first_logged_in is not None:
-            res["first_logged_in"] = self.first_logged_in.isoformat()
-        if self.last_logged_in is not None:
-            res["last_logged_in"] = self.last_logged_in.isoformat()
-
-        return res

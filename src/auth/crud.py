@@ -1,9 +1,11 @@
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import sqlalchemy
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth.constants import SESSION_MAX_AGE
 from auth.tables import SiteUserDB, UserSessionDB
 
 _logger = logging.getLogger(__name__)
@@ -15,56 +17,66 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
 
     Also, adds the new user to the SiteUser table if it's their first time logging in.
     """
-    existing_user_session = await db_session.scalar(
-        sqlalchemy.select(UserSessionDB).where(UserSessionDB.computing_id == computing_id)
+    now = datetime.now(UTC)
+
+    # Upsert the site user
+    # Create a new user if it's their first login...
+    user_query = insert(SiteUserDB).values(
+        computing_id=computing_id,
+        first_logged_in=now,
+        last_logged_in=now,
     )
-    existing_user = await db_session.scalar(
-        sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == computing_id)
+    # ...or just update their "last_logged_in" time
+    user_query = user_query.on_conflict_do_update(
+        index_elements=[SiteUserDB.computing_id], set_={"last_logged_in": now}
     )
+    await db_session.execute(user_query)
 
-    if existing_user is None:
-        if existing_user_session is not None:
-            # log this strange case that shouldn't be possible
-            _logger.warning(f"User session {session_id} exists for non-existent user {computing_id} ... !")
-
-        # add new user to User table if it's their first time logging in
-        db_session.add(
-            SiteUserDB(computing_id=computing_id, first_logged_in=datetime.now(UTC), last_logged_in=datetime.now(UTC))
-        )
-
-    if existing_user_session is not None:
-        existing_user_session.issue_time = datetime.now(UTC)
-        existing_user_session.session_id = session_id
-        if existing_user is not None:
-            # update the last time the user logged in to now
-            existing_user.last_logged_in = datetime.now(UTC)
-    else:
-        db_session.add(
-            UserSessionDB(
-                session_id=session_id,
-                computing_id=computing_id,
-                issue_time=datetime.now(UTC),
-            )
-        )
+    # Upsert the user session
+    # Create a new session...
+    session_query = insert(UserSessionDB).values(
+        session_id=session_id,
+        computing_id=computing_id,
+        issue_time=now,
+    )
+    # ...or update their current session
+    session_query = session_query.on_conflict_do_update(
+        index_elements=[UserSessionDB.computing_id], set_={"session_id": session_id, "issue_time": now}
+    )
+    await db_session.execute(session_query)
 
 
 async def remove_user_session(db_session: AsyncSession, session_id: str):
     query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
-    user_session = await db_session.scalars(query)
-    await db_session.delete(user_session.first())
+    user_session = await db_session.scalar(query)
+    if user_session is not None:
+        await db_session.delete(user_session)
 
 
-async def get_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
+async def get_session_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
+    """
+    Retrieves the computing ID from a session.
+
+    Args:
+        db_session: database transaction
+        session_id: session ID the computing ID is using
+
+    Returns:
+        The computing ID associated with the session, or None if the session is invalid or expired.
+    """
     query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     existing_user_session = (await db_session.scalars(query)).first()
-    return existing_user_session.computing_id if existing_user_session else None
+    if existing_user_session is None or existing_user_session.issue_time < datetime.now(UTC) - SESSION_MAX_AGE:
+        return None
+
+    return existing_user_session.computing_id
 
 
 # remove all out of date user sessions
 async def task_clean_expired_user_sessions(db_session: AsyncSession):
-    one_day_ago = datetime.now(UTC) - timedelta(days=0.5)
+    expiration = datetime.now(UTC) - SESSION_MAX_AGE
 
-    query = sqlalchemy.delete(UserSessionDB).where(UserSessionDB.issue_time < one_day_ago)
+    query = sqlalchemy.delete(UserSessionDB).where(UserSessionDB.issue_time < expiration)
     await db_session.execute(query)
     await db_session.commit()
 
@@ -73,7 +85,8 @@ async def task_clean_expired_user_sessions(db_session: AsyncSession):
 async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB | None:
     query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
     user_session = await db_session.scalar(query)
-    if user_session is None:
+
+    if user_session is None or user_session.issue_time < datetime.now(UTC) - SESSION_MAX_AGE:
         return None
 
     query = sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == user_session.computing_id)
@@ -81,22 +94,5 @@ async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB
 
 
 async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:
-    user = await db_session.scalar(sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == computing_id))
+    user = await db_session.get(SiteUserDB, computing_id)
     return user is not None
-
-
-# update the optional user info for a given site user (e.g., display name, profile picture, ...)
-async def update_site_user(db_session: AsyncSession, session_id: str, profile_picture_url: str) -> bool:
-    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
-    user_session = await db_session.scalar(query)
-    if user_session is None:
-        return False
-
-    query = (
-        sqlalchemy.update(SiteUserDB)
-        .where(SiteUserDB.computing_id == user_session.computing_id)
-        .values(profile_picture_url=profile_picture_url)
-    )
-    await db_session.execute(query)
-
-    return True

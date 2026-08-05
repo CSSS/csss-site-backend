@@ -19,10 +19,10 @@ import kiosk.urls
 import nominees.urls
 import officers.urls
 import permission.urls
-from constants import IS_PROD
+import translink.urls
+from config import settings
 
 logging.basicConfig(level=logging.DEBUG)
-database.setup_database()
 
 
 @contextlib.asynccontextmanager
@@ -30,35 +30,20 @@ async def lifespan(app: FastAPI):
     """
     Handles startup and shutdown events, see https://fastapi.tiangolo.com/advanced/events/
     """
+    await database.setup_database()
     app.state.http_client = httpx.AsyncClient()
-    yield
-    await app.state.http_client.aclose()
-    if database.sessionmanager._engine is not None:
-        # Close the DB connection
-        await database.sessionmanager.close()
+    try:
+        yield
+    finally:
+        await app.state.http_client.aclose()
+        if database.sessionmanager is not None:
+            # Close the DB connection
+            await database.sessionmanager.close()
 
 
-# Enable OpenAPI docs only for local development
-if not IS_PROD:
-    print("Running local environment")
-    origins = [
-        "http://localhost:4200",  # default Angular
-        "http://localhost:8080",  # for existing applications/sites
-    ]
-    app = FastAPI(
-        lifespan=lifespan,
-        title="CSSS Site Backend",
-        root_path="/api",
-    )
-# if on production, disable viewing the docs
-else:
+# If on production, disable viewing the docs
+if settings.environment == "prod":
     print("Running production environment")
-    origins = [
-        "https://sfucsss.org",
-        "https://test.sfucsss.org",
-        "https://admin.sfucsss.org",
-        "https://madness.sfucsss.org",
-    ]
     app = FastAPI(
         lifespan=lifespan,
         title="CSSS Site Backend",
@@ -67,9 +52,21 @@ else:
         redoc_url=None,  # disables ReDoc
         openapi_url=None,  # disables OpenAPI schema
     )
+# Enable OpenAPI docs only for local development
+else:
+    print("Running local environment")
+    app = FastAPI(
+        lifespan=lifespan,
+        title="CSSS Site Backend",
+        root_path="/api",
+    )
 
 app.add_middleware(
-    CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=[settings.frontend_origin],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth.urls.router)

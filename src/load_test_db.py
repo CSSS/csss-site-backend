@@ -12,7 +12,7 @@ import honorary.tables
 
 # NOTE: make sure you import from a file in your module which (at least) indirectly contains those
 # tables, or the current python context will not be able to find them & they won't be loaded
-from auth.crud import create_user_session, update_site_user
+from auth.crud import create_user_session
 from candidates.crud import add_candidate
 from candidates.tables import CandidateDB
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
@@ -74,7 +74,6 @@ async def reset_db(engine):
 
 async def load_test_auth_data(db_session: AsyncSession):
     await create_user_session(db_session, "temp_id_314", "abc314")
-    await update_site_user(db_session, "temp_id_314", "www.my_profile_picture_url.ca/test")
     await db_session.commit()
 
 

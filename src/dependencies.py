@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, status
 
 import auth
+import auth.crud
 import database
 from utils.permissions import is_user_election_admin, is_user_website_admin
 
@@ -11,7 +12,7 @@ async def user(db_session: database.DBSession, session_id: Annotated[str | None,
     if session_id is None:
         return None
 
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    session_computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
 
     return session_computing_id
 
@@ -23,7 +24,7 @@ async def logged_in_user(db_session: database.DBSession, session_id: Annotated[s
     if session_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session id")
 
-    session_computing_id = await auth.crud.get_computing_id(db_session, session_id)
+    session_computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
     if session_computing_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no computing id")
 

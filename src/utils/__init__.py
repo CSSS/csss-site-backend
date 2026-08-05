@@ -1,5 +1,5 @@
 import re
-from datetime import date, datetime
+from datetime import date
 
 from sqlalchemy import Select
 
@@ -7,14 +7,6 @@ from sqlalchemy import Select
 from sqlalchemy.sql.expression import and_, or_
 
 from officers.tables import OfficerTermDB
-
-
-def is_iso_format(date_str: str) -> bool:
-    try:
-        datetime.fromisoformat(date_str)
-        return True
-    except ValueError:
-        return False
 
 
 def is_active_officer(query: Select) -> Select:

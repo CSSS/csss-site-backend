@@ -33,26 +33,27 @@ pip install ".[dev, test]" # or: uv sync --all-extras
 ```
 
 5. Follow the database setup instructions on the [wiki](https://github.com/CSSS/csss-site-backend/wiki/1.-Local-Setup#database-setup). The recommended way is to do it through Docker, but both should work.
-6. You will need to set the following environment variables
+6. You will need to set the following environment variables set
 ```bash
-export DB_PORT=5444 # If you're using Docker
-export LOCAL=true # Should be true if you're running this locally
+DB_PORT=5444 # If you're using Docker
+ENVIRONMENT=dev # Set this to `test` if you want to use the test database instead
 ```
+You can also create a `.env` file and set those in there. See `.env.example` for more information.
 
 
 ## Important Directories
 
 - `config/` configuration files for the server machine
 - `src/`
-    - `alembic` for database migrations
-    - `access/` for controlling officer access to the google drive, bitwarden, and github. TODO: discord as well?
-    - `blog/` for running an editable csss-blog
-    - `dashboard/` for controlling the server, website, jobs, and access to services & stuff.
-    - `elections/` for the mangement of current elections & past elections
-    - `jobs/` for cronjobs that run regularly on the server
-    - `misc/` for anything that can't be easily categorized or is very small
-    - `officers/` for officer contact information + photos
-- `test/` for html pages which interact with the backend's local api
+    - `alembic` database migrations
+    - `auth/` controlling authentication and sessions
+    - `candidates/` management of those who run in large elections
+    - `elections/` mangement of current elections & past elections
+    - `event/` management of events
+    - `nominees/` management of nominees to large elections
+    - `officers/` management of officer information and terms
+    - `translink/` management of TransLink REST API
+- `test/` unit and integration tests
 
 ## Developer Tools
 

@@ -4,13 +4,14 @@ import os
 import urllib.parse
 
 import xmltodict
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 
 import database
 from auth import crud
-from auth.models import LoginBodyParams, SiteUserModel, UpdateUserParams
-from constants import DOMAIN, IS_PROD, SAMESITE
+from auth.constants import COOKIE_MAX_AGE, COOKIE_SESSION_KEY
+from auth.models import LoginBodyParams, SiteUser
+from config import settings
 from utils.shared_models import DetailModel, MessageModel
 
 _logger = logging.getLogger(__name__)
@@ -19,9 +20,8 @@ _logger = logging.getLogger(__name__)
 # utils
 
 
-# ex: rsa4096 is 512 bytes
-def generate_session_id_b64(num_bytes: int) -> str:
-    return base64.b64encode(os.urandom(num_bytes)).decode("utf-8")
+def _generate_session_id() -> str:
+    return base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8").rstrip("=")
 
 
 # ----------------------- #
@@ -37,12 +37,12 @@ router = APIRouter(
 @router.post(
     "/login",
     description="Create a login session.",
-    response_description="Successfully validated with SFU's CAS",
-    response_model=str,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        307: {"description": "Successful validation, with redirect"},
-        400: {"description": "Origin is missing.", "model": DetailModel},
+        204: {"description": "Successfully validated with SFU's CAS"},
         401: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
+        502: {"description": "Failed to connect to SFU's CAS", "model": DetailModel},
+        503: {"description": "Authentication not configured", "model": DetailModel},
     },
     operation_id="login",
 )
@@ -50,39 +50,55 @@ async def login_user(
     request: Request, db_session: database.DBSession, background_tasks: BackgroundTasks, body: LoginBodyParams
 ):
     # verify the ticket is valid
-    service_url = body.service
-    service = urllib.parse.quote(service_url)
-    service_validate_url = f"https://cas.sfu.ca/cas/serviceValidate?service={service}&ticket={body.ticket}"
+    service = urllib.parse.quote(body.service)
+    ticket = urllib.parse.quote(body.ticket)
+    if not settings.auth_url:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="authentication error")
+    service_validate_url = f"{settings.auth_url}?service={service}&ticket={ticket}"
     client = request.app.state.http_client
-    response = await client.get(service_validate_url)
-    cas_response = xmltodict.parse(response.text)
 
-    if "cas:authenticationFailure" in cas_response["cas:serviceResponse"]:
-        _logger.info(f"User failed to login, with response {cas_response}")
-        raise HTTPException(status_code=401, detail="authentication error")
-    else:
-        session_id = generate_session_id_b64(256)
-        computing_id = cas_response["cas:serviceResponse"]["cas:authenticationSuccess"]["cas:user"]
+    try:
+        response = await client.get(service_validate_url)
+        response.raise_for_status()
+        cas_response = xmltodict.parse(response.text)
+    except Exception:
+        _logger.exception(f"CAS Login failure: service={body.service}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error") from None
 
-        await crud.create_user_session(db_session, session_id, computing_id)
-        await db_session.commit()
+    service_response = cas_response.get("cas:serviceResponse")
+    if not isinstance(service_response, dict):
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error")
 
-        # clean old sessions after sending the response
-        background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
+    if "cas:authenticationFailure" in service_response:
+        _logger.info(f"CAS Login failure: service={body.service}")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="authentication error")
 
-        if body.redirect_url:
-            origin = request.headers.get("origin")
-            if origin:
-                response = RedirectResponse(origin + body.redirect_url)
-            else:
-                raise HTTPException(status_code=400, detail="bad origin")
-        else:
-            response = Response()
+    auth_success = service_response.get("cas:authenticationSuccess")
+    if not isinstance(auth_success, dict):
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error")
 
-        response.set_cookie(
-            key="session_id", value=session_id, secure=IS_PROD, httponly=True, samesite=SAMESITE, domain=DOMAIN
-        )  # this overwrites any past, possibly invalid, session_id
-        return response
+    session_id = _generate_session_id()
+    computing_id = auth_success.get("cas:user")
+    if not isinstance(computing_id, str) or not computing_id:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error")
+
+    # clean old sessions after sending the response
+    # TODO: Convert this to a daily CRON job
+    background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
+
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    response.set_cookie(
+        key=COOKIE_SESSION_KEY,
+        value=session_id,
+        secure=settings.cookie_secure,
+        httponly=True,
+        samesite="strict",
+        domain=settings.cookie_domain,
+        max_age=COOKIE_MAX_AGE,
+    )  # this overwrites any past, possibly invalid, session_id
+    await crud.create_user_session(db_session, session_id, computing_id)
+    await db_session.commit()
+    return response
 
 
 @router.get(
@@ -96,16 +112,21 @@ async def logout_user(
     db_session: database.DBSession,
 ):
     session_id = request.cookies.get("session_id", None)
+    response_dict = {"message": "logout successful"}
 
-    if session_id:
-        await crud.remove_user_session(db_session, session_id)
-        await db_session.commit()
-        response_dict = {"message": "logout successful"}
-    else:
-        response_dict = {"message": "user was not logged in"}
+    if not session_id:
+        return JSONResponse(response_dict)
 
+    await crud.remove_user_session(db_session, session_id)
     response = JSONResponse(response_dict)
-    response.delete_cookie(key="session_id")
+    response.delete_cookie(
+        key=COOKIE_SESSION_KEY,
+        domain=settings.cookie_domain,
+        secure=settings.cookie_secure,
+        httponly=True,
+        samesite="strict",
+    )
+    await db_session.commit()
     return response
 
 
@@ -113,7 +134,7 @@ async def logout_user(
     "/user",
     operation_id="get_user",
     description="Get info about the current user. Only accessible by that user",
-    response_model=SiteUserModel,
+    response_model=SiteUser,
     responses={401: {"description": "Not logged in.", "model": DetailModel}},
 )
 async def get_user(
@@ -125,36 +146,12 @@ async def get_user(
     """
     session_id = request.cookies.get("session_id", None)
     if session_id is None:
-        raise HTTPException(status_code=401, detail="user must be authenticated to get their info")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="user must be authenticated to get their info"
+        )
 
     user_info = await crud.get_site_user(db_session, session_id)
     if user_info is None:
-        raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="could not find user with session_id")
 
-    return JSONResponse(user_info.serialize())
-
-
-# TODO: We should change this so that the admins can change people's pictures too, so they can remove offensive stuff
-@router.patch(
-    "/user",
-    operation_id="update_user",
-    description="Update information for the currently logged in user. Only accessible by that user",
-    response_model=str,
-    responses={401: {"description": "Not logged in.", "model": DetailModel}},
-)
-async def update_user(
-    body: UpdateUserParams,
-    request: Request,
-    db_session: database.DBSession,
-):
-    """
-    Returns the info stored in the site_user table in the auth module, if the user is logged in.
-    """
-    session_id = request.cookies.get("session_id")
-    if session_id is None:
-        raise HTTPException(status_code=401, detail="user must be authenticated to get their info")
-
-    ok = await crud.update_site_user(db_session, session_id, body.profile_picture_url)
-    await db_session.commit()
-    if not ok:
-        raise HTTPException(status_code=401, detail="could not find user with session_id, please log in")
+    return user_info

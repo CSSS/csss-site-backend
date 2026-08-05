@@ -5,17 +5,20 @@ jobs:
   unit_tests:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      ENVIRONMENT: test
+      COOKIE_SECURE: "false"
+      FRONTEND_ORIGIN: http://localhost:8080
 
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: uv sync --extra test --locked

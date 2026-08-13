@@ -25,6 +25,18 @@ STATIC_URL = "https://gtfs-static.translink.ca/gtfs/google_transit.zip"
 REALTIME_CACHE_ID = 1
 REALTIME_CACHE_TTL_SECONDS = 90
 REALTIME_CACHE_LOCK_ID = 2026062601
+STATIC_CACHE_ID = 1
+STATIC_CACHE_VERSION = 1
+STATIC_CACHE_UNAVAILABLE_MESSAGE = "static TransLink schedule cache is unavailable"
+
+WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+
+type StaticScheduleEntry = dict[str, str | int]
+type StaticScheduleCache = dict[str, Any]
+
+
+class StaticScheduleCacheUnavailableError(RuntimeError):
+    """Raised when the preprocessed static schedule cannot serve a date."""
 
 
 # Taken from the static data.
@@ -49,131 +61,228 @@ def _gtfs_time_to_seconds(time_str: str) -> int:
     return h * 3600 + m * 60 + s
 
 
-def _get_active_service_ids(z: zipfile.ZipFile) -> set[str]:
-    today = datetime.now(tz=TZ_INFO)
-    # Dates in the calendar.txt are in YYYYMMDD
-    date_str = today.strftime("%Y%m%d")
-    day_name = today.strftime("%A").lower()
-
-    calendar = pd.read_csv(z.open("calendar.txt"), dtype=str)
-    active = set(
-        calendar[
-            (calendar[day_name] == "1") & (calendar["start_date"] <= date_str) & (calendar["end_date"] >= date_str)
-        ]["service_id"]
-    )
-
-    # These are exceptions to services in the calendar
-    # exception_type=1 means service was added
-    # exception_type=2 means service was removed
-    exceptions = pd.read_csv(z.open("calendar_dates.txt"), dtype=str)
-    added = exceptions[(exceptions["date"] == date_str) & (exceptions["exception_type"] == "1")]["service_id"]
-    removed = exceptions[(exceptions["date"] == date_str) & (exceptions["exception_type"] == "2")]["service_id"]
-    active |= set(added)
-    active -= set(removed)
-    return active
-
-
-async def fetch_static_schedule(client: AsyncClient) -> pd.DataFrame:
-    """
-    Gets the static bus schedule from the static TransLink GTFS API
-    """
-    # Retrieve the static TransLink bus schedule data
+def parse_static_schedule(content: bytes) -> StaticScheduleCache:
+    """Reduce a GTFS archive to the service rules and departures used by the kiosk."""
     try:
-        static_response = await client.get(STATIC_URL)
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            filenames = set(archive.namelist())
+            if "calendar.txt" not in filenames and "calendar_dates.txt" not in filenames:
+                raise ValueError("GTFS archive contains neither calendar.txt nor calendar_dates.txt")
+
+            calendar = (
+                pd.read_csv(
+                    archive.open("calendar.txt"),
+                    dtype=str,
+                    usecols=["service_id", "start_date", "end_date", *WEEKDAYS],
+                )
+                if "calendar.txt" in filenames
+                else pd.DataFrame(columns=["service_id", "start_date", "end_date", *WEEKDAYS])
+            )
+            exceptions = (
+                pd.read_csv(
+                    archive.open("calendar_dates.txt"),
+                    dtype=str,
+                    usecols=["service_id", "date", "exception_type"],
+                )
+                if "calendar_dates.txt" in filenames
+                else pd.DataFrame(columns=["service_id", "date", "exception_type"])
+            )
+            trips = pd.read_csv(
+                archive.open("trips.txt"),
+                dtype=str,
+                usecols=["trip_id", "route_id", "service_id", "direction_id"],
+            )
+            stop_times = pd.read_csv(
+                archive.open("stop_times.txt"),
+                dtype=str,
+                usecols=["trip_id", "stop_id", "departure_time"],
+            )
+    except (KeyError, ValueError, zipfile.BadZipFile, pd.errors.ParserError) as e:
+        raise RuntimeError(f"Failed to parse static schedule: {e}") from e
+
+    route_ids = set(BUS_DATA)
+    filtered_trips = trips[trips["route_id"].isin(route_ids)].copy()
+    expected_directions = filtered_trips["route_id"].map(lambda route_id: str(BUS_DATA[route_id][0]))
+    filtered_trips = filtered_trips[filtered_trips["direction_id"] == expected_directions]
+
+    stop_ids = {data[1] for data in BUS_DATA.values()}
+    relevant_stop_times = stop_times[
+        stop_times["trip_id"].isin(filtered_trips["trip_id"]) & stop_times["stop_id"].isin(stop_ids)
+    ]
+    merged = relevant_stop_times.merge(filtered_trips[["trip_id", "route_id", "service_id"]], on="trip_id")
+    expected_stops = merged["route_id"].map(lambda route_id: BUS_DATA[route_id][1])
+    merged = merged[merged["stop_id"] == expected_stops].copy()
+
+    if merged.empty:
+        raise RuntimeError("Static schedule contains no departures for the configured routes")
+
+    merged["bus_number"] = merged["route_id"].map(lambda route_id: BUS_DATA[route_id][2])
+    try:
+        merged["departure_seconds"] = merged["departure_time"].map(_gtfs_time_to_seconds)
+    except (AttributeError, TypeError, ValueError) as e:
+        raise RuntimeError(f"Failed to parse static schedule departure times: {e}") from e
+
+    relevant_service_ids = set(merged["service_id"])
+    calendar = calendar[calendar["service_id"].isin(relevant_service_ids)]
+    exceptions = exceptions[exceptions["service_id"].isin(relevant_service_ids)]
+
+    services: dict[str, dict[str, Any]] = {}
+    for row in calendar.to_dict(orient="records"):
+        services[row["service_id"]] = {
+            "start_date": row["start_date"],
+            "end_date": row["end_date"],
+            "weekdays": [index for index, weekday in enumerate(WEEKDAYS) if row[weekday] == "1"],
+        }
+
+    exception_map: dict[str, dict[str, list[str]]] = {}
+    for row in exceptions.to_dict(orient="records"):
+        exception = exception_map.setdefault(row["date"], {"added": [], "removed": []})
+        if row["exception_type"] == "1":
+            exception["added"].append(row["service_id"])
+        elif row["exception_type"] == "2":
+            exception["removed"].append(row["service_id"])
+
+    departure_columns = ["trip_id", "route_id", "bus_number", "departure_time", "departure_seconds"]
+    departures: dict[str, list[StaticScheduleEntry]] = {}
+    for service_id, rows in merged.groupby("service_id"):
+        schedule = cast(pd.DataFrame, rows[departure_columns]).sort_values(by=["route_id", "departure_seconds"])
+        departures[str(service_id)] = cast(list[StaticScheduleEntry], schedule.to_dict(orient="records"))
+
+    coverage_dates = [
+        *(str(value) for value in calendar["start_date"]),
+        *(str(value) for value in calendar["end_date"]),
+        *(str(value) for value in exceptions["date"]),
+    ]
+    if not coverage_dates:
+        raise RuntimeError("Static schedule contains no calendar coverage for the configured routes")
+
+    return {
+        "version": STATIC_CACHE_VERSION,
+        "coverage": {"start_date": min(coverage_dates), "end_date": max(coverage_dates)},
+        "services": services,
+        "exceptions": exception_map,
+        "departures": departures,
+    }
+
+
+async def fetch_static_schedule(client: AsyncClient) -> StaticScheduleCache:
+    """Download and preprocess the static TransLink GTFS feed."""
+    try:
+        response = await client.get(STATIC_URL)
+        response.raise_for_status()
     except httpx.HTTPError as e:
         raise RuntimeError(f"Failed to fetch static schedule: {e}") from e
 
-    try:
-        z = zipfile.ZipFile(io.BytesIO(static_response.content))
-    except zipfile.BadZipFile as e:
-        raise RuntimeError(f"Failed to read static schedule zip file: {e}") from e
-
-    # A trip is from one stop to the next one
-    active_services = _get_active_service_ids(z)
-    trips = pd.read_csv(z.open("trips.txt"), dtype=str)
-    # Stop times contain when the bus should depart a bus stop
-    stop_times = pd.read_csv(z.open("stop_times.txt"), dtype=str)
-
-    # From all the active trips, only get the ones that go to the bus loop
-    route_ids = set(BUS_DATA.keys())
-    filtered_trips = trips[trips["route_id"].isin(list(route_ids)) & trips["service_id"].isin(list(active_services))]
-    filtered_trips = filtered_trips[
-        filtered_trips.apply(lambda row: int(row["direction_id"]) == BUS_DATA[row["route_id"]][0], axis=1)
-    ]
-
-    # Get the stop times entries for the stops at the bus loop
-    stop_ids = {s[1] for s in BUS_DATA.values()}
-    stop_times = stop_times[
-        stop_times["trip_id"].isin(list(filtered_trips["trip_id"])) & stop_times["stop_id"].isin(list(stop_ids))
-    ]
-
-    # Join the data from the trips and the stops
-    # Casts are done to avoid some typing issues, but they might be unnecessary
-    merged = stop_times.merge(cast(pd.DataFrame, filtered_trips[["trip_id", "route_id"]]), on="trip_id")
-    merged = cast(
-        pd.DataFrame, merged[merged.apply(lambda row: row["stop_id"] == BUS_DATA[row["route_id"]][1], axis=1)]
-    )  # filter for the stops we care about
-
-    merged = merged.copy()  # stops pandas from complaining about modifying original data
-    merged["bus_number"] = merged["route_id"].map(lambda r: BUS_DATA[r][2])
-    merged["departure_seconds"] = merged["departure_time"].map(_gtfs_time_to_seconds)
-    return (
-        cast(pd.DataFrame, merged[["trip_id", "route_id", "bus_number", "departure_time", "departure_seconds"]])
-        .reset_index(drop=True)
-        .sort_values(by=["route_id", "departure_seconds"])
-    )
+    return parse_static_schedule(response.content)
 
 
-async def get_or_fetch_static_schedule(db_session: DBSession, client: AsyncClient) -> tuple[date, pd.DataFrame]:
-    today = datetime.now(tz=TZ_INFO).date()
-
-    try:
-        result = await db_session.scalar(
-            sqlalchemy.select(TransLinkStaticScheduleDB).where(TransLinkStaticScheduleDB.date_fetched == today)
-        )
-    except sqlalchemy.exc.SQLAlchemyError as e:
-        logging.error(f"Failed to query static schedule from database: {e}")
-        result = None
-
-    if result is not None:
-        return (result.date_fetched, pd.DataFrame(result.schedule))
-
-    result = await fetch_static_schedule(client)
-    if result.empty:
-        raise ValueError("No active schedule found for today")
-
+async def refresh_static_schedule(db_session: DBSession, client: AsyncClient) -> StaticScheduleCache:
+    """Fetch and atomically replace the preprocessed static schedule cache."""
+    schedule = await fetch_static_schedule(client)
     try:
         await db_session.merge(
-            TransLinkStaticScheduleDB(id=1, date_fetched=today, schedule=result.to_dict(orient="records"))
+            TransLinkStaticScheduleDB(
+                id=STATIC_CACHE_ID,
+                date_fetched=datetime.now(tz=TZ_INFO).date(),
+                schedule=schedule,
+            )
         )
         await db_session.commit()
     except sqlalchemy.exc.SQLAlchemyError as e:
-        logging.warning(f"Failed to cache static schedule to database: {e}")
         await db_session.rollback()
+        raise RuntimeError(f"Failed to store static schedule: {e}") from e
+    return schedule
 
-    return (today, result)
+
+def resolve_static_schedule(cache: StaticScheduleCache, service_date: date) -> list[StaticScheduleEntry]:
+    """Resolve a preprocessed weekly cache into departures for one service date."""
+    try:
+        if cache["version"] != STATIC_CACHE_VERSION:
+            raise ValueError(f"unsupported cache version {cache['version']}")
+
+        date_str = service_date.strftime("%Y%m%d")
+        coverage = cache["coverage"]
+        if not isinstance(coverage, dict) or not all(
+            isinstance(coverage.get(key), str) and len(coverage[key]) == 8 for key in ("start_date", "end_date")
+        ):
+            raise ValueError("invalid cache coverage")
+        if not coverage["start_date"] <= date_str <= coverage["end_date"]:
+            raise ValueError(f"date {date_str} is outside cache coverage")
+
+        services = cache["services"]
+        departures = cache["departures"]
+        if not isinstance(services, dict) or not isinstance(departures, dict):
+            raise ValueError("invalid cache services or departures")
+        active_services = {
+            service_id
+            for service_id, service in services.items()
+            if service["start_date"] <= date_str <= service["end_date"]
+            and service_date.weekday() in service["weekdays"]
+        }
+        exceptions = cache["exceptions"].get(date_str, {"added": [], "removed": []})
+        if not isinstance(exceptions["added"], list) or not isinstance(exceptions["removed"], list):
+            raise ValueError("invalid cache exceptions")
+        active_services.update(exceptions["added"])
+        active_services.difference_update(exceptions["removed"])
+
+        schedule = [row for service_id in active_services for row in departures.get(service_id, [])]
+        required_string_fields = ("trip_id", "route_id", "bus_number", "departure_time")
+        if any(
+            not isinstance(row, dict)
+            or any(not isinstance(row.get(field), str) for field in required_string_fields)
+            or not isinstance(row.get("departure_seconds"), int)
+            for row in schedule
+        ):
+            raise ValueError("invalid cached departure")
+        return sorted(schedule, key=lambda row: (str(row["route_id"]), int(row["departure_seconds"])))
+    except (AttributeError, KeyError, TypeError, ValueError) as e:
+        raise StaticScheduleCacheUnavailableError(STATIC_CACHE_UNAVAILABLE_MESSAGE) from e
 
 
-def get_next_departures(schedule: pd.DataFrame, n: int = 3) -> pd.DataFrame:
+async def get_static_schedule(
+    db_session: DBSession, service_date: date | None = None
+) -> tuple[date, list[StaticScheduleEntry]]:
+    """Read the weekly cache and resolve it for a date without network or pandas work."""
+    target_date = service_date or datetime.now(tz=TZ_INFO).date()
+    try:
+        cached = await db_session.scalar(
+            sqlalchemy.select(TransLinkStaticScheduleDB).where(TransLinkStaticScheduleDB.id == STATIC_CACHE_ID)
+        )
+    except sqlalchemy.exc.SQLAlchemyError as e:
+        logging.error("Failed to query static schedule cache: %s", e)
+        raise StaticScheduleCacheUnavailableError(STATIC_CACHE_UNAVAILABLE_MESSAGE) from e
+
+    if cached is None:
+        raise StaticScheduleCacheUnavailableError(STATIC_CACHE_UNAVAILABLE_MESSAGE)
+    return target_date, resolve_static_schedule(cached.schedule, target_date)
+
+
+def get_next_departures(schedule: list[StaticScheduleEntry], n: int = 3) -> list[StaticScheduleEntry]:
     """
     Get the next few departures for today.
 
     Args:
-        schedule: static schedule filtered out for the relevant routes
+        schedule: static schedule filtered for the relevant routes
         n: the number of departures to get for each route
 
     Returns:
-        A dataframe with the next n departures for each route, sorted by route ID and departure time (in seconds).
+        The next n departures for each route, sorted by route ID and departure time (in seconds).
     """
     now = datetime.now(tz=TZ_INFO)
     current_seconds = int((now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds())
-    upcoming = cast(pd.DataFrame, schedule[schedule["departure_seconds"] > current_seconds])
-    return (
-        upcoming.sort_values("departure_seconds")
-        .groupby("route_id")
-        .head(n)
-        .sort_values(["route_id", "departure_seconds"])
+    upcoming = sorted(
+        (row for row in schedule if int(row["departure_seconds"]) > current_seconds),
+        key=lambda row: int(row["departure_seconds"]),
     )
+    route_counts: dict[str, int] = {}
+    result: list[StaticScheduleEntry] = []
+    for row in upcoming:
+        route_id = str(row["route_id"])
+        if route_counts.get(route_id, 0) >= n:
+            continue
+        result.append(row)
+        route_counts[route_id] = route_counts.get(route_id, 0) + 1
+    return sorted(result, key=lambda row: (str(row["route_id"]), int(row["departure_seconds"])))
 
 
 def _parse_feed(content: bytes) -> FeedMessage:
@@ -313,12 +422,12 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
             status=status,
         )
 
-    _, schedule = await get_or_fetch_static_schedule(db_session, client)
+    _, schedule = await get_static_schedule(db_session)
     next_departures = get_next_departures(schedule)
     trip_feed = await get_or_fetch_realtime_feed(db_session, client)
     # If the trip feed fails to fetch then just return information from the static schedule.
     if trip_feed is None:
-        return [_response_from_static_row(row) for _, row in next_departures.iterrows()]
+        return [_response_from_static_row(row) for row in next_departures]
     # FeedMessage is generated at runtime, so the type checker can't find this function
 
     # Map all the realtime data to each bus's status
@@ -357,5 +466,5 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
             row,
             *realtime_map.get(cast(str, row["trip_id"]), (0, BusStatus.OnTime)),
         )
-        for _, row in next_departures.iterrows()
+        for row in next_departures
     ]

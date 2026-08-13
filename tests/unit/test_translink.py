@@ -1,6 +1,6 @@
 import io
 import zipfile
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -13,13 +13,18 @@ from httpx import AsyncClient, Request, Response
 from constants import TZ_INFO
 from translink.crud import (
     BUS_DATA,
+    STATIC_CACHE_UNAVAILABLE_MESSAGE,
+    STATIC_CACHE_VERSION,
+    StaticScheduleCacheUnavailableError,
     _gtfs_time_to_seconds,
     fetch_realtime_schedule,
     fetch_static_schedule,
     get_departure_statuses,
     get_next_departures,
     get_or_fetch_realtime_feed,
-    get_or_fetch_static_schedule,
+    get_static_schedule,
+    refresh_static_schedule,
+    resolve_static_schedule,
 )
 from translink.models import BusStatus, TransLinkRealtimeResponse, TransLinkScheduleResponse
 from translink.tables import TransLinkRealtimeCacheDB, TransLinkStaticScheduleDB
@@ -36,7 +41,7 @@ def _current_day_name() -> str:
     return datetime.now(tz=TZ_INFO).strftime("%A").lower()
 
 
-def make_gtfs_zip(departure_time: str = "23:00:00") -> bytes:
+def make_gtfs_zip(departure_time: str = "23:00:00", active_weekdays: set[int] | None = None) -> bytes:
     """
     Return a minimal but valid GTFS zip whose single service is active today,
     with one trip per route in BUS_DATA.
@@ -46,12 +51,11 @@ def make_gtfs_zip(departure_time: str = "23:00:00") -> bytes:
     includes them.
     """
     buf = io.BytesIO()
-    day = _current_day_name()
     all_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    active_weekdays = active_weekdays or {datetime.now(tz=TZ_INFO).weekday()}
 
     with zipfile.ZipFile(buf, "w") as z:
-        # calendar.txt - one service active only on today's weekday
-        cal_row = {d: ("1" if d == day else "0") for d in all_days}
+        cal_row = {day: ("1" if index in active_weekdays else "0") for index, day in enumerate(all_days)}
         cal_row.update({"service_id": "SVC1", "start_date": "20240101", "end_date": "20991231"})
         z.writestr("calendar.txt", pd.DataFrame([cal_row]).to_csv(index=False))
 
@@ -136,6 +140,29 @@ def mock_db_session(cached_row=None) -> AsyncMock:
     return session
 
 
+def make_static_cache(
+    schedule: list[dict],
+    service_date: date | None = None,
+    *,
+    version: int = STATIC_CACHE_VERSION,
+) -> dict:
+    target_date = service_date or datetime.now(tz=TZ_INFO).date()
+    date_str = target_date.strftime("%Y%m%d")
+    return {
+        "version": version,
+        "coverage": {"start_date": date_str, "end_date": date_str},
+        "services": {
+            "SVC1": {
+                "start_date": date_str,
+                "end_date": date_str,
+                "weekdays": [target_date.weekday()],
+            }
+        },
+        "exceptions": {},
+        "departures": {"SVC1": schedule},
+    }
+
+
 # ---------------------------------------------------------------------------
 # Unit tests — pure functions
 # ---------------------------------------------------------------------------
@@ -160,30 +187,28 @@ async def test__get_next_departures_filters_past():
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     now_secs = int((now - midnight).total_seconds())
 
-    schedule = pd.DataFrame(
-        [
-            # Already departed - must be excluded
-            {
-                "trip_id": "past_trip",
-                "route_id": "6656",
-                "bus_number": "143",
-                "departure_time": "00:01:00",
-                "departure_seconds": 60,
-            },
-            # Future - must be included
-            {
-                "trip_id": "future_trip",
-                "route_id": "6656",
-                "bus_number": "143",
-                "departure_time": "23:00:00",
-                "departure_seconds": now_secs + 3600,
-            },
-        ]
-    )
+    schedule = [
+        # Already departed - must be excluded
+        {
+            "trip_id": "past_trip",
+            "route_id": "6656",
+            "bus_number": "143",
+            "departure_time": "00:01:00",
+            "departure_seconds": 60,
+        },
+        # Future - must be included
+        {
+            "trip_id": "future_trip",
+            "route_id": "6656",
+            "bus_number": "143",
+            "departure_time": "23:00:00",
+            "departure_seconds": now_secs + 3600,
+        },
+    ]
 
     result = get_next_departures(schedule, n=3)
     assert len(result) == 1
-    assert result.iloc[0]["trip_id"] == "future_trip"
+    assert result[0]["trip_id"] == "future_trip"
 
 
 async def test__get_next_departures_respects_n():
@@ -192,18 +217,16 @@ async def test__get_next_departures_respects_n():
     now_secs = int((now - midnight).total_seconds())
 
     # Five future trips on the same route - n=2 should limit to 2
-    schedule = pd.DataFrame(
-        [
-            {
-                "trip_id": f"trip_{i}",
-                "route_id": "6656",
-                "bus_number": "143",
-                "departure_time": "23:00:00",
-                "departure_seconds": now_secs + i * 600,
-            }
-            for i in range(1, 6)
-        ]
-    )
+    schedule = [
+        {
+            "trip_id": f"trip_{i}",
+            "route_id": "6656",
+            "bus_number": "143",
+            "departure_time": "23:00:00",
+            "departure_seconds": now_secs + i * 600,
+        }
+        for i in range(1, 6)
+    ]
 
     assert len(get_next_departures(schedule, n=2)) == 2
     assert len(get_next_departures(schedule, n=1)) == 1
@@ -214,23 +237,21 @@ async def test__get_next_departures_multiple_routes():
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     now_secs = int((now - midnight).total_seconds())
 
-    schedule = pd.DataFrame(
-        [
-            {
-                "trip_id": f"trip_{rid}_{i}",
-                "route_id": rid,
-                "bus_number": num,
-                "departure_time": "23:00:00",
-                "departure_seconds": now_secs + i * 600,
-            }
-            for rid, (_, _, num) in BUS_DATA.items()
-            for i in range(1, 4)
-        ]
-    )
+    schedule = [
+        {
+            "trip_id": f"trip_{rid}_{i}",
+            "route_id": rid,
+            "bus_number": num,
+            "departure_time": "23:00:00",
+            "departure_seconds": now_secs + i * 600,
+        }
+        for rid, (_, _, num) in BUS_DATA.items()
+        for i in range(1, 4)
+    ]
 
     result = get_next_departures(schedule, n=2)
     assert len(result) == 8
-    assert set(result["route_id"]) == set(BUS_DATA.keys())
+    assert {row["route_id"] for row in result} == set(BUS_DATA)
 
 
 # ---------------------------------------------------------------------------
@@ -240,12 +261,23 @@ async def test__get_next_departures_multiple_routes():
 
 async def test__fetch_static_schedule_returns_all_routes():
     client = mock_http_client(make_gtfs_zip())
-    df = await fetch_static_schedule(client)
+    cache = await fetch_static_schedule(client)
+    schedule = resolve_static_schedule(cache, datetime.now(tz=TZ_INFO).date())
 
-    assert not df.empty
+    assert schedule
     expected_cols = {"trip_id", "route_id", "bus_number", "departure_time", "departure_seconds"}
-    assert expected_cols.issubset(df.columns)
-    assert set(df["bus_number"]) == {num for _, (_, _, num) in BUS_DATA.items()}
+    assert expected_cols.issubset(schedule[0])
+    assert {row["bus_number"] for row in schedule} == {num for _, (_, _, num) in BUS_DATA.items()}
+
+
+async def test__weekly_cache_resolves_multiple_weekdays_without_refetching():
+    client = mock_http_client(make_gtfs_zip(active_weekdays=set(range(7))))
+    cache = await fetch_static_schedule(client)
+    today = datetime.now(tz=TZ_INFO).date()
+
+    assert len(resolve_static_schedule(cache, today)) == len(BUS_DATA)
+    assert len(resolve_static_schedule(cache, today + timedelta(days=1))) == len(BUS_DATA)
+    client.get.assert_awaited_once()
 
 
 async def test__fetch_static_schedule_excludes_wrong_direction():
@@ -275,8 +307,8 @@ async def test__fetch_static_schedule_excludes_wrong_direction():
         )
 
     client = mock_http_client(buf.getvalue())
-    df = await fetch_static_schedule(client)
-    assert df.empty
+    with pytest.raises(RuntimeError, match="no departures"):
+        await fetch_static_schedule(client)
 
 
 async def test__fetch_static_schedule_raises_on_http_error():
@@ -289,10 +321,23 @@ async def test__fetch_static_schedule_raises_on_http_error():
         await fetch_static_schedule(client)
 
 
+async def test__fetch_static_schedule_raises_on_http_error_status():
+    client = AsyncMock(spec=AsyncClient)
+    client.get = AsyncMock(
+        return_value=Response(
+            status_code=500,
+            request=Request("GET", "https://gtfs-static.translink.ca/gtfs/google_transit.zip"),
+        )
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to fetch static schedule"):
+        await fetch_static_schedule(client)
+
+
 async def test__fetch_static_schedule_raises_on_bad_zip():
     client = mock_http_client(b"this is not a zip")
 
-    with pytest.raises(RuntimeError, match="Failed to read static schedule zip file"):
+    with pytest.raises(RuntimeError, match="Failed to parse static schedule"):
         await fetch_static_schedule(client)
 
 
@@ -460,12 +505,11 @@ async def test__get_or_fetch_realtime_feed_returns_none_on_http_error_status():
 
 
 # ---------------------------------------------------------------------------
-# Tests for get_or_fetch_static_schedule
+# Tests for the preprocessed static schedule cache
 # ---------------------------------------------------------------------------
 
 
-async def test__get_or_fetch_static_schedule_cache_hit():
-    """When the DB has today's row, no HTTP call should be made."""
+async def test__get_static_schedule_cache_hit():
     today = datetime.now(tz=TZ_INFO).date()
     cached_records = [
         {
@@ -476,46 +520,100 @@ async def test__get_or_fetch_static_schedule_cache_hit():
             "departure_seconds": 82800,
         }
     ]
-    cached_row = TransLinkStaticScheduleDB(id=1, date_fetched=today, schedule=cached_records)
+    cached_row = TransLinkStaticScheduleDB(
+        id=1,
+        date_fetched=today,
+        schedule=make_static_cache(cached_records, today),
+    )
     session = mock_db_session(cached_row=cached_row)
-    client = AsyncMock(spec=AsyncClient)
 
-    result_date, result_df = await get_or_fetch_static_schedule(session, client)
+    result_date, result_rows = await get_static_schedule(session)
 
     assert result_date == today
-    assert not result_df.empty
-    assert result_df.iloc[0]["bus_number"] == "143"
-    client.get.assert_not_called()
+    assert result_rows[0]["bus_number"] == "143"
+    session.merge.assert_not_called()
+    session.commit.assert_not_called()
 
 
-async def test__get_or_fetch_static_schedule_cache_miss_fetches():
-    """On a cache miss the function should call the API and persist the result."""
-    today = datetime.now(tz=TZ_INFO).date()
+async def test__get_static_schedule_cache_miss_raises():
+    session = mock_db_session(cached_row=None)
+
+    with pytest.raises(StaticScheduleCacheUnavailableError, match=STATIC_CACHE_UNAVAILABLE_MESSAGE):
+        await get_static_schedule(session)
+
+    session.merge.assert_not_called()
+
+
+async def test__refresh_static_schedule_persists_preprocessed_cache():
     session = mock_db_session(cached_row=None)
     client = mock_http_client(make_gtfs_zip())
 
-    result_date, result_df = await get_or_fetch_static_schedule(session, client)
+    result = await refresh_static_schedule(session, client)
 
-    assert result_date == today
-    assert not result_df.empty
+    assert result["version"] == STATIC_CACHE_VERSION
     session.merge.assert_awaited_once()
     session.commit.assert_awaited_once()
 
 
-async def test__get_or_fetch_static_schedule_db_write_failure_still_returns():
-    """If the DB write fails, the function should still return the fetched data."""
+async def test__refresh_static_schedule_db_failure_rolls_back():
     import sqlalchemy.exc
 
-    today = datetime.now(tz=TZ_INFO).date()
     session = mock_db_session(cached_row=None)
     session.merge = AsyncMock(side_effect=sqlalchemy.exc.SQLAlchemyError("disk full"))
     client = mock_http_client(make_gtfs_zip())
 
-    result_date, result_df = await get_or_fetch_static_schedule(session, client)
+    with pytest.raises(RuntimeError, match="Failed to store static schedule"):
+        await refresh_static_schedule(session, client)
 
-    assert result_date == today
-    assert not result_df.empty
     session.rollback.assert_awaited_once()
+    session.commit.assert_not_called()
+
+
+async def test__resolve_static_schedule_applies_calendar_exceptions():
+    service_date = date(2026, 8, 13)
+    date_str = service_date.strftime("%Y%m%d")
+    regular = {
+        "trip_id": "regular",
+        "route_id": "6656",
+        "bus_number": "143",
+        "departure_time": "10:00:00",
+        "departure_seconds": 36000,
+    }
+    replacement = {**regular, "trip_id": "replacement", "departure_time": "11:00:00", "departure_seconds": 39600}
+    cache = make_static_cache([regular], service_date)
+    cache["services"]["SPECIAL"] = {
+        "start_date": date_str,
+        "end_date": date_str,
+        "weekdays": [],
+    }
+    cache["departures"]["SPECIAL"] = [replacement]
+    cache["exceptions"][date_str] = {"added": ["SPECIAL"], "removed": ["SVC1"]}
+
+    assert resolve_static_schedule(cache, service_date) == [replacement]
+
+
+async def test__resolve_static_schedule_rejects_incompatible_version():
+    service_date = date(2026, 8, 13)
+    cache = make_static_cache([], service_date, version=STATIC_CACHE_VERSION + 1)
+
+    with pytest.raises(StaticScheduleCacheUnavailableError, match=STATIC_CACHE_UNAVAILABLE_MESSAGE):
+        resolve_static_schedule(cache, service_date)
+
+
+async def test__resolve_static_schedule_rejects_malformed_departure():
+    service_date = date(2026, 8, 13)
+    cache = make_static_cache([{"trip_id": "missing required fields"}], service_date)
+
+    with pytest.raises(StaticScheduleCacheUnavailableError, match=STATIC_CACHE_UNAVAILABLE_MESSAGE):
+        resolve_static_schedule(cache, service_date)
+
+
+async def test__resolve_static_schedule_rejects_date_outside_coverage():
+    cache_date = date(2026, 8, 13)
+    cache = make_static_cache([], cache_date)
+
+    with pytest.raises(StaticScheduleCacheUnavailableError, match=STATIC_CACHE_UNAVAILABLE_MESSAGE):
+        resolve_static_schedule(cache, cache_date + timedelta(days=1))
 
 
 async def test__get_departure_statuses_uses_timestamps_when_realtime_unavailable():
@@ -525,15 +623,18 @@ async def test__get_departure_statuses_uses_timestamps_when_realtime_unavailable
     cached_row = TransLinkStaticScheduleDB(
         id=1,
         date_fetched=now.date(),
-        schedule=[
-            {
-                "trip_id": "trip_143",
-                "route_id": "6656",
-                "bus_number": "143",
-                "departure_time": "23:00:00",
-                "departure_seconds": departure_seconds,
-            }
-        ],
+        schedule=make_static_cache(
+            [
+                {
+                    "trip_id": "trip_143",
+                    "route_id": "6656",
+                    "bus_number": "143",
+                    "departure_time": "23:00:00",
+                    "departure_seconds": departure_seconds,
+                }
+            ],
+            now.date(),
+        ),
     )
     session = mock_db_session()
     session.scalar = AsyncMock(side_effect=[cached_row, None, None])
@@ -582,21 +683,19 @@ async def test__endpoint_realtime_returns_200(client):
 
 async def test__endpoint_static_returns_schedule(client):
     today = datetime.now(tz=TZ_INFO).date()
-    mock_df = pd.DataFrame(
-        [
-            {
-                "trip_id": f"trip_{num}",
-                "route_id": rid,
-                "bus_number": num,
-                "departure_time": "23:00:00",
-                "departure_seconds": 82800,
-            }
-            for rid, (_, _, num) in BUS_DATA.items()
-        ]
-    )
+    mock_rows = [
+        {
+            "trip_id": f"trip_{num}",
+            "route_id": rid,
+            "bus_number": num,
+            "departure_time": "23:00:00",
+            "departure_seconds": 82800,
+        }
+        for rid, (_, _, num) in BUS_DATA.items()
+    ]
     with patch(
-        "translink.urls.get_or_fetch_static_schedule",
-        return_value=(today, mock_df),
+        "translink.urls.get_static_schedule",
+        return_value=(today, mock_rows),
     ) as mock_fn:
         response = await client.get("/translink/static")
 
@@ -605,6 +704,17 @@ async def test__endpoint_static_returns_schedule(client):
     assert body["date_fetched"] == today.isoformat()
     assert len(body["schedule"]) == len(BUS_DATA)
     mock_fn.assert_awaited_once()
+
+
+async def test__endpoint_static_returns_503_when_cache_unavailable(client):
+    with patch(
+        "translink.urls.get_static_schedule",
+        side_effect=StaticScheduleCacheUnavailableError(STATIC_CACHE_UNAVAILABLE_MESSAGE),
+    ):
+        response = await client.get("/translink/static")
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json() == {"detail": STATIC_CACHE_UNAVAILABLE_MESSAGE}
 
 
 async def test__endpoint_schedule_returns_departure_list(client):
@@ -653,3 +763,14 @@ async def test__endpoint_schedule_on_time_when_no_realtime(client):
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert all(d["delay_seconds"] == 0 for d in data)
+
+
+async def test__endpoint_schedule_returns_503_when_cache_unavailable(client):
+    with patch(
+        "translink.urls.get_departure_statuses",
+        side_effect=StaticScheduleCacheUnavailableError(STATIC_CACHE_UNAVAILABLE_MESSAGE),
+    ):
+        response = await client.get("/translink/schedule")
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json() == {"detail": STATIC_CACHE_UNAVAILABLE_MESSAGE}

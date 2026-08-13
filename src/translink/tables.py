@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import DateTime, LargeBinary
 from sqlalchemy.dialects.postgresql import JSONB
@@ -13,7 +14,7 @@ class TransLinkStaticScheduleDB(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     date_fetched: Mapped[date] = mapped_column()
-    schedule: Mapped[list[dict]] = mapped_column(JSONB)
+    schedule: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
 class TransLinkRealtimeCacheDB(Base):

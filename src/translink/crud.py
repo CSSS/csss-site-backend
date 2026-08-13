@@ -1,11 +1,12 @@
+import csv
 import io
 import logging
 import zipfile
+from collections.abc import Iterator
 from datetime import date, datetime, timedelta
 from typing import Any, cast
 
 import httpx
-import pandas as pd
 import sqlalchemy
 import sqlalchemy.exc
 from google.protobuf.message import DecodeError
@@ -61,6 +62,19 @@ def _gtfs_time_to_seconds(time_str: str) -> int:
     return h * 3600 + m * 60 + s
 
 
+def _iter_gtfs_rows(
+    archive: zipfile.ZipFile,
+    filename: str,
+    required_columns: tuple[str, ...],
+) -> Iterator[dict[str, str]]:
+    with io.TextIOWrapper(archive.open(filename), encoding="utf-8-sig", newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        if reader.fieldnames is None or not set(required_columns).issubset(reader.fieldnames):
+            raise ValueError(f"{filename} is missing required columns")
+        for row in reader:
+            yield {column: cast(str, row[column]) for column in required_columns}
+
+
 def parse_static_schedule(content: bytes) -> StaticScheduleCache:
     """Reduce a GTFS archive to the service rules and departures used by the kiosk."""
     try:
@@ -69,65 +83,74 @@ def parse_static_schedule(content: bytes) -> StaticScheduleCache:
             if "calendar.txt" not in filenames and "calendar_dates.txt" not in filenames:
                 raise ValueError("GTFS archive contains neither calendar.txt nor calendar_dates.txt")
 
-            calendar = (
-                pd.read_csv(
-                    archive.open("calendar.txt"),
-                    dtype=str,
-                    usecols=["service_id", "start_date", "end_date", *WEEKDAYS],
+            calendar_rows = (
+                list(
+                    _iter_gtfs_rows(
+                        archive,
+                        "calendar.txt",
+                        ("service_id", "start_date", "end_date", *WEEKDAYS),
+                    )
                 )
                 if "calendar.txt" in filenames
-                else pd.DataFrame(columns=["service_id", "start_date", "end_date", *WEEKDAYS])
+                else []
             )
-            exceptions = (
-                pd.read_csv(
-                    archive.open("calendar_dates.txt"),
-                    dtype=str,
-                    usecols=["service_id", "date", "exception_type"],
+            exception_rows = (
+                list(
+                    _iter_gtfs_rows(
+                        archive,
+                        "calendar_dates.txt",
+                        ("service_id", "date", "exception_type"),
+                    )
                 )
                 if "calendar_dates.txt" in filenames
-                else pd.DataFrame(columns=["service_id", "date", "exception_type"])
+                else []
             )
-            trips = pd.read_csv(
-                archive.open("trips.txt"),
-                dtype=str,
-                usecols=["trip_id", "route_id", "service_id", "direction_id"],
-            )
-            stop_times = pd.read_csv(
-                archive.open("stop_times.txt"),
-                dtype=str,
-                usecols=["trip_id", "stop_id", "departure_time"],
-            )
-    except (KeyError, ValueError, zipfile.BadZipFile, pd.errors.ParserError) as e:
+
+            filtered_trips: dict[str, tuple[str, str]] = {}
+            for row in _iter_gtfs_rows(
+                archive,
+                "trips.txt",
+                ("trip_id", "route_id", "service_id", "direction_id"),
+            ):
+                bus_data = BUS_DATA.get(row["route_id"])
+                if bus_data is not None and row["direction_id"] == str(bus_data[0]):
+                    filtered_trips[row["trip_id"]] = (row["route_id"], row["service_id"])
+            if not filtered_trips:
+                raise ValueError("GTFS archive contains no trips for the configured routes and directions")
+
+            departures: dict[str, list[StaticScheduleEntry]] = {}
+            for row in _iter_gtfs_rows(
+                archive,
+                "stop_times.txt",
+                ("trip_id", "stop_id", "departure_time"),
+            ):
+                trip = filtered_trips.get(row["trip_id"])
+                if trip is None:
+                    continue
+                route_id, service_id = trip
+                _, stop_id, bus_number = BUS_DATA[route_id]
+                if row["stop_id"] != stop_id:
+                    continue
+                departures.setdefault(service_id, []).append(
+                    {
+                        "trip_id": row["trip_id"],
+                        "route_id": route_id,
+                        "bus_number": bus_number,
+                        "departure_time": row["departure_time"],
+                        "departure_seconds": _gtfs_time_to_seconds(row["departure_time"]),
+                    }
+                )
+    except (csv.Error, KeyError, UnicodeDecodeError, ValueError, zipfile.BadZipFile) as e:
         raise RuntimeError(f"Failed to parse static schedule: {e}") from e
 
-    route_ids = set(BUS_DATA)
-    filtered_trips = trips[trips["route_id"].isin(route_ids)].copy()
-    expected_directions = filtered_trips["route_id"].map(lambda route_id: str(BUS_DATA[route_id][0]))
-    filtered_trips = filtered_trips[filtered_trips["direction_id"] == expected_directions]
-
-    stop_ids = {data[1] for data in BUS_DATA.values()}
-    relevant_stop_times = stop_times[
-        stop_times["trip_id"].isin(filtered_trips["trip_id"]) & stop_times["stop_id"].isin(stop_ids)
-    ]
-    merged = relevant_stop_times.merge(filtered_trips[["trip_id", "route_id", "service_id"]], on="trip_id")
-    expected_stops = merged["route_id"].map(lambda route_id: BUS_DATA[route_id][1])
-    merged = merged[merged["stop_id"] == expected_stops].copy()
-
-    if merged.empty:
+    if not departures:
         raise RuntimeError("Static schedule contains no departures for the configured routes")
 
-    merged["bus_number"] = merged["route_id"].map(lambda route_id: BUS_DATA[route_id][2])
-    try:
-        merged["departure_seconds"] = merged["departure_time"].map(_gtfs_time_to_seconds)
-    except (AttributeError, TypeError, ValueError) as e:
-        raise RuntimeError(f"Failed to parse static schedule departure times: {e}") from e
-
-    relevant_service_ids = set(merged["service_id"])
-    calendar = calendar[calendar["service_id"].isin(relevant_service_ids)]
-    exceptions = exceptions[exceptions["service_id"].isin(relevant_service_ids)]
+    relevant_service_ids = set(departures)
 
     services: dict[str, dict[str, Any]] = {}
-    for row in calendar.to_dict(orient="records"):
+    relevant_calendar_rows = (row for row in calendar_rows if row["service_id"] in relevant_service_ids)
+    for row in relevant_calendar_rows:
         services[row["service_id"]] = {
             "start_date": row["start_date"],
             "end_date": row["end_date"],
@@ -135,23 +158,21 @@ def parse_static_schedule(content: bytes) -> StaticScheduleCache:
         }
 
     exception_map: dict[str, dict[str, list[str]]] = {}
-    for row in exceptions.to_dict(orient="records"):
+    relevant_exception_rows = [row for row in exception_rows if row["service_id"] in relevant_service_ids]
+    for row in relevant_exception_rows:
         exception = exception_map.setdefault(row["date"], {"added": [], "removed": []})
         if row["exception_type"] == "1":
             exception["added"].append(row["service_id"])
         elif row["exception_type"] == "2":
             exception["removed"].append(row["service_id"])
 
-    departure_columns = ["trip_id", "route_id", "bus_number", "departure_time", "departure_seconds"]
-    departures: dict[str, list[StaticScheduleEntry]] = {}
-    for service_id, rows in merged.groupby("service_id"):
-        schedule = cast(pd.DataFrame, rows[departure_columns]).sort_values(by=["route_id", "departure_seconds"])
-        departures[str(service_id)] = cast(list[StaticScheduleEntry], schedule.to_dict(orient="records"))
+    for schedule in departures.values():
+        schedule.sort(key=lambda row: (str(row["route_id"]), int(row["departure_seconds"])))
 
     coverage_dates = [
-        *(str(value) for value in calendar["start_date"]),
-        *(str(value) for value in calendar["end_date"]),
-        *(str(value) for value in exceptions["date"]),
+        *(row["start_date"] for row in calendar_rows if row["service_id"] in relevant_service_ids),
+        *(row["end_date"] for row in calendar_rows if row["service_id"] in relevant_service_ids),
+        *(row["date"] for row in relevant_exception_rows),
     ]
     if not coverage_dates:
         raise RuntimeError("Static schedule contains no calendar coverage for the configured routes")
@@ -173,7 +194,10 @@ async def fetch_static_schedule(client: AsyncClient) -> StaticScheduleCache:
     except httpx.HTTPError as e:
         raise RuntimeError(f"Failed to fetch static schedule: {e}") from e
 
-    return parse_static_schedule(response.content)
+    logging.info("Downloaded TransLink static schedule (%s bytes); preprocessing", len(response.content))
+    schedule = parse_static_schedule(response.content)
+    logging.info("Finished preprocessing TransLink static schedule")
+    return schedule
 
 
 async def refresh_static_schedule(db_session: DBSession, client: AsyncClient) -> StaticScheduleCache:

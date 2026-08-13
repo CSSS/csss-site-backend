@@ -307,7 +307,7 @@ async def test__fetch_static_schedule_excludes_wrong_direction():
         )
 
     client = mock_http_client(buf.getvalue())
-    with pytest.raises(RuntimeError, match="no departures"):
+    with pytest.raises(RuntimeError, match="no trips"):
         await fetch_static_schedule(client)
 
 

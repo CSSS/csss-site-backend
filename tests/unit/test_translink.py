@@ -1,10 +1,10 @@
+import csv
 import io
 import zipfile
 from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-import pandas as pd
 import pytest
 from fastapi import status
 from google.transit import gtfs_realtime_pb2
@@ -37,8 +37,12 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 # ---------------------------------------------------------------------------
 
 
-def _current_day_name() -> str:
-    return datetime.now(tz=TZ_INFO).strftime("%A").lower()
+def rows_to_csv(rows: list[dict[str, str]]) -> str:
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=list(rows[0]))
+    writer.writeheader()
+    writer.writerows(rows)
+    return output.getvalue()
 
 
 def make_gtfs_zip(departure_time: str = "23:00:00", active_weekdays: set[int] | None = None) -> bytes:
@@ -57,7 +61,7 @@ def make_gtfs_zip(departure_time: str = "23:00:00", active_weekdays: set[int] | 
     with zipfile.ZipFile(buf, "w") as z:
         cal_row = {day: ("1" if index in active_weekdays else "0") for index, day in enumerate(all_days)}
         cal_row.update({"service_id": "SVC1", "start_date": "20240101", "end_date": "20991231"})
-        z.writestr("calendar.txt", pd.DataFrame([cal_row]).to_csv(index=False))
+        z.writestr("calendar.txt", rows_to_csv([cal_row]))
 
         # calendar_dates.txt - no exceptions
         z.writestr("calendar_dates.txt", "date,service_id,exception_type\n")
@@ -67,14 +71,14 @@ def make_gtfs_zip(departure_time: str = "23:00:00", active_weekdays: set[int] | 
             {"trip_id": f"trip_{num}", "route_id": rid, "service_id": "SVC1", "direction_id": str(did)}
             for rid, (did, _sid, num) in BUS_DATA.items()
         ]
-        z.writestr("trips.txt", pd.DataFrame(trips_rows).to_csv(index=False))
+        z.writestr("trips.txt", rows_to_csv(trips_rows))
 
         # stop_times.txt - one stop per trip at the correct SFU bus loop stop
         stop_rows = [
             {"trip_id": f"trip_{num}", "stop_id": sid, "departure_time": departure_time}
             for _rid, (_, sid, num) in BUS_DATA.items()
         ]
-        z.writestr("stop_times.txt", pd.DataFrame(stop_rows).to_csv(index=False))
+        z.writestr("stop_times.txt", rows_to_csv(stop_rows))
 
     return buf.getvalue()
 
@@ -283,27 +287,23 @@ async def test__weekly_cache_resolves_multiple_weekdays_without_refetching():
 async def test__fetch_static_schedule_excludes_wrong_direction():
     """Trips are direction-filtered; a wrong-direction trip should not appear."""
     buf = io.BytesIO()
-    day = _current_day_name()
     all_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    current_weekday = datetime.now(tz=TZ_INFO).weekday()
 
     with zipfile.ZipFile(buf, "w") as z:
-        cal_row = {d: ("1" if d == day else "0") for d in all_days}
+        cal_row = {day: ("1" if index == current_weekday else "0") for index, day in enumerate(all_days)}
         cal_row.update({"service_id": "SVC1", "start_date": "20240101", "end_date": "20991231"})
-        z.writestr("calendar.txt", pd.DataFrame([cal_row]).to_csv(index=False))
+        z.writestr("calendar.txt", rows_to_csv([cal_row]))
         z.writestr("calendar_dates.txt", "date,service_id,exception_type\n")
 
         # Route 6656 expects direction_id=0; give it direction_id=1
-        trips_df = pd.DataFrame(
-            [
-                {"trip_id": "wrong_dir", "route_id": "6656", "service_id": "SVC1", "direction_id": "1"},
-            ]
+        z.writestr(
+            "trips.txt",
+            rows_to_csv([{"trip_id": "wrong_dir", "route_id": "6656", "service_id": "SVC1", "direction_id": "1"}]),
         )
-        z.writestr("trips.txt", trips_df.to_csv(index=False))
         z.writestr(
             "stop_times.txt",
-            pd.DataFrame([{"trip_id": "wrong_dir", "stop_id": "2836", "departure_time": "23:00:00"}]).to_csv(
-                index=False
-            ),
+            rows_to_csv([{"trip_id": "wrong_dir", "stop_id": "2836", "departure_time": "23:00:00"}]),
         )
 
     client = mock_http_client(buf.getvalue())

@@ -266,7 +266,7 @@ def resolve_static_schedule(cache: StaticScheduleCache, service_date: date) -> l
 async def get_static_schedule(
     db_session: DBSession, service_date: date | None = None
 ) -> tuple[date, list[StaticScheduleEntry]]:
-    """Read the weekly cache and resolve it for a date without network or pandas work."""
+    """Read the weekly cache and resolve it for a date without network or bulk parsing work."""
     target_date = service_date or datetime.now(tz=TZ_INFO).date()
     try:
         cached = await db_session.scalar(

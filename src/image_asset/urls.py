@@ -96,7 +96,11 @@ async def get_all_image_assets(db_session: database.DBSession):
     response_model=ImageAsset,
     status_code=status.HTTP_201_CREATED,
     responses={
-        403: {"description": "must be a website admin", "model": DetailModel},
+        400: {"description": "Image is invalid", "model": DetailModel},
+        403: {"description": "Must be a website admin", "model": DetailModel},
+        413: {"description": f"Maximum resolution of {MAX_PIXELS / 1_000_000} megapixels", "model": DetailModel},
+        415: {"description": "Image format not supported.", "model": DetailModel},
+        500: {"description": "Saving image failed", "model": DetailModel},
     },
     operation_id="create_image_asset",
     dependencies=[Depends(perm_admin)],

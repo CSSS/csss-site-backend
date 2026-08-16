@@ -18,6 +18,7 @@ from candidates.tables import CandidateDB
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager
 from elections.crud import create_election, update_election
 from elections.tables import ElectionDB
+from image_asset.tables import ImageAssetDB
 from nominees.crud import create_nominee_info
 from nominees.tables import NomineeInfoDB
 from officers.constants import OfficerPositionEnum

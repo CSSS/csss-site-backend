@@ -15,6 +15,7 @@ import database
 import elections.urls
 import event.urls
 import honorary.urls
+import image_asset.urls
 import kiosk.urls
 import nominees.urls
 import officers.urls
@@ -78,6 +79,7 @@ app.include_router(permission.urls.router)
 app.include_router(event.urls.router)
 app.include_router(honorary.urls.router)
 app.include_router(kiosk.urls.router)
+app.include_router(image_asset.urls.router)
 
 
 @app.get("/")

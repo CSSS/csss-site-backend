@@ -17,6 +17,8 @@ dependencies = [
     "httpx==0.28.1",
     "pydantic-settings==2.14.1",
     "gtfs-realtime-bindings==2.0.0",
+    "python-multipart>=0.0.32",
+    "pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]

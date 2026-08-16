@@ -22,6 +22,7 @@ import officers.urls
 import permission.urls
 import translink.urls
 from config import settings
+from dependencies import PERMISSION_DEPENDENCIES
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -61,6 +62,10 @@ else:
         title="CSSS Site Backend",
         root_path="/api",
     )
+    # Disable authorization checks when on `dev`
+    if settings.environment == "dev":
+        for dep in PERMISSION_DEPENDENCIES:
+            app.dependency_overrides[dep] = lambda: None
 
 app.add_middleware(
     CORSMiddleware,

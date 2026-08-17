@@ -68,7 +68,8 @@ The `ENVIRONMENT` dictates the following behaviour:
 | `test` | test          | Enabled                     | Enabled              |
 | `prod` | main          | Disabled                    | Enabled              |
 
-The test suite uses the `test` environment.
+- The test suite always uses the `test` environment.
+- Alembic always runs its migrations on the main database.
 
 ## Important Directories
 

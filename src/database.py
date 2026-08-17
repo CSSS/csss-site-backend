@@ -7,7 +7,7 @@ from typing import Annotated, Any
 import asyncpg
 from fastapi import Depends
 from sqlalchemy import MetaData
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from config import settings
@@ -50,6 +50,13 @@ class DatabaseSessionManager:
 
         # TODO: setup logging
         print(f"successful connection test to {sqlalchemy_db_url}")
+
+    @property
+    def engine(self) -> AsyncEngine:
+        if self._engine is None:
+            raise RuntimeError("DatabaseSessionManager is not initialized")
+
+        return self._engine
 
     async def close(self):
         if self._engine is None:

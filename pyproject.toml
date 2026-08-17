@@ -46,6 +46,7 @@ asyncio_default_test_loop_scope = "function"
 log_cli = true
 log_cli_level = "INFO"
 addopts = [
+    "--import-mode=importlib",
     "--strict-markers",
     "--strict-config",
     "--tb=short"

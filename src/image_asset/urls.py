@@ -79,7 +79,7 @@ router = APIRouter(
 
 @router.get(
     "",
-    description="Get metadata of all image assets",
+    description="Get metadata of all image assets, in descending image ID order.",
     response_model=list[ImageAsset],
     responses={403: {"description": "must be a website admin", "model": DetailModel}},
     operation_id="get_all_image_assets",
@@ -137,7 +137,7 @@ async def create_image_asset_from_upload(file: UploadFile, db_session: database.
             destination.unlink(missing_ok=True)
         except OSError:
             # This logs to ensure we know there's now an orphaned file being stored.
-            _logger.info("Failed to clean up image after failed DB insertion.")
+            _logger.info("Failed to clean up image after failed DB insertion: %s.", destination)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to clean up image after failed write.",

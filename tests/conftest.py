@@ -1,7 +1,7 @@
 import logging
 import os
 
-os.environ["ENV"] = "test"
+os.environ["ENVIRONMENT"] = "test"
 
 
 def pytest_configure(config):

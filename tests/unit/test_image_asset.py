@@ -14,7 +14,7 @@ def make_image(
     size: tuple[int, int] = (10, 10),
 ) -> UploadFile:
     """
-    Creates a temporary PNG in-memory.
+    Creates a temporary image in-memory.
 
     Args:
         image_format: image format to create e.g., "PNG", "JPEG"
@@ -41,7 +41,7 @@ def make_corrupted_image(
     size: tuple[int, int] = (10, 10),
 ) -> UploadFile:
     """
-    Creates a temporary PNG in-memory and then truncates some bytes.
+    Creates a temporary image in-memory and then truncates some bytes to corrupt it.
 
     Args:
         image_format: image format to create e.g., "PNG", "JPEG"

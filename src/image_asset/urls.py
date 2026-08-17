@@ -54,8 +54,6 @@ async def validate_upload(file: UploadFile) -> str:
 
                 image_format = ALLOWED_IMAGE_TYPES[image.format]
                 image.verify()
-    except HTTPException:
-        raise
     except (
         UnidentifiedImageError,
         OSError,

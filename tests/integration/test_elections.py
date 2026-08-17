@@ -9,9 +9,12 @@ import load_test_db
 from candidates.crud import get_all_candidates_in_election
 from database import DBSession
 from elections.crud import (
+    create_election,
     get_all_elections,
     get_election,
 )
+from elections.models import ElectionTypeEnum
+from elections.tables import ElectionDB
 from nominees.crud import (
     get_nominee_info,
 )
@@ -242,7 +245,7 @@ async def test__admin_get_single_election_with_nominees_true(admin_client: Async
         assert_private_candidate_fields(candidate)
 
 
-async def test__admin_create_election(admin_client: AsyncClient):
+async def test__admin_create_election(db_session: DBSession, admin_client: AsyncClient):
     # ensure that authorized users can create an election
     response = await admin_client.post(
         "/election",
@@ -336,7 +339,21 @@ async def test__admin_create_candidate(admin_client: AsyncClient):
     assert response.json()["speech"] is None
 
 
-async def test__admin_update_election(admin_client: AsyncClient):
+async def test__admin_update_election(db_session: DBSession, admin_client: AsyncClient):
+    await create_election(
+        db_session,
+        ElectionDB(
+            slug="testElection4",
+            name="testElection4",
+            type=ElectionTypeEnum.GENERAL,
+            datetime_start_nominations=datetime.datetime.now(datetime.UTC) - timedelta(days=1),
+            datetime_start_voting=datetime.datetime.now(datetime.UTC) + timedelta(days=7),
+            datetime_end_voting=datetime.datetime.now(datetime.UTC) + timedelta(days=14),
+            available_positions=["president", "treasurer"],
+            survey_link="https://youtu.be/dQw4w9WgXcQ?si=kZROi2tu-43MXPM5",
+        ),
+    )
+    await db_session.commit()
     # update the above election
     response = await admin_client.patch(
         "/election/testElection4",

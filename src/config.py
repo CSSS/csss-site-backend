@@ -19,5 +19,8 @@ class Settings(BaseSettings):
     translink_api_key: str | None = None
     kiosk_secret: str | None = None
 
+    media_root: Path
+    media_base_url: str
+
 
 settings = Settings()  # pyright: ignore[reportCallIssue]

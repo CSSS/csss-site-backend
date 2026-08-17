@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from auth.crud import create_user_session, remove_user_session
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager, get_db_session
@@ -24,15 +25,32 @@ async def test_database():
 
 
 @pytest_asyncio.fixture(scope="function", loop_scope="session")
-async def db_session(test_database: DatabaseSessionManager):
-    async with test_database.session() as session:
+async def db_connection(test_database: DatabaseSessionManager):
+    async with test_database.engine.connect() as connection:
+        transaction = await connection.begin()
+
+        try:
+            yield connection
+        finally:
+            await transaction.rollback()
+
+
+@pytest_asyncio.fixture(scope="function", loop_scope="session")
+async def db_session(db_connection: AsyncConnection):
+    async with AsyncSession(
+        bind=db_connection,
+        join_transaction_mode="create_savepoint",
+    ) as session:
         yield session
 
 
-@pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def client(test_database: DatabaseSessionManager) -> AsyncGenerator[Any]:
+@pytest_asyncio.fixture(scope="function", loop_scope="session")
+async def client(db_connection: AsyncConnection) -> AsyncGenerator[AsyncClient]:
     async def override_get_db_session():
-        async with test_database.session() as session:
+        async with AsyncSession(
+            bind=db_connection,
+            join_transaction_mode="create_savepoint",
+        ) as session:
             yield session
 
     app.dependency_overrides[get_db_session] = override_get_db_session
@@ -45,11 +63,15 @@ async def client(test_database: DatabaseSessionManager) -> AsyncGenerator[Any]:
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def admin_client(test_database: DatabaseSessionManager, client: AsyncClient):
+@pytest_asyncio.fixture(scope="function", loop_scope="session")
+async def admin_client(db_connection: AsyncConnection, client: AsyncClient):
     session_id = "temp_id_" + SYSADMIN_COMPUTING_ID
     client.cookies = {"session_id": session_id}
-    async with test_database.session() as session:
+    async with AsyncSession(
+        bind=db_connection,
+        join_transaction_mode="create_savepoint",
+    ) as session:
         await create_user_session(session, session_id, SYSADMIN_COMPUTING_ID)
-        yield client
-        await remove_user_session(session, session_id)
+        await session.commit()
+
+    yield client

@@ -15,12 +15,14 @@ import database
 import elections.urls
 import event.urls
 import honorary.urls
+import image_asset.urls
 import kiosk.urls
 import nominees.urls
 import officers.urls
 import permission.urls
 import translink.urls
 from config import settings
+from dependencies import PERMISSION_DEPENDENCIES
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -60,6 +62,10 @@ else:
         title="CSSS Site Backend",
         root_path="/api",
     )
+    # Disable authorization checks when on `dev`
+    if settings.environment == "dev":
+        for dep in PERMISSION_DEPENDENCIES:
+            app.dependency_overrides[dep] = lambda: None
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,6 +84,7 @@ app.include_router(permission.urls.router)
 app.include_router(event.urls.router)
 app.include_router(honorary.urls.router)
 app.include_router(kiosk.urls.router)
+app.include_router(image_asset.urls.router)
 
 
 @app.get("/")

@@ -319,7 +319,7 @@ async def test__admin_patch_officer_term(admin_client: AsyncClient):
     assert modifiedTerm["biography"] != "hello o77"
 
     response = await admin_client.get("officers/all?include_future_terms=True")
-    assert len(response.json()) == 10
+    assert len(response.json()) == 9
 
     response = await admin_client.delete("officers/term/1")
     assert response.status_code == 200
@@ -331,4 +331,4 @@ async def test__admin_patch_officer_term(admin_client: AsyncClient):
     assert response.status_code == 200
 
     response = await admin_client.get("officers/all?include_future_terms=True")
-    assert len(response.json()) == 6
+    assert len(response.json()) == 5

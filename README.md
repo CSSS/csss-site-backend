@@ -40,6 +40,36 @@ ENVIRONMENT=dev # Set this to `test` if you want to use the test database instea
 ```
 You can also create a `.env` file and set those in there. See `.env.example` for more information.
 
+## Environment Variables
+
+The table below indicates what environment variables we support.
+Bolded variables are required or else the server won't start.
+
+
+| In `.env`           | Python settings key | Type/Options          | Default                                  | Description                                                         |
+|---------------------|---------------------|-----------------------|------------------------------------------|---------------------------------------------------------------------|
+| **ENVIRONMENT**     | environment         | `dev`, `prod`, `test` | `dev`                                    | Determines some configuration settings on boot up.                  |
+| **COOKIE_SECURE**   | cookie_secure       | boolean               | `false`                                  | True if https is required, false otherwise.                         |
+| **FRONTEND_ORIGIN** | frontend_origin     | string                | `http://localhost:8080`                  | The client's URL that will be contacting this web server.           |
+| **MEDIA_ROOT**      | media_root          | Path                  | `/srv/csss/media`                        | The directory media file uploads will be placed into.               |
+| **MEDIA_BASE_URL**  | media_base_url      | string                | `/media`                                 | The base URL clients use to retrieve media.                         |
+| AUTH_URL            | auth_url            | string                | `https://cas.sfu.ca/cas/serviceValidate` | The authentication service URL.                                     |
+| DB_PORT             | db_port             | 0 - 65535             | `5444`                                   | The port the database is reachable at, set this if working locally. |
+| TRANSLINK_API_KEY   | translink_api_key   | string                |                                          | The API key used to retrieve real-time TransLink schedule data.     |
+| COOKIE_DOMAIN       | cookie_domain       | string                |                                          | Domain value of the cookie.                                         |
+| KIOSK_SECRET        | kiosk_secret        | string                |                                          | The key to use to validate Kiosk requests.                          |
+
+
+The `ENVIRONMENT` dictates the following behaviour:
+
+| Value  | Database Used | Documentation URL (`/docs`) | Authorization Checks |
+|--------|---------------|-----------------------------|----------------------|
+| `dev`  | main          | Enabled                     | Disabled             |
+| `test` | test          | Enabled                     | Enabled              |
+| `prod` | main          | Disabled                    | Enabled              |
+
+- The test suite always uses the `test` environment.
+- Alembic always runs its migrations on the main database.
 
 ## Important Directories
 

@@ -17,6 +17,8 @@ dependencies = [
     "httpx==0.28.1",
     "pydantic-settings==2.14.1",
     "gtfs-realtime-bindings==2.0.0",
+    "python-multipart>=0.0.32",
+    "pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]
@@ -41,13 +43,16 @@ norecursedirs = ["tests/wip"] # Don't test these paths
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 asyncio_default_test_loop_scope = "function"
-log_cli = true
+log_cli = false
 log_cli_level = "INFO"
 addopts = [
+    "--import-mode=importlib",
     "--strict-markers",
     "--strict-config",
     "--tb=short"
 ]
+# These allow to mark test functions with decorators: `@pytest.mark.<marker>`
+# You can then run tests with `pytest -m <marker>` to only run tests with that marker.
 markers = [
     "integration: tests that require database or full app setup",
     "unit: isolated tests that do not require external services"

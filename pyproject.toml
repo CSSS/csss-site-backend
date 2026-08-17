@@ -50,6 +50,8 @@ addopts = [
     "--strict-config",
     "--tb=short"
 ]
+# These allow to mark test functions with decorators: `@pytest.mark.<marker>`
+# You can then run tests with `pytest -m <marker>` to only run tests with that marker.
 markers = [
     "integration: tests that require database or full app setup",
     "unit: isolated tests that do not require external services"

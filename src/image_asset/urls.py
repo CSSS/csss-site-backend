@@ -39,18 +39,19 @@ async def validate_upload(file: UploadFile) -> str:
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
-            with Image.open(file.file, formats=list(ALLOWED_IMAGE_TYPES)) as image:
-                if image.width * image.height > MAX_PIXELS:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="Image dimensions are too large.",
-                    )
-
-                if image.format is None or image.format not in ALLOWED_IMAGE_TYPES:
+            with Image.open(file.file) as image:
+                if image.format not in ALLOWED_IMAGE_TYPES:
                     raise HTTPException(
                         status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                         detail="Unsupported image format.",
                     )
+
+                if image.width * image.height > MAX_PIXELS:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                        detail="Image dimensions are too large.",
+                    )
+
                 image_format = ALLOWED_IMAGE_TYPES[image.format]
                 image.verify()
     except HTTPException:

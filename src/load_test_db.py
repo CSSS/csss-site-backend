@@ -13,6 +13,7 @@ import honorary.tables
 # NOTE: make sure you import from a file in your module which (at least) indirectly contains those
 # tables, or the current python context will not be able to find them & they won't be loaded
 from auth.crud import create_user_session
+from auth.tables import AuthRedirectDB, SiteUserDB, SiteUserRoleDB, UserSessionDB
 from candidates.crud import add_candidate
 from candidates.tables import CandidateDB
 from database import SQLALCHEMY_TEST_DATABASE_URL, Base, DatabaseSessionManager

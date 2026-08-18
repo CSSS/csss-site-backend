@@ -12,13 +12,14 @@ class Settings(BaseSettings):
 
     environment: Literal["dev"] | Literal["prod"] | Literal["test"]
     db_port: int | None = None
+    app_url: str
 
     cookie_secure: bool
     cookie_domain: str | None = None
     allowed_origins: list[str] = []
 
     auth_url: str | None = None
-    auth_redirects: list[str] = []
+    allowed_return_origins: list[str] = []
 
     translink_api_key: str | None = None
     kiosk_secret: str | None = None

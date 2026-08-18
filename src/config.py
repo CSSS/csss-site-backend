@@ -13,9 +13,11 @@ class Settings(BaseSettings):
 
     cookie_secure: bool
     cookie_domain: str | None = None
+    allowed_origins: list[str] = []
 
-    frontend_origin: str
     auth_url: str | None = None
+    auth_redirects: list[str] = []
+
     translink_api_key: str | None = None
     kiosk_secret: str | None = None
 

@@ -10,20 +10,19 @@ from database import Base
 class UserSessionDB(Base):
     __tablename__ = "user_session"
 
-    computing_id: Mapped[str] = mapped_column(
-        String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id"),
-        # in psql pkey means non-null
+    session_id: Mapped[str] = mapped_column(
+        String(SESSION_ID_LEN),
+        nullable=False,
         primary_key=True,
+    )
+
+    computing_id: Mapped[str] = mapped_column(
+        String(COMPUTING_ID_LEN), ForeignKey("site_user.computing_id"), index=True, nullable=False
     )
 
     # TODO: Make all timestamps uneditable later
     # time the CAS ticket was issued
     issue_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-
-    session_id: Mapped[str] = mapped_column(
-        String(SESSION_ID_LEN), nullable=False, unique=True
-    )  # the space needed to store 32 bytes in base64
 
 
 class SiteUserDB(Base):

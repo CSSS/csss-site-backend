@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 import auth.crud
 import database
 import officers.crud
+from auth.constants import COOKIE_SESSION_KEY
 from dependencies import LoggedInUser, SessionUser, perm_admin
 from officers.models import (
     Officer,
@@ -33,7 +34,7 @@ async def _has_officer_private_info_access(
     str | None,
 ]:
     """determine if the user has access to private officer info"""
-    session_id = request.cookies.get("session_id", None)
+    session_id = request.cookies.get(COOKIE_SESSION_KEY, None)
     if session_id is None:
         return False, None
 

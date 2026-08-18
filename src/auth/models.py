@@ -14,13 +14,6 @@ class UserBaseModel(BaseModel):
     computing_id: str = Field(..., max_length=COMPUTING_ID_LEN, description="Student's computing ID")
 
 
-class UserSession(UserBaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    issue_time: datetime = Field(..., description="Time the session was created")
-    session_id: str = Field(..., max_length=SESSION_ID_LEN, description="Unique session ID of the user")
-
-
 class SiteUser(UserBaseModel):
     model_config = ConfigDict(from_attributes=True)
 

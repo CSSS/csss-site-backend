@@ -5,11 +5,14 @@ from fastapi import Cookie, Depends, HTTPException, status
 import auth
 import auth.crud
 import database
+from auth.constants import COOKIE_SESSION_KEY
 from config import settings
 from utils.permissions import is_user_election_admin, is_user_website_admin
 
 
-async def user(db_session: database.DBSession, session_id: Annotated[str | None, Cookie()] = None) -> str | None:
+async def user(
+    db_session: database.DBSession, session_id: Annotated[str | None, Cookie(alias=COOKIE_SESSION_KEY)] = None
+) -> str | None:
     if session_id is None:
         return None
 
@@ -21,7 +24,9 @@ async def user(db_session: database.DBSession, session_id: Annotated[str | None,
 SessionUser = Annotated[str, Depends(user)]
 
 
-async def logged_in_user(db_session: database.DBSession, session_id: Annotated[str | None, Cookie()] = None) -> str:
+async def logged_in_user(
+    db_session: database.DBSession, session_id: Annotated[str | None, Cookie(alias=COOKIE_SESSION_KEY)] = None
+) -> str:
     if session_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session id")
 

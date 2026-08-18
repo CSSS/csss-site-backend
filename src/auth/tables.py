@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, LargeBinary, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from constants import AUTH_REDIRECT_ID_LEN, COMPUTING_ID_LEN, SESSION_ID_LEN
@@ -10,19 +10,21 @@ from database import Base
 class UserSessionDB(Base):
     __tablename__ = "user_session"
 
-    session_id: Mapped[str] = mapped_column(
-        String(SESSION_ID_LEN),
-        nullable=False,
+    session_hash: Mapped[str] = mapped_column(
+        LargeBinary(32),
         primary_key=True,
     )
 
     computing_id: Mapped[str] = mapped_column(
-        String(COMPUTING_ID_LEN), ForeignKey("site_user.computing_id"), index=True, nullable=False
+        String(COMPUTING_ID_LEN),
+        ForeignKey("site_user.computing_id"),
+        index=True,
     )
 
     # TODO: Make all timestamps uneditable later
     # time the CAS ticket was issued
-    issue_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class SiteUserDB(Base):
@@ -45,5 +47,5 @@ class AuthRedirectDB(Base):
 
     id: Mapped[str] = mapped_column(String(AUTH_REDIRECT_ID_LEN), primary_key=True)
     return_to: Mapped[str] = mapped_column(Text)
-    expires_at: Mapped[str] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -6,6 +6,7 @@ import auth
 import auth.crud
 import database
 import officers.crud
+from auth.constants import COOKIE_SESSION_KEY
 from officers.constants import OfficerPositionEnum
 
 WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
@@ -51,7 +52,7 @@ async def get_user(request: Request, db_session: database.DBSession) -> tuple[st
     Raises:
         HTTPException: User is not logged in
     """
-    session_id = request.cookies.get("session_id", None)
+    session_id = request.cookies.get(COOKIE_SESSION_KEY, None)
     if session_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session id")
 

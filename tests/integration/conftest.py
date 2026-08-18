@@ -6,7 +6,8 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
-from auth.crud import create_user_session, remove_user_session
+from auth.constants import COOKIE_SESSION_KEY
+from auth.crud import create_user_session, remove_user_session_by_id
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager, get_db_session
 from load_test_db import SYSADMIN_COMPUTING_ID, async_main
 from main import app
@@ -66,7 +67,7 @@ async def client(db_connection: AsyncConnection) -> AsyncGenerator[AsyncClient]:
 @pytest_asyncio.fixture(scope="function", loop_scope="session")
 async def admin_client(db_connection: AsyncConnection, client: AsyncClient):
     session_id = "temp_id_" + SYSADMIN_COMPUTING_ID
-    client.cookies = {"session_id": session_id}
+    client.cookies = {COOKIE_SESSION_KEY: session_id}
     async with AsyncSession(
         bind=db_connection,
         join_transaction_mode="create_savepoint",

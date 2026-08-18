@@ -69,6 +69,9 @@ app.include_router(auth.urls.router)
 app.include_router(api.urls.router)
 app.include_router(kiosk.urls.router)
 
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 
 @app.get("/")
 async def read_root():

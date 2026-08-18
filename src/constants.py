@@ -10,6 +10,7 @@ CSSS_GUILD_ID = "228761314644852736"
 # ACTIVE_GUILD_ID = W3_GUILD_ID if not IS_PROD else CSSS_GUILD_ID
 
 SESSION_ID_LEN = 43
+AUTH_REDIRECT_ID_LEN = 43
 # technically a max of 8 characters https://www.sfu.ca/computing/about/support/tips/sfu-userid.html
 # but there are some legacy ones that are higher than that
 COMPUTING_ID_LEN = 16

@@ -114,7 +114,7 @@ async def setup_database():
     # TODO: where is sys.stdout piped to? I want all these to go to a specific logs folder
     manager = DatabaseSessionManager(
         db_url,
-        {"echo": True},
+        {"echo": settings.environment != "prod"},
         check_db=False,
     )
     await DatabaseSessionManager.test_connection(db_url)

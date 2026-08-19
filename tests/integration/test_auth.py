@@ -355,7 +355,7 @@ async def test__validate_returns_bad_gateway_for_malformed_cas_response(
     assert COOKIE_SESSION_KEY not in client.cookies
 
 
-async def test__validate_creates_session_returns_redirect_page_and_prevents_replay(
+async def test__validate_creates_session_returns_history_scrubbing_page_and_prevents_replay(
     client: AsyncClient,
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
@@ -368,7 +368,14 @@ async def test__validate_creates_session_returns_redirect_page_and_prevents_repl
 
     assert response.status_code == HTTPStatus.OK
     assert response.headers["content-type"] == "text/html; charset=utf-8"
-    assert f"window.location.replace({json.dumps(TEST_RETURN_TO)});" in response.text
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    history_replacement = 'history.replaceState(null, "", "/");'
+    location_replacement = f"window.location.replace({json.dumps(TEST_RETURN_TO)});"
+    assert history_replacement in response.text
+    assert location_replacement in response.text
+    assert response.text.index(history_replacement) < response.text.index(location_replacement)
+    assert TEST_TICKET not in response.text
     assert COOKIE_AUTH_REDIRECT_KEY not in client.cookies
     assert COOKIE_SESSION_KEY in client.cookies
 

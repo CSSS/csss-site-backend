@@ -201,10 +201,10 @@ async def validate_ticket(
     if return_to is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid login attempt")
 
-    safe_return_to = json.dumps(return_to)
+    # The replace is supposed to stop malicious script tags
+    safe_return_to = json.dumps(return_to).replace("<", "\\u003c")
 
-    # Use window.location.replace to avoid the browser caching the redirect
-    # and allowing the user to go back to the CAS login page with the back button.
+    # Scrub the CAS ticket from history and replace the callback page with the original destination
     html = f"""
     <!doctype html>
     <html>
@@ -214,6 +214,7 @@ async def validate_ticket(
         </head>
         <body>
         <script>
+            history.replaceState(null, "", "/");
             window.location.replace({safe_return_to});
         </script>
         </body>
@@ -222,6 +223,8 @@ async def validate_ticket(
 
     response = HTMLResponse(html)
     response.delete_cookie(key=COOKIE_AUTH_REDIRECT_KEY, domain=settings.cookie_domain, path=COOKIE_PATH)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
 
     # Construct the response
     session_id = _generate_session_id()

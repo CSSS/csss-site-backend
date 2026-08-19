@@ -68,11 +68,4 @@ async def client(db_connection: AsyncConnection) -> AsyncGenerator[AsyncClient]:
 async def admin_client(db_connection: AsyncConnection, client: AsyncClient):
     session_id = "temp_id_" + SYSADMIN_COMPUTING_ID
     client.cookies = {COOKIE_SESSION_KEY: session_id}
-    async with AsyncSession(
-        bind=db_connection,
-        join_transaction_mode="create_savepoint",
-    ) as session:
-        await create_user_session(session, session_id, SYSADMIN_COMPUTING_ID)
-        await session.commit()
-
     yield client

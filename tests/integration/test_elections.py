@@ -73,7 +73,7 @@ async def test_read_elections(db_session: DBSession):
 
 # API endpoint testing (without AUTH)--------------------------------------
 async def test__get_all_elections(client: AsyncClient):
-    response = await client.get("/election")
+    response = await client.get("/api/election")
     assert response.status_code == 200
     assert response.json() != {}
     for election in response.json():
@@ -82,7 +82,7 @@ async def test__get_all_elections(client: AsyncClient):
 
 async def test__get_all_elections_with_nominees_true(client: AsyncClient):
     # Test on election 2, because it has candidates
-    response = await client.get("/election", params={"with_nominees": "true"})
+    response = await client.get("/api/election", params={"with_nominees": "true"})
     assert response.status_code == 200
     elections_list = {election["slug"]: election for election in response.json()}
     election_2_response = elections_list[slugify(TEST_ELECTION_2)]
@@ -95,7 +95,7 @@ async def test__get_all_elections_with_nominees_true(client: AsyncClient):
 
 async def test__get_single_election(client: AsyncClient):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
-    response = await client.get(f"/election/{TEST_ELECTION_2}")
+    response = await client.get(f"/api/election/{TEST_ELECTION_2}")
     assert response.status_code == 200
     assert response.json() != {}
     assert "candidates" not in response.json()
@@ -103,7 +103,7 @@ async def test__get_single_election(client: AsyncClient):
 
 
 async def test__get_single_election_with_nominees_true(client: AsyncClient):
-    response = await client.get(f"/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
+    response = await client.get(f"/api/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
     assert response.status_code == 200
     election_2_response = response.json()
     assert election_2_response != {}
@@ -117,16 +117,16 @@ async def test__get_single_election_with_nominees_true(client: AsyncClient):
 async def test__get_single_candidates(client: AsyncClient):
     # ensure that candidates can be viewed
     # Only authorized users can access candidates get
-    response = await client.get(f"/candidate/{TEST_ELECTION_2}")
+    response = await client.get(f"/api/candidate/{TEST_ELECTION_2}")
     assert response.status_code == 401
 
-    response = await client.get("/nominee/pkn4")
+    response = await client.get("/api/nominee/pkn4")
     assert response.status_code == 401
 
 
 async def test__create_election(client: AsyncClient):
     response = await client.post(
-        "/election",
+        "/api/election",
         json={
             "name": TEST_ELECTION_2,
             "type": "general_election",
@@ -143,7 +143,7 @@ async def test__create_election(client: AsyncClient):
 async def test__create_candidate(client: AsyncClient):
     # ensure that candidates can be viewed
     response = await client.post(
-        "/candidate/{test-election-1}",
+        "/api/candidate/{test-election-1}",
         json={
             "computing_id": "1234567",
             "position": "president",
@@ -154,7 +154,7 @@ async def test__create_candidate(client: AsyncClient):
 
 async def test__update_election(client: AsyncClient):
     response = await client.patch(
-        f"/election/{TEST_ELECTION_2}",
+        f"/api/election/{TEST_ELECTION_2}",
         json={
             "type": "general_election",
             "datetime_start_nominations": "2025-08-18T09:00:00Z",
@@ -169,7 +169,7 @@ async def test__update_election(client: AsyncClient):
 
 async def test__update_candidate(client: AsyncClient):
     response = await client.patch(
-        f"/candidate/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}",
+        f"/api/candidate/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}",
         json={
             "position": "president",
             "speech": "I would like to run for president because I'm the best in Valorant at SFU.",
@@ -180,7 +180,7 @@ async def test__update_candidate(client: AsyncClient):
 
 async def test__update_nominee(client: AsyncClient):
     response = await client.patch(
-        "/nominee/jdo12",
+        "/api/nominee/jdo12",
         json={
             "full_name": "John Doe VI",
             "linked_in": "linkedin.com/john-doe-vi",
@@ -193,18 +193,20 @@ async def test__update_nominee(client: AsyncClient):
 
 
 async def test__delete_election(client: AsyncClient):
-    response = await client.delete(f"/election/{TEST_ELECTION_2}")
+    response = await client.delete(f"/api/election/{TEST_ELECTION_2}")
     assert response.status_code == 401
 
 
 async def test__delete_candidate(client: AsyncClient):
-    response = await client.delete(f"/candidate/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    response = await client.delete(
+        f"/api/candidate/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}"
+    )
     assert response.status_code == 401
 
 
 # Admin API testing (with AUTH)-----------------------------------
 async def test__admin_get_all_elections(admin_client: AsyncClient):
-    response = await admin_client.get("/election")
+    response = await admin_client.get("/api/election")
     assert response.status_code == 200
     assert response.json() != {}
     for election in response.json():
@@ -213,7 +215,7 @@ async def test__admin_get_all_elections(admin_client: AsyncClient):
 
 async def test__admin_get_all_elections_with_nominees_true(admin_client: AsyncClient):
     # Test on election 2, because it has candidates
-    response = await admin_client.get("/election", params={"with_nominees": "true"})
+    response = await admin_client.get("/api/election", params={"with_nominees": "true"})
     assert response.status_code == 200
     elections_list = {election["slug"]: election for election in response.json()}
     election_2_response = elections_list[slugify(TEST_ELECTION_2)]
@@ -226,7 +228,7 @@ async def test__admin_get_all_elections_with_nominees_true(admin_client: AsyncCl
 
 async def test__admin_get_single_election(admin_client: AsyncClient):
     # Returns private details when the time is allowed. If user is an admin or election officer, returns computing ids for each candidate as well.
-    response = await admin_client.get(f"/election/{TEST_ELECTION_2}")
+    response = await admin_client.get(f"/api/election/{TEST_ELECTION_2}")
     assert response.status_code == 200
     assert response.json() != {}
     assert "candidates" not in response.json()
@@ -234,7 +236,7 @@ async def test__admin_get_single_election(admin_client: AsyncClient):
 
 
 async def test__admin_get_single_election_with_nominees_true(admin_client: AsyncClient):
-    response = await admin_client.get(f"/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
+    response = await admin_client.get(f"/api/election/{TEST_ELECTION_2}", params={"with_nominees": "true"})
     assert response.status_code == 200
     election_2_response = response.json()
     assert election_2_response != {}
@@ -248,7 +250,7 @@ async def test__admin_get_single_election_with_nominees_true(admin_client: Async
 async def test__admin_create_election(db_session: DBSession, admin_client: AsyncClient):
     # ensure that authorized users can create an election
     response = await admin_client.post(
-        "/election",
+        "/api/election",
         json={
             "name": "testElection4",
             "type": "general_election",
@@ -262,7 +264,7 @@ async def test__admin_create_election(db_session: DBSession, admin_client: Async
     assert response.status_code == 200
     # ensure that user can create election without knowing each position type
     response = await admin_client.post(
-        "/election",
+        "/api/election",
         json={
             "name": "byElection4",
             "type": "by_election",
@@ -279,7 +281,7 @@ async def test__admin_create_election(db_session: DBSession, admin_client: Async
     # try to register for a past election -> should say nomination period expired
     # testElection1 = "test election    1"
     # response = await admin_client.post(
-    #     f"/candidate/{testElection1}",
+    #     f"/api/candidate/{testElection1}",
     #     json={
     #         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
     #         "position": "president",
@@ -291,7 +293,7 @@ async def test__admin_create_election(db_session: DBSession, admin_client: Async
     # # ensure that candidates can be viewed
     # # try to register for an invalid position will just throw a 422
     # response = await admin_client.post(
-    #     f"/candidate/{TEST_ELECTION_2}",
+    #     f"/api/candidate/{TEST_ELECTION_2}",
     #     json={
     #         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
     #         "position": "CEO",
@@ -302,7 +304,7 @@ async def test__admin_create_election(db_session: DBSession, admin_client: Async
     # ensure that candidates can be viewed
     # try to register in an unknown election
     # response = await admin_client.post(
-    #     "/candidate/unknownElection12345",
+    #     "/api/candidate/unknownElection12345",
     #     json={
     #         "computing_id": load_test_db.SYSADMIN_COMPUTING_ID,
     #         "position": "president",
@@ -314,7 +316,7 @@ async def test__admin_create_election(db_session: DBSession, admin_client: Async
     # ensure that candidates can be viewed
     # register for an election correctly
     # response = await admin_client.post(
-    #     f"/candidate/{TEST_ELECTION_2}",
+    #     f"/api/candidate/{TEST_ELECTION_2}",
     #     json={
     #         "computing_id": "jdo12",
     #         "position": "president",
@@ -326,13 +328,13 @@ async def test__admin_create_election(db_session: DBSession, admin_client: Async
 async def test__admin_get_candidate(admin_client: AsyncClient):
     # ensure that candidates can be viewed
     # ensure that the above candidate exists and is valid
-    response = await admin_client.get(f"/candidate/{TEST_ELECTION_2}")
+    response = await admin_client.get(f"/api/candidate/{TEST_ELECTION_2}")
     assert response.status_code == 200
 
 
 async def test__admin_create_candidate(admin_client: AsyncClient):
     response = await admin_client.post(
-        f"/candidate/{slugify(TEST_ELECTION_2)}",
+        f"/api/candidate/{slugify(TEST_ELECTION_2)}",
         json={"computing_id": "jdo12", "position": "president"},
     )
     assert response.status_code == 200
@@ -356,7 +358,7 @@ async def test__admin_update_election(db_session: DBSession, admin_client: Async
     await db_session.commit()
     # update the above election
     response = await admin_client.patch(
-        "/election/testElection4",
+        "/api/election/testElection4",
         json={
             "election_type": "general_election",
             "datetime_start_nominations": (datetime.datetime.now(datetime.UTC) - timedelta(days=1)).isoformat(),
@@ -373,14 +375,15 @@ async def test__admin_update_candidate(admin_client: AsyncClient):
     # ensure that candidates can be viewed
     # update the candidate
     response = await admin_client.patch(
-        f"/candidate/{TEST_ELECTION_2}/vice-president/pkn4", json={"speech": "Vote for me as treasurer"}
+        f"/api/candidate/{TEST_ELECTION_2}/vice-president/pkn4",
+        json={"speech": "Vote for me as treasurer"},
     )
     assert response.status_code == 200
 
     # ensure that candidates can be viewed
     # try updating a non-registered election
     response = await admin_client.patch(
-        "/candidate/testElection4/pkn4",
+        "/api/candidate/testElection4/pkn4",
         json={"position": "president", "speech": "Vote for me as president, I am good at valorant."},
     )
     assert response.status_code == 404
@@ -388,26 +391,26 @@ async def test__admin_update_candidate(admin_client: AsyncClient):
 
 async def test__admin_delete_election(admin_client: AsyncClient):
     # delete an election
-    response = await admin_client.delete("/election/testElection4")
+    response = await admin_client.delete("/api/election/testElection4")
     assert response.status_code == 200
 
     # # TODO: Move these tests to a candidates test function
     # # ensure that candidates can be viewed
     # # delete a candidate
-    # response = await admin_client.delete(f"/candidate/{TEST_ELECTION_2}/president/jdo12")
+    # response = await admin_client.delete(f"/api/candidate/{TEST_ELECTION_2}/president/jdo12")
     # assert response.status_code == 200
 
 
 async def test__admin_get_nominee(admin_client: AsyncClient):
     # get nominee info
-    response = await admin_client.get(f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
+    response = await admin_client.get(f"/api/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}")
     assert response.status_code == 200
 
 
 async def test__admin_update_nominee(admin_client: AsyncClient):
     # update nominee info
     response = await admin_client.patch(
-        f"/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}",
+        f"/api/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}",
         json={
             "full_name": "Puneet N",
             "linked_in": "linkedin.com/not-my-linkedin",

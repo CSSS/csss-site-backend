@@ -43,7 +43,6 @@ if settings.environment == "prod":
         title="CSSS Site Backend",
         docs_url=None,  # disables Swagger UI
         redoc_url=None,  # disables ReDoc
-        openapi_url=None,  # disables OpenAPI schema
     )
 # Enable OpenAPI docs only for local development
 else:

@@ -41,6 +41,7 @@ if settings.environment == "prod":
     app = FastAPI(
         lifespan=lifespan,
         title="CSSS Site Backend",
+        openapi_url="/api/openapi.json",
         docs_url=None,  # disables Swagger UI
         redoc_url=None,  # disables ReDoc
     )

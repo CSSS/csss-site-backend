@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.constants import REDIRECT_TTL, SESSION_MAX_AGE
-from auth.tables import AuthRedirectDB, SiteUserDB, UserSessionDB
+from auth.tables import AuthRedirectDB, SiteUserDB, SiteUserRoleDB, UserSessionDB
 
 _logger = logging.getLogger(__name__)
 
@@ -25,6 +25,7 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
     now = datetime.now(UTC)
 
     session_hash = _hash_session_id(session_id)
+
     # Upsert the site user
     # Create a new user if it's their first login...
     user_query = insert(SiteUserDB).values(
@@ -136,3 +137,11 @@ async def delete_auth_redirect(db_session: AsyncSession, token: str) -> str | No
         .returning(AuthRedirectDB.return_to)
     )
     return await db_session.scalar(query)
+
+
+async def get_user_roles(db_session: AsyncSession, computing_id: str) -> list[SiteUserRoleDB]:
+    roles = await db_session.execute(
+        sqlalchemy.select(SiteUserRoleDB).where(SiteUserRoleDB.computing_id == computing_id)
+    )
+
+    return list(roles.scalars().all())

@@ -22,5 +22,5 @@ class EventDB(Base):
     __table_args__ = (
         CheckConstraint("start_time < end_time", name="check_start_time_before_end_time"),
         CheckConstraint("repeat_start_date < repeat_end_date", name="check_repeat_start_date_before_repeat_end_date"),
-        CheckConstraint(frequency.in_([e.value for e in EventFrequencyEnum]), name="valid_frequency_value")
+        CheckConstraint(frequency.in_([e.value for e in EventFrequencyEnum]), name="valid_frequency_value"),
     )

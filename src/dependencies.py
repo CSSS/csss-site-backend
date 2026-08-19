@@ -10,9 +10,19 @@ from config import settings
 from utils.permissions import is_user_election_admin, is_user_website_admin
 
 
-async def user(
+async def optional_user(
     db_session: database.DBSession, session_id: Annotated[str | None, Cookie(alias=COOKIE_SESSION_KEY)] = None
 ) -> str | None:
+    """
+    Fetches the computing ID of the user from the user session's table.
+
+    Args:
+        db_session: The database session.
+        session_id: The session ID from the request's cookie.
+
+    Returns:
+        The computing ID of the user if their session is valid.
+    """
     if session_id is None:
         return None
 
@@ -21,12 +31,26 @@ async def user(
     return session_computing_id
 
 
-SessionUser = Annotated[str, Depends(user)]
+OptionalUser = Annotated[str | None, Depends(optional_user)]
 
 
 async def logged_in_user(
     db_session: database.DBSession, session_id: Annotated[str | None, Cookie(alias=COOKIE_SESSION_KEY)] = None
 ) -> str:
+    """
+    Fetches the computing ID of the User from the user session's table.
+
+    Args:
+        db_session: The database session.
+        session_id: The session ID from the request's cookie.
+
+    Returns:
+        The computing ID of the user if their session is valid.
+
+
+    Raises:
+        HTTPException: If the user session doesn't exist or is expired.
+    """
     if session_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session id")
 

@@ -5,7 +5,7 @@ import auth.crud
 import database
 import officers.crud
 from auth.constants import COOKIE_SESSION_KEY
-from dependencies import LoggedInUser, SessionUser, perm_admin
+from dependencies import LoggedInUser, OptionalUser, perm_admin
 from officers.models import (
     Officer,
     OfficerCreate,
@@ -105,7 +105,7 @@ async def all_officers(
     operation_id="get_officer_terms_by_id",
 )
 async def get_officer_terms(
-    user_id: SessionUser, db_session: database.DBSession, computing_id: str, include_future_terms: bool = False
+    user_id: OptionalUser, db_session: database.DBSession, computing_id: str, include_future_terms: bool = False
 ):
     if include_future_terms:
         await verify_update(user_id, db_session, computing_id)
@@ -176,7 +176,7 @@ async def create_officer_term(
     operation_id="update_officer_info",
 )
 async def update_officer_info(
-    user_id: SessionUser,
+    user_id: OptionalUser,
     db_session: database.DBSession,
     computing_id: str,
     officer_info_upload: OfficerInfoUpdate,

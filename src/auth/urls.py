@@ -6,7 +6,7 @@ from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
 import xmltodict
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 
 import database
@@ -23,6 +23,8 @@ from auth.constants import (
 )
 from auth.models import SiteUser
 from config import settings
+from dependencies import LoggedInUser, logged_in_user
+from utils.permissions import UserRole, is_user_role, roles_satisfy
 from utils.shared_models import DetailModel, MessageModel
 
 _logger = logging.getLogger(__name__)
@@ -191,10 +193,11 @@ async def validate_ticket(
     if return_to is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid login attempt")
 
-    # Construct the response
-    session_id = _generate_session_id()
     response = RedirectResponse(return_to)
     response.delete_cookie(COOKIE_AUTH_REDIRECT_KEY)
+
+    # Construct the response
+    session_id = _generate_session_id()
     response.set_cookie(
         key=COOKIE_SESSION_KEY,
         value=session_id,
@@ -263,3 +266,28 @@ async def get_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
     return user_info
+
+
+@router.get(
+    "/verify",
+    description="Verify the user's session exists.",
+    status_code=status.HTTP_204_NO_CONTENT,
+    include_in_schema=False,
+)
+async def verify_session(
+    db_session: database.DBSession,
+    computing_id: LoggedInUser,
+    x_required_role: str | None = Header(default=None, alias="X-Required-Role"),
+):
+    if x_required_role is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    try:
+        required_role = UserRole(x_required_role)
+    except ValueError:
+        # If you hit this then check the Nginx config
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Invalid required role") from None
+
+    if not (await roles_satisfy(db_session, computing_id, required_role)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "User does not have the required role")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

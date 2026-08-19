@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, LargeBinary, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, LargeBinary, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from auth.constants import SITE_USER_ROLE_MAX_LENGTH, UserRole
@@ -52,7 +52,7 @@ class SiteUserRoleDB(Base):
         computing_id: computing ID of the user, references site_user
         role: the role of the user on the site
         added_by: the computing ID of the site user who added this user, references site_user
-        added_at: the datetimetz of when this role was added
+        created_at: the datetimetz of when this role was added
     """
 
     __tablename__ = "site_user_role"
@@ -64,7 +64,14 @@ class SiteUserRoleDB(Base):
     )
 
     role: Mapped[UserRole] = mapped_column(
-        String(SITE_USER_ROLE_MAX_LENGTH),
+        Enum(
+            UserRole,
+            native_enum=False,
+            create_constraint=True,
+            validate_strings=True,
+            values_callable=lambda enum: [role.value for role in enum],
+            name="role_valid",
+        ),
         primary_key=True,
         index=True,
     )
@@ -75,7 +82,7 @@ class SiteUserRoleDB(Base):
         nullable=True,
     )
 
-    added_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
     )

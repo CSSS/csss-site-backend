@@ -9,7 +9,7 @@ import database
 import elections.crud
 import elections.tables
 import nominees.crud
-from dependencies import SessionUser, perm_election
+from dependencies import OptionalUser, perm_election
 from elections.models import (
     ElectionParams,
     ElectionResponse,
@@ -80,12 +80,12 @@ def _raise_if_bad_election_data(
     operation_id="get_all_elections",
 )
 async def list_elections(
-    computing_id: SessionUser,
+    computing_id: OptionalUser,
     db_session: database.DBSession,
     with_nominees: bool = Query(False),
 ):
     current_time = datetime.datetime.now(datetime.UTC)
-    has_permission = await is_user_election_admin(computing_id, db_session)
+    has_permission = await is_user_election_admin(computing_id, db_session) if computing_id else False
 
     if with_nominees:
         election_responses = await elections.crud.get_all_elections_with_nominees(
@@ -122,7 +122,7 @@ async def list_elections(
 )
 async def get_election(
     db_session: database.DBSession,
-    computing_id: SessionUser,
+    computing_id: OptionalUser,
     election_name: str,
     with_nominees: bool = Query(False),
 ):
@@ -134,7 +134,7 @@ async def get_election(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"election with slug {slugified_name} does not exist"
         )
 
-    has_permission = await is_user_election_admin(computing_id, db_session)
+    has_permission = await is_user_election_admin(computing_id, db_session) if computing_id else False
     if has_permission:
         election_json = election.private_details(current_time)
     else:

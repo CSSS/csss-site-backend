@@ -97,7 +97,13 @@ router = APIRouter(
     },
     operation_id="login",
 )
-async def login(return_to: str, db_session: database.DBSession):
+async def login(db_session: database.DBSession, request: Request, return_to: str | None = None):
+    if return_to is None:
+        return_to = request.headers.get("X-Original-URL")
+
+    if return_to is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing return URL")
+
     _validate_return_to_url(return_to)
 
     # TODO: Create a CRON job that clears the table periodically

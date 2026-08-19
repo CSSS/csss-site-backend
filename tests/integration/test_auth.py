@@ -132,6 +132,67 @@ async def test__login_creates_cas_redirect_and_stores_return_url(client: AsyncCl
     assert auth_redirect.expires_at > datetime.now(UTC)
 
 
+async def test__login_uses_original_url_header_when_return_to_is_omitted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    client.cookies.clear()
+
+    response = await client.get(
+        "/auth/login",
+        headers={"X-Original-URL": TEST_RETURN_TO},
+    )
+
+    assert response.status_code == HTTPStatus.TEMPORARY_REDIRECT
+    token = client.cookies.get(COOKIE_AUTH_REDIRECT_KEY)
+    assert token is not None
+    auth_redirect = await db_session.get(AuthRedirectDB, token)
+    assert auth_redirect is not None
+    assert auth_redirect.return_to == TEST_RETURN_TO
+
+
+async def test__login_rejects_missing_return_url(client: AsyncClient):
+    client.cookies.clear()
+
+    response = await client.get("/auth/login")
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json() == {"detail": "Missing return URL"}
+    assert COOKIE_AUTH_REDIRECT_KEY not in client.cookies
+
+
+async def test__login_validates_original_url_header(client: AsyncClient):
+    client.cookies.clear()
+
+    response = await client.get(
+        "/auth/login",
+        headers={"X-Original-URL": "http://untrusted.test/path"},
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert COOKIE_AUTH_REDIRECT_KEY not in client.cookies
+
+
+async def test__login_prefers_return_to_over_original_url_header(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    client.cookies.clear()
+
+    response = await client.get(
+        "/auth/login",
+        params={"return_to": TEST_RETURN_TO},
+        headers={"X-Original-URL": "http://untrusted.test/path"},
+    )
+
+    assert response.status_code == HTTPStatus.TEMPORARY_REDIRECT
+    token = client.cookies.get(COOKIE_AUTH_REDIRECT_KEY)
+    assert token is not None
+    auth_redirect = await db_session.get(AuthRedirectDB, token)
+    assert auth_redirect is not None
+    assert auth_redirect.return_to == TEST_RETURN_TO
+
+
 @pytest.mark.parametrize(
     "return_to",
     [

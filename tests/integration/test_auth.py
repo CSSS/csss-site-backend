@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from http import HTTPStatus
@@ -354,7 +355,7 @@ async def test__validate_returns_bad_gateway_for_malformed_cas_response(
     assert COOKIE_SESSION_KEY not in client.cookies
 
 
-async def test__validate_creates_session_redirects_and_prevents_replay(
+async def test__validate_creates_session_returns_redirect_page_and_prevents_replay(
     client: AsyncClient,
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
@@ -365,8 +366,9 @@ async def test__validate_creates_session_redirects_and_prevents_replay(
 
     response = await client.get("/auth/validate", params={"ticket": TEST_TICKET})
 
-    assert response.status_code == HTTPStatus.TEMPORARY_REDIRECT
-    assert response.headers["location"] == TEST_RETURN_TO
+    assert response.status_code == HTTPStatus.OK
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+    assert f"window.location.replace({json.dumps(TEST_RETURN_TO)});" in response.text
     assert COOKIE_AUTH_REDIRECT_KEY not in client.cookies
     assert COOKIE_SESSION_KEY in client.cookies
 

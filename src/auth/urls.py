@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import os
 from datetime import UTC, datetime
@@ -7,7 +8,7 @@ from urllib.parse import quote, urlencode, urlsplit
 import httpx
 import xmltodict
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 import database
 from auth import crud
@@ -133,9 +134,8 @@ async def login(db_session: database.DBSession, request: Request, return_to: str
 @router.get(
     "/validate",
     description="Validates the ticket by contacting SFU's CAS.",
-    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    status_code=status.HTTP_200_OK,
     responses={
-        307: {"description": "Successfully validated with SFU's CAS"},
         400: {"description": "Login attempt invalid", "model": DetailModel},
         401: {"description": "Failed to validate ticket with SFU's CAS", "model": DetailModel},
         502: {"description": "Failed to connect to SFU's CAS", "model": DetailModel},
@@ -185,12 +185,12 @@ async def validate_ticket(
 
     auth_success = service_response.get("cas:authenticationSuccess")
     if not isinstance(auth_success, dict):
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Authentication error")
 
     # Create session
     computing_id = auth_success.get("cas:user")
     if not isinstance(computing_id, str) or not computing_id:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="authentication error")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Authentication error")
 
     # clean old sessions after sending the response
     # TODO: Convert this to a daily CRON job
@@ -201,7 +201,26 @@ async def validate_ticket(
     if return_to is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid login attempt")
 
-    response = RedirectResponse(return_to)
+    safe_return_to = json.dumps(return_to)
+
+    # Use window.location.replace to avoid the browser caching the redirect
+    # and allowing the user to go back to the CAS login page with the back button.
+    html = f"""
+    <!doctype html>
+    <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Signing in...</title>
+        </head>
+        <body>
+        <script>
+            window.location.replace({safe_return_to});
+        </script>
+        </body>
+    </html>
+    """
+
+    response = HTMLResponse(html)
     response.delete_cookie(key=COOKIE_AUTH_REDIRECT_KEY, domain=settings.cookie_domain, path=COOKIE_PATH)
 
     # Construct the response
@@ -225,9 +244,6 @@ async def validate_ticket(
     "/logout",
     description="Logs out the current user by deleting the session data. Does not log out of CAS.",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        204: {"description": "Successfully logged out."},
-    },
     operation_id="logout",
 )
 async def logout_user(

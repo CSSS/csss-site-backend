@@ -21,7 +21,7 @@ from auth.constants import (
     COOKIE_SESSION_KEY,
     REDIRECT_TTL,
 )
-from auth.models import SiteUser
+from auth.models import UserInfo
 from config import settings
 from dependencies import LoggedInUser, logged_in_user
 from utils.permissions import UserRole, is_user_role, roles_satisfy
@@ -247,7 +247,7 @@ async def logout_user(
 @router.get(
     "/user",
     description="Get info about the current user.",
-    response_model=SiteUser,
+    response_model=UserInfo,
     responses={
         401: {"description": "Not logged in."},
     },

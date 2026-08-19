@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, LargeBinary, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from auth.constants import SITE_USER_ROLE_MAX_LENGTH, UserRole
 from constants import AUTH_REDIRECT_ID_LEN, COMPUTING_ID_LEN, SESSION_ID_LEN
@@ -41,6 +41,11 @@ class SiteUserDB(Base):
     # first and last time logged into the CSSS API
     first_logged_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_logged_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    roles: Mapped[list["SiteUserRoleDB"]] = relationship(
+        back_populates="user",
+        foreign_keys="SiteUserRoleDB.computing_id",
+    )
 
 
 class SiteUserRoleDB(Base):
@@ -85,6 +90,11 @@ class SiteUserRoleDB(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+    )
+
+    user: Mapped["SiteUserDB"] = relationship(
+        back_populates="roles",
+        foreign_keys=[computing_id],
     )
 
 

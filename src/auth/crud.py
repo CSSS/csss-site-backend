@@ -5,6 +5,7 @@ from hashlib import sha256
 import sqlalchemy
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from auth.constants import REDIRECT_TTL, SESSION_MAX_AGE
 from auth.tables import AuthRedirectDB, SiteUserDB, SiteUserRoleDB, UserSessionDB
@@ -99,7 +100,13 @@ async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB
     if user_session is None or user_session.expires_at < datetime.now(UTC):
         return None
 
-    return await db_session.get(SiteUserDB, user_session.computing_id)
+    result = await db_session.execute(
+        sqlalchemy.select(SiteUserDB)
+        .options(selectinload(SiteUserDB.roles))
+        .where(SiteUserDB.computing_id == user_session.computing_id)
+    )
+
+    return result.scalar_one_or_none()
 
 
 async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:

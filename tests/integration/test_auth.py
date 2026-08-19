@@ -339,9 +339,10 @@ async def test__validate_creates_session_redirects_and_prevents_replay(
 
     user_response = await client.get("/auth/user")
     assert user_response.status_code == HTTPStatus.OK
-    assert user_response.json()["computing_id"] == TEST_COMPUTING_ID
-    assert user_response.json()["first_logged_in"] is not None
-    assert user_response.json()["last_logged_in"] is not None
+    assert user_response.json() == {
+        "computing_id": TEST_COMPUTING_ID,
+        "roles": [],
+    }
 
     verify_response = await client.get("/auth/verify")
     assert verify_response.status_code == HTTPStatus.NO_CONTENT
@@ -380,6 +381,35 @@ async def test__authenticated_endpoints_reject_expired_session(
     response = await client.get(path)
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+async def test__user_returns_assigned_roles(client: AsyncClient, db_session: AsyncSession):
+    computing_id = "user-info"
+    await _create_logged_in_client(
+        db_session,
+        client,
+        "user-info-session",
+        computing_id,
+        UserRole.EXEC,
+    )
+    db_session.add(
+        SiteUserRoleDB(
+            computing_id=computing_id,
+            role=UserRole.USER,
+            added_by=None,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get("/auth/user")
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["computing_id"] == computing_id
+    assert set(response.json()["roles"]) == {
+        UserRole.EXEC.value,
+        UserRole.USER.value,
+    }
+    assert set(response.json()) == {"computing_id", "roles"}
 
 
 async def test__logout_deletes_session_cookie_and_database_row(client: AsyncClient, db_session: AsyncSession):

@@ -121,7 +121,9 @@ async def login(db_session: database.DBSession, request: Request, return_to: str
         value=token,
         httponly=True,
         secure=settings.cookie_secure,
+        domain=settings.cookie_domain,
         samesite=COOKIE_SAMESITE,
+        path=COOKIE_PATH,
         max_age=REDIRECT_TTL,
     )
 
@@ -200,7 +202,7 @@ async def validate_ticket(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid login attempt")
 
     response = RedirectResponse(return_to)
-    response.delete_cookie(COOKIE_AUTH_REDIRECT_KEY)
+    response.delete_cookie(key=COOKIE_AUTH_REDIRECT_KEY, domain=settings.cookie_domain, path=COOKIE_PATH)
 
     # Construct the response
     session_id = _generate_session_id()

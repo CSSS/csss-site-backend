@@ -17,7 +17,6 @@ from translink.models import (
 
 router = APIRouter(
     prefix="/translink",
-    tags=["translink"],
 )
 
 

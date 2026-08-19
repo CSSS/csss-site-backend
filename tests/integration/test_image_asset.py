@@ -109,12 +109,12 @@ async def test__delete_image_asset(db_session: DBSession):
 
 # Unauthenticated client
 async def test__get_all_image_asset_metadata(client: AsyncClient):
-    response = await client.get("/image")
+    response = await client.get("/api/image")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 async def test__upload_image_asset(client: AsyncClient):
-    response = await client.post("/image")
+    response = await client.post("/api/image")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -130,7 +130,7 @@ async def test__admin_get_all_image_asset_metadata(db_session: DBSession, admin_
         )
         image_asset.crud.create_image_asset(db_session, asset)
     await db_session.commit()
-    response = await admin_client.get("/image")
+    response = await admin_client.get("/api/image")
     assert response.status_code == status.HTTP_200_OK
     data = TypeAdapter(list[ImageAsset]).validate_python(response.json())
 
@@ -160,7 +160,7 @@ async def test__admin_upload_good_image(
     image_bytes = make_image(image_format)
 
     response = await admin_client.post(
-        "/image",
+        "/api/image",
         files={
             "file": (
                 filename,
@@ -211,7 +211,7 @@ async def test__admin_upload_invalid_image(
 ):
 
     response = await admin_client.post(
-        "/image",
+        "/api/image",
         files={
             "file": (
                 filename,
@@ -253,7 +253,7 @@ async def test__admin_failed_db_insert_is_cleaned_up(
     image_bytes = make_image()
 
     response = await admin_client.post(
-        "/image",
+        "/api/image",
         files={"file": ("test.png", image_bytes, "image/png")},
     )
 

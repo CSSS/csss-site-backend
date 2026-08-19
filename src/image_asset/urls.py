@@ -73,7 +73,7 @@ async def validate_upload(file: UploadFile) -> str:
 
 router = APIRouter(
     prefix="/image",
-    tags=["image", "media"],
+    tags=["media"],
 )
 
 

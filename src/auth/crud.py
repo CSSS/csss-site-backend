@@ -1,23 +1,31 @@
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 
 import sqlalchemy
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from auth.constants import SESSION_MAX_AGE
-from auth.tables import SiteUserDB, UserSessionDB
+from auth.constants import REDIRECT_TTL, SESSION_MAX_AGE
+from auth.tables import AuthRedirectDB, SiteUserDB, SiteUserRoleDB, UserSessionDB
 
 _logger = logging.getLogger(__name__)
 
 
-async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str):
-    """
-    Updates the past user session if one exists, so no duplicate sessions can ever occur.
+def _hash_session_id(session_id: str) -> bytes:
+    return sha256(session_id.encode("utf-8")).digest()
 
-    Also, adds the new user to the SiteUser table if it's their first time logging in.
+
+async def create_user_session(db_session: AsyncSession, session_id: str, computing_id: str) -> bytes:
+    """
+    Adds the new user to the SiteUser table if it's their first time logging in.
+
+    A user can have multiple sessions.
     """
     now = datetime.now(UTC)
+
+    session_hash = _hash_session_id(session_id)
 
     # Upsert the site user
     # Create a new user if it's their first login...
@@ -32,23 +40,27 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
     )
     await db_session.execute(user_query)
 
-    # Upsert the user session
-    # Create a new session...
-    session_query = insert(UserSessionDB).values(
-        session_id=session_id,
+    # Create a new session
+    user_session = UserSessionDB(
+        session_hash=session_hash,
         computing_id=computing_id,
-        issue_time=now,
+        created_at=now,
+        expires_at=now + SESSION_MAX_AGE,
     )
-    # ...or update their current session
-    session_query = session_query.on_conflict_do_update(
-        index_elements=[UserSessionDB.computing_id], set_={"session_id": session_id, "issue_time": now}
-    )
-    await db_session.execute(session_query)
+    db_session.add(user_session)
+
+    return session_hash
 
 
-async def remove_user_session(db_session: AsyncSession, session_id: str):
-    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
-    user_session = await db_session.scalar(query)
+async def remove_user_session_by_id(db_session: AsyncSession, session_id: str):
+    session_hash = _hash_session_id(session_id)
+    user_session = await db_session.get(UserSessionDB, session_hash)
+    if user_session is not None:
+        await db_session.delete(user_session)
+
+
+async def remove_user_session_by_hash(db_session: AsyncSession, session_hash: bytes):
+    user_session = await db_session.get(UserSessionDB, session_hash)
     if user_session is not None:
         await db_session.delete(user_session)
 
@@ -64,35 +76,79 @@ async def get_session_computing_id(db_session: AsyncSession, session_id: str) ->
     Returns:
         The computing ID associated with the session, or None if the session is invalid or expired.
     """
-    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
-    existing_user_session = (await db_session.scalars(query)).first()
-    if existing_user_session is None or existing_user_session.issue_time < datetime.now(UTC) - SESSION_MAX_AGE:
+    session_hash = _hash_session_id(session_id)
+    user_session = await db_session.get(UserSessionDB, session_hash)
+
+    if not user_session or user_session.expires_at < datetime.now(UTC):
         return None
 
-    return existing_user_session.computing_id
+    return user_session.computing_id
 
 
 # remove all out of date user sessions
 async def task_clean_expired_user_sessions(db_session: AsyncSession):
-    expiration = datetime.now(UTC) - SESSION_MAX_AGE
-
-    query = sqlalchemy.delete(UserSessionDB).where(UserSessionDB.issue_time < expiration)
+    query = sqlalchemy.delete(UserSessionDB).where(UserSessionDB.expires_at < datetime.now(UTC))
     await db_session.execute(query)
     await db_session.commit()
 
 
 # get the site user given a session ID; returns None when session is invalid
 async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB | None:
-    query = sqlalchemy.select(UserSessionDB).where(UserSessionDB.session_id == session_id)
-    user_session = await db_session.scalar(query)
+    session_hash = _hash_session_id(session_id)
+    user_session = await db_session.get(UserSessionDB, session_hash)
 
-    if user_session is None or user_session.issue_time < datetime.now(UTC) - SESSION_MAX_AGE:
+    if user_session is None or user_session.expires_at < datetime.now(UTC):
         return None
 
-    query = sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == user_session.computing_id)
-    return await db_session.scalar(query)
+    result = await db_session.execute(
+        sqlalchemy.select(SiteUserDB)
+        .options(selectinload(SiteUserDB.roles))
+        .where(SiteUserDB.computing_id == user_session.computing_id)
+    )
+
+    return result.scalar_one_or_none()
 
 
 async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:
     user = await db_session.get(SiteUserDB, computing_id)
     return user is not None
+
+
+def create_auth_redirect(db_session: AsyncSession, token: str, return_to: str) -> None:
+    entry = AuthRedirectDB(
+        id=token,
+        return_to=return_to,
+        expires_at=datetime.now(UTC) + timedelta(seconds=REDIRECT_TTL),
+    )
+    db_session.add(entry)
+
+
+async def get_auth_redirect(db_session: AsyncSession, token: str) -> AuthRedirectDB | None:
+    return await db_session.get(AuthRedirectDB, token)
+
+
+async def delete_auth_redirect(db_session: AsyncSession, token: str) -> str | None:
+    """
+    Atomically deletes the auth redirect entry, returning the redirect URL of the deleted entry.
+
+    Args:
+        db_session: database transaction
+        token: token to delete
+
+    Returns:
+        The redirect URL of the now deleted entry.
+    """
+    query = (
+        sqlalchemy.delete(AuthRedirectDB)
+        .where(AuthRedirectDB.id == token, AuthRedirectDB.expires_at >= datetime.now(UTC))
+        .returning(AuthRedirectDB.return_to)
+    )
+    return await db_session.scalar(query)
+
+
+async def get_user_roles(db_session: AsyncSession, computing_id: str) -> list[SiteUserRoleDB]:
+    roles = await db_session.execute(
+        sqlalchemy.select(SiteUserRoleDB).where(SiteUserRoleDB.computing_id == computing_id)
+    )
+
+    return list(roles.scalars().all())

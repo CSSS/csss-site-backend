@@ -9,18 +9,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+import api.urls
 import auth.urls
-import candidates.urls
 import database
-import elections.urls
-import event.urls
-import honorary.urls
-import image_asset.urls
 import kiosk.urls
-import nominees.urls
-import officers.urls
-import permission.urls
-import translink.urls
 from config import settings
 from dependencies import PERMISSION_DEPENDENCIES
 
@@ -49,10 +41,8 @@ if settings.environment == "prod":
     app = FastAPI(
         lifespan=lifespan,
         title="CSSS Site Backend",
-        root_path="/api",
         docs_url=None,  # disables Swagger UI
         redoc_url=None,  # disables ReDoc
-        openapi_url=None,  # disables OpenAPI schema
     )
 # Enable OpenAPI docs only for local development
 else:
@@ -60,7 +50,6 @@ else:
     app = FastAPI(
         lifespan=lifespan,
         title="CSSS Site Backend",
-        root_path="/api",
     )
     # Disable authorization checks when on `dev`
     if settings.environment == "dev":
@@ -69,22 +58,18 @@ else:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(auth.urls.router)
-app.include_router(elections.urls.router)
-app.include_router(candidates.urls.router)
-app.include_router(nominees.urls.router)
-app.include_router(officers.urls.router)
-app.include_router(permission.urls.router)
-app.include_router(event.urls.router)
-app.include_router(honorary.urls.router)
+app.include_router(api.urls.router)
 app.include_router(kiosk.urls.router)
-app.include_router(image_asset.urls.router)
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 @app.get("/")

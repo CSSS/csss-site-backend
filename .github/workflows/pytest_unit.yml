@@ -8,9 +8,11 @@ jobs:
     env:
       ENVIRONMENT: test
       COOKIE_SECURE: "false"
-      FRONTEND_ORIGIN: http://localhost:8080
       MEDIA_ROOT: /srv/csss/media
       MEDIA_BASE_URL: /media
+      APP_URL: http://localhost:8080
+      ALLOWED_ORIGINS: "[]"
+      ALLOWED_RETURN_ORIGINS: "[]"
 
     steps:
       - uses: actions/checkout@v6

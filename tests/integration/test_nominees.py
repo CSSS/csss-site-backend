@@ -36,27 +36,27 @@ async def insert_test_nominee(db_session: DBSession):
 
 # Unauthenticated requests
 async def test__create_nominees(client: AsyncClient):
-    response = await client.post("/nominee", json=TEST_NOMINEE)
+    response = await client.post("/api/nominee", json=TEST_NOMINEE)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 async def test__get_nominees(client: AsyncClient):
-    response = await client.get("/nominee")
+    response = await client.get("/api/nominee")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 async def test__get_one_nominee(client: AsyncClient):
-    response = await client.get(f"/nominee/{TEST_NOMINEE['computing_id']}")
+    response = await client.get(f"/api/nominee/{TEST_NOMINEE['computing_id']}")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 async def test__update_nominee(client: AsyncClient):
-    response = await client.patch(f"/nominee/{TEST_NOMINEE['computing_id']}", json=PATCH_NOMINEE)
+    response = await client.patch(f"/api/nominee/{TEST_NOMINEE['computing_id']}", json=PATCH_NOMINEE)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 async def test__delete_nominee(client: AsyncClient):
-    response = await client.delete(f"/nominee/{TEST_NOMINEE['computing_id']}")
+    response = await client.delete(f"/api/nominee/{TEST_NOMINEE['computing_id']}")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -64,50 +64,50 @@ async def test__delete_nominee(client: AsyncClient):
 # TODO: Write the election officer tests
 # Election Officer requests
 # async def test__admin_create_nominees(admin_client: AsyncClient):
-#     response = await admin_client.post("/nominee", json=TEST_NOMINEE)
+#     response = await admin_client.post("/api/nominee", json=TEST_NOMINEE)
 #     assert response.status_code == status.HTTP_200_OK
 #     assert TEST_NOMINEE == response.json()
 #
 #
 # async def test__admin_get_nominees(admin_client: AsyncClient):
-#     response = await admin_client.get("/nominee")
+#     response = await admin_client.get("/api/nominee")
 #     assert response.status_code == status.HTTP_200_OK
 #     # FIXME: This should be 2 if the test database is empty
 #     assert len(response.json()) == 3
 #
 #
 # async def test__admin_get_one_nominee(admin_client: AsyncClient):
-#     response = await admin_client.get(f"/nominee/{TEST_NOMINEE['computing_id']}")
+#     response = await admin_client.get(f"/api/nominee/{TEST_NOMINEE['computing_id']}")
 #     assert response.status_code == status.HTTP_200_OK
 #
 #
 # async def test__admin_update_nominee(admin_client: AsyncClient):
-#     response = await admin_client.patch(f"/nominee/{TEST_NOMINEE['computing_id']}", json={"full_name": "Should Fail"})
+#     response = await admin_client.patch(f"/api/nominee/{TEST_NOMINEE['computing_id']}", json={"full_name": "Should Fail"})
 #     assert response.status_code == status.HTTP_200_OK
 #
 #
 # async def test__admin_delete_nominee(admin_client: AsyncClient):
-#     response = await admin_client.delete(f"/nominee/{TEST_NOMINEE['computing_id']}")
+#     response = await admin_client.delete(f"/api/nominee/{TEST_NOMINEE['computing_id']}")
 #     assert response.status_code == status.HTTP_200_OK
 
 
 # Admin requests
 async def test__admin_create_nominees(admin_client: AsyncClient):
-    response = await admin_client.post("/nominee", json=TEST_NOMINEE)
+    response = await admin_client.post("/api/nominee", json=TEST_NOMINEE)
     assert response.status_code == status.HTTP_200_OK
     assert TEST_NOMINEE == response.json()
 
 
 async def test__admin_get_nominees(admin_client: AsyncClient):
     # TODO: Add inserts
-    response = await admin_client.get("/nominee")
+    response = await admin_client.get("/api/nominee")
     assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 2
 
 
 async def test__admin_get_one_nominee(db_session: DBSession, admin_client: AsyncClient):
     await insert_test_nominee(db_session)
-    response = await admin_client.get(f"/nominee/{TEST_NOMINEE['computing_id']}")
+    response = await admin_client.get(f"/api/nominee/{TEST_NOMINEE['computing_id']}")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == TEST_NOMINEE
 
@@ -115,7 +115,7 @@ async def test__admin_get_one_nominee(db_session: DBSession, admin_client: Async
 async def test__admin_update_nominee(db_session: DBSession, admin_client: AsyncClient):
     await insert_test_nominee(db_session)
     response = await admin_client.patch(
-        f"/nominee/{TEST_NOMINEE['computing_id']}",
+        f"/api/nominee/{TEST_NOMINEE['computing_id']}",
         json={
             "computing_id": "should_not_change",
         },
@@ -124,7 +124,7 @@ async def test__admin_update_nominee(db_session: DBSession, admin_client: AsyncC
     assert response.json() == TEST_NOMINEE
 
     response = await admin_client.patch(
-        f"/nominee/{TEST_NOMINEE['computing_id']}",
+        f"/api/nominee/{TEST_NOMINEE['computing_id']}",
         json=PATCH_NOMINEE,
     )
     assert response.status_code == status.HTTP_200_OK
@@ -134,6 +134,6 @@ async def test__admin_update_nominee(db_session: DBSession, admin_client: AsyncC
 
 
 async def test__admin_delete_nominee(admin_client: AsyncClient):
-    response = await admin_client.delete(f"/nominee/{TEST_NOMINEE['computing_id']}")
+    response = await admin_client.delete(f"/api/nominee/{TEST_NOMINEE['computing_id']}")
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["success"]

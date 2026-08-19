@@ -8,9 +8,11 @@ jobs:
       ENVIRONMENT: dev
       DB_PORT: "5432"
       COOKIE_SECURE: "false"
-      FRONTEND_ORIGIN: http://localhost:8080
       MEDIA_ROOT: /srv/csss/media
       MEDIA_BASE_URL: /media
+      APP_URL: http://localhost:8080
+      ALLOWED_ORIGINS: "[]"
+      ALLOWED_RETURN_ORIGINS: "[]"
 
     services:
       postgres:

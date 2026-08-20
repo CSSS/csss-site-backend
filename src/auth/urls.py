@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 import database
+from api.auth import require_trusted_origin
 from auth import crud
 from auth.constants import (
     CAS_LOGIN_URL,
@@ -107,7 +108,6 @@ async def login(db_session: database.DBSession, request: Request, return_to: str
 
     _validate_return_to_url(return_to)
 
-    # TODO: Create a CRON job that clears the table periodically
     token = _generate_session_id()
 
     crud.create_auth_redirect(db_session, token, return_to)
@@ -193,7 +193,6 @@ async def validate_ticket(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Authentication error")
 
     # clean old sessions after sending the response
-    # TODO: Convert this to a daily CRON job
     background_tasks.add_task(crud.task_clean_expired_user_sessions, db_session)
 
     # Delete auth redirect record and cookie
@@ -248,6 +247,7 @@ async def validate_ticket(
     description="Logs out the current user by deleting the session data. Does not log out of CAS.",
     status_code=status.HTTP_204_NO_CONTENT,
     operation_id="logout",
+    dependencies=[Depends(require_trusted_origin)],
 )
 async def logout_user(
     request: Request,

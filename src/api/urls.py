@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 import candidates.urls
 import database
@@ -8,9 +8,11 @@ import honorary.urls
 import image_asset.urls
 import nominees.urls
 import officers.urls
+from api.auth import require_trusted_origin
 
 router = APIRouter(
     prefix="/api",
+    dependencies=[Depends(require_trusted_origin)],
 )
 
 router.include_router(elections.urls.router)

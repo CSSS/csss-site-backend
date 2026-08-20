@@ -2,15 +2,19 @@
 from collections.abc import AsyncGenerator
 from typing import Any
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from auth.constants import COOKIE_SESSION_KEY
 from auth.crud import create_user_session, remove_user_session_by_id
+from config import settings
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager, get_db_session
 from load_test_db import SYSADMIN_COMPUTING_ID, async_main
 from main import app
+
+TEST_FRONTEND_ORIGIN = "http://frontend.test"
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
@@ -46,7 +50,10 @@ async def db_session(db_connection: AsyncConnection):
 
 
 @pytest_asyncio.fixture(scope="function", loop_scope="session")
-async def client(db_connection: AsyncConnection) -> AsyncGenerator[AsyncClient]:
+async def client(
+    db_connection: AsyncConnection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> AsyncGenerator[AsyncClient]:
     async def override_get_db_session():
         async with AsyncSession(
             bind=db_connection,
@@ -55,10 +62,15 @@ async def client(db_connection: AsyncConnection) -> AsyncGenerator[AsyncClient]:
             yield session
 
     app.dependency_overrides[get_db_session] = override_get_db_session
+    monkeypatch.setattr(settings, "allowed_origins", [TEST_FRONTEND_ORIGIN])
     # base_url is just a random placeholder url
     # ASGITransport is just telling the async client to pass all requests to app
     # `async with` syntax used so that the connecton will automatically be closed once done
-    async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app),
+        base_url="http://test",
+        headers={"Origin": TEST_FRONTEND_ORIGIN},
+    ) as client:
         yield client
 
     app.dependency_overrides.clear()

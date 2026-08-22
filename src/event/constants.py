@@ -8,3 +8,7 @@ class EventFrequencyEnum(StrEnum):
     MONTHLY = "MONTHLY"
     SEMESTERLY = "SEMESTERLY"
     YEARLY = "YEARLY"
+
+class EventStatusEnum(StrEnum):
+    CANCELLED = "cancelled"
+    SCHEDULED = "scheduled"

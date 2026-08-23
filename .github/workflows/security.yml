@@ -12,14 +12,15 @@ on:
 permissions:
   contents: read
 
+env:
+  OPENGREP_VERSION: v1.27.1
+  TRIVY_VERSION: v0.74.0
+
 jobs:
-  codeql:
-    name: CodeQL (Python)
+  sast:
+    name: Opengrep SAST
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository
@@ -27,22 +28,39 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.37.8
-        with:
-          languages: python
-          queries: security-extended
+      - name: Install Opengrep
+        run: |
+          curl --fail --location --silent --show-error \
+            "https://github.com/opengrep/opengrep/releases/download/${OPENGREP_VERSION}/opengrep_manylinux_x86" \
+            --output "$RUNNER_TEMP/opengrep"
+          chmod 0555 "$RUNNER_TEMP/opengrep"
+          "$RUNNER_TEMP/opengrep" --version
 
-      - name: Analyze Python
-        uses: github/codeql-action/analyze@v4.37.8
-        with:
-          category: /language:python
+      - name: Scan source code
+        run: |
+          mkdir -p reports
+          "$RUNNER_TEMP/opengrep" scan \
+            --config auto \
+            --no-rewrite-rule-ids \
+            --disable-version-check \
+            --strict \
+            --error \
+            --sarif-output=reports/opengrep.sarif \
+            src/
 
-  dependency-review:
-    name: Dependency Review
-    if: github.event_name == 'pull_request'
+      - name: Upload Opengrep report
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: opengrep-sarif
+          path: reports/opengrep.sarif
+          if-no-files-found: error
+          retention-days: 14
+
+  sca:
+    name: Trivy SCA
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -50,7 +68,46 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check dependency changes
-        uses: actions/dependency-review-action@v5.0.0
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.3.1
         with:
-          fail-on-severity: high
+          version: ${{ env.TRIVY_VERSION }}
+          cache: true
+
+      - name: Scan locked dependencies
+        run: |
+          mkdir -p reports
+
+          trivy fs \
+            --scanners vuln \
+            --include-dev-deps \
+            --format sarif \
+            --output reports/trivy.sarif \
+            uv.lock
+
+          trivy fs \
+            --scanners vuln \
+            --include-dev-deps \
+            --skip-db-update \
+            --format cyclonedx \
+            --output reports/sbom.cdx.json \
+            uv.lock
+
+          trivy fs \
+            --scanners vuln \
+            --include-dev-deps \
+            --skip-db-update \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            uv.lock
+
+      - name: Upload Trivy reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: trivy-reports
+          path: |
+            reports/trivy.sarif
+            reports/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 14

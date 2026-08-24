@@ -359,9 +359,7 @@ async def get_or_fetch_realtime_feed(db_session: DBSession, client: AsyncClient)
 
         # Transaction lock, released on commit or rollback.
         # This prevents multiple requests from fetching the feed at the same time.
-        await db_session.execute(
-            sqlalchemy.text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": REALTIME_CACHE_LOCK_ID}
-        )
+        await db_session.execute(sqlalchemy.select(sqlalchemy.func.pg_advisory_xact_lock(REALTIME_CACHE_LOCK_ID)))
         cached_feed = await db_session.scalar(
             sqlalchemy.select(TransLinkRealtimeCacheDB).where(TransLinkRealtimeCacheDB.id == REALTIME_CACHE_ID)
         )

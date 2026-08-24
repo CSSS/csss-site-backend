@@ -1,6 +1,9 @@
 name: Alembic Upgrade Head
 on: pull_request
 
+permissions:
+  contents: read
+
 jobs:
   alembic_upgrade_head:
     runs-on: ubuntu-latest

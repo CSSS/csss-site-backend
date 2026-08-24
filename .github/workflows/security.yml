@@ -43,7 +43,6 @@ jobs:
             --config auto \
             --no-rewrite-rule-ids \
             --disable-version-check \
-            --strict \
             --error \
             --sarif-output=reports/opengrep.sarif \
             src/

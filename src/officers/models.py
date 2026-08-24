@@ -56,6 +56,8 @@ class OfficerTerm(OfficerTermCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    # Historical rows may use position strings outside the current enum.
+    position: OfficerPositionEnum | str  # type: ignore[assignment]
 
     @computed_field
     @property

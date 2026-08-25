@@ -28,6 +28,7 @@ class EventDB(Base):
             name="valid_status"
         )
     )
+    url: Mapped[str] = mapped_column(Text, nullable=True)
     image_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("image_asset.image_id"),

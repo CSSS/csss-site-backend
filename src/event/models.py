@@ -14,6 +14,7 @@ class BaseEvent(BaseModel):
     location: str | None = None
     organizer: str | None = None
     status: EventStatusEnum
+    url: str | None = None
 
     @model_validator(mode="after")
     def validate_time_range(self) -> "BaseEvent":
@@ -48,6 +49,7 @@ class EventUpdate(BaseModel):
     location: str | None = None
     organizer: str | None = None
     status: EventStatusEnum | None = None
+    url: str | None = None
 
 
 class EventDelete(BaseModel):

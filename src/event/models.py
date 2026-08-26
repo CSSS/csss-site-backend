@@ -61,6 +61,8 @@ class EventDelete(BaseModel):
     result: bool
     eid: int
 
+
 class GroupEventDelete(BaseModel):
+    result: bool
     group_id: UUID
-    deleted_events: list[EventDelete] = []
+    event_deleted: int

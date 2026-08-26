@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import date, datetime
+from uuid import UUID
 
 from sqlalchemy import and_, delete, extract, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,5 +55,11 @@ async def create_event(db_session: AsyncSession, info: EventDB):
 
 async def delete_event(db_session: AsyncSession, eid: int):
     result = await db_session.execute(delete(EventDB).where(EventDB.eid == eid))
+    # Return the number of rows affected
+    return result.rowcount
+
+
+async def delete_group_events(db_session: AsyncSession, group_id: UUID):
+    result = await db_session.execute(delete(EventDB).where(EventDB.group_id == group_id))
     # Return the number of rows affected
     return result.rowcount

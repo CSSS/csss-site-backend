@@ -162,3 +162,21 @@ async def delete_event(db_session: database.DBSession, eid: int):
 
     await db_session.commit()
     return EventDelete(result=True, eid=eid)
+
+
+@router.delete(
+    "/group/{group_id}",
+    description="Delete event(s) with the given group_id",
+    response_model=GroupEventDelete,
+    responses={404: {"description": "Event doesn't exist."}},
+    operation_id="delete_group_event",
+    dependencies=[Depends(perm_admin)],
+)
+async def delete_group_event(db_session: database.DBSession, group_id: uuid.UUID):
+    rows_deleted = await event.crud.delete_group_events(db_session, group_id)
+
+    if rows_deleted == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
+
+    await db_session.commit()
+    return GroupEventDelete(result=True, group_id=group_id, event_deleted= rows_deleted)

@@ -5,9 +5,10 @@ from pydantic import ValidationError
 import database
 import event.crud
 from dependencies import perm_admin
-from event.models import Event, EventCreate, EventDelete, EventUpdate
+from event.models import Event, EventCreate, EventDelete, EventUpdate, GroupEventCreate, GroupEventDelete
 from event.tables import EventDB
 from utils.shared_models import DetailModel
+import uuid
 
 router = APIRouter(
     prefix="/event",
@@ -78,6 +79,38 @@ async def create_event(db_session: database.DBSession, body: EventCreate):
     await db_session.refresh(new_event)
 
     return new_event
+
+
+@router.post(
+    "/group",
+    description="Creates one or more events under the same group key.",
+    response_model=GroupEventCreate,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+            500: {"description": "failed to fetch new event", "model": DetailModel},
+        },
+    operation_id="create_group_event",
+    dependencies=[Depends(perm_admin)],
+)
+async def create_group_events(db_session: database.DBSession, body: list[EventCreate]):
+    new_event_list = []
+    g_id = uuid.uuid4()
+    for e in body:
+        e.group_id = g_id
+        new_event = EventDB(**e.model_dump())
+
+        await event.crud.create_event(
+            db_session,
+            new_event,
+        )
+        new_event_list.append(new_event)
+
+    # One commit will result in all fail or all pass, avoids partial db writes
+    await db_session.commit()
+    for ev in new_event_list:
+        await db_session.refresh(ev)
+    
+    return GroupEventCreate(group_id=g_id, events=new_event_list)
 
 
 @router.patch(

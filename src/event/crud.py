@@ -19,7 +19,7 @@ async def get_events_for_this_year(
     events = (
         await db_session.scalars(
             select(EventDB).where(
-                or_(extract("year", EventDB.start_time) == year, extract("year", EventDB.end_time) == year)
+                or_(extract("year", EventDB.start_datetime) == year, extract("year", EventDB.end_datetime) == year)
             )
         )
     ).all()
@@ -35,8 +35,8 @@ async def get_events_for_this_year_month(
         await db_session.scalars(
             select(EventDB).where(
                 or_(
-                    and_(extract("year", EventDB.start_time) == year, extract("month", EventDB.start_time) == month),
-                    and_(extract("year", EventDB.end_time) == year, extract("month", EventDB.end_time) == month),
+                    and_(extract("year", EventDB.start_datetime) == year, extract("month", EventDB.start_datetime) == month),
+                    and_(extract("year", EventDB.end_datetime) == year, extract("month", EventDB.end_datetime) == month),
                 )
             )
         )

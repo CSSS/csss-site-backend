@@ -1,6 +1,7 @@
 from datetime import date, datetime
+from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Date, DateTime, Integer, String, Text, text, Uuid, ForeignKey, Enum
+from sqlalchemy import CheckConstraint, DateTime, Integer, Text, Uuid, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -15,7 +16,7 @@ class EventDB(Base):
     name: Mapped[str] = mapped_column(Text)
     start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    group_id: Mapped[int] = mapped_column(Uuid, nullable=True)
+    group_id: Mapped[UUID] = mapped_column(Uuid, nullable=True)
     location: Mapped[str] = mapped_column(Text, nullable=True)
     organizer: Mapped[str] = mapped_column(Text, nullable=True)
     status: Mapped[EventStatusEnum] = mapped_column(

@@ -1,4 +1,5 @@
 import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -10,7 +11,7 @@ class BaseEvent(BaseModel):
     description: str
     start_datetime: datetime.datetime
     end_datetime: datetime.datetime
-    group_id: int | None = None
+    group_id: UUID | None = None
     location: str | None = None
     organizer: str | None = None
     status: EventStatusEnum
@@ -31,6 +32,10 @@ class Event(BaseEvent):
 class EventCreate(BaseEvent):
     pass
 
+class GroupEventCreate(BaseModel):
+    group_id: UUID
+    events: list[Event]
+
 
 class EventUpdate(BaseModel):
     """
@@ -45,7 +50,7 @@ class EventUpdate(BaseModel):
     description: str | None = None
     start_datetime: datetime.datetime | None = None
     end_datetime: datetime.datetime | None = None
-    group_id: int | None = None
+    group_id: UUID | None = None
     location: str | None = None
     organizer: str | None = None
     status: EventStatusEnum | None = None
@@ -57,5 +62,5 @@ class EventDelete(BaseModel):
     eid: int
 
 class GroupEventDelete(BaseModel):
-    group_id: int
+    group_id: UUID
     deleted_events: list[EventDelete] = []

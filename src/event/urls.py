@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
@@ -8,7 +10,6 @@ from dependencies import perm_admin
 from event.models import Event, EventCreate, EventDelete, EventUpdate, GroupEventCreate, GroupEventDelete
 from event.tables import EventDB
 from utils.shared_models import DetailModel
-import uuid
 
 router = APIRouter(
     prefix="/event",
@@ -109,7 +110,7 @@ async def create_group_events(db_session: database.DBSession, body: list[EventCr
     await db_session.commit()
     for ev in new_event_list:
         await db_session.refresh(ev)
-    
+
     return GroupEventCreate(group_id=g_id, events=new_event_list)
 
 
@@ -159,11 +160,11 @@ async def update_group_events(
         group_id: uuid.UUID,
         body: EventUpdate
     ):
-    
+
     db_events = await event.crud.get_events_by_group_id(db_session, group_id)
     if not db_events:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Events with this group_id don't exist.")
-    
+
     patch_data = body.model_dump(exclude_unset=True)
 
     validated_events = []

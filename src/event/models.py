@@ -41,7 +41,7 @@ class EventUpdate(BaseModel):
     """
     Partial patch payload for PATCH-style updates. Deliberately does NOT
     inherit from BaseEvent. Inherting from BaseEvent would also inherit the validation
-    which will caude bugs for None values, to avoid that we would need a db call. Hence, 
+    which will caude bugs for None values, to avoid that we would need a db call. Hence,
     the validation is done in the routing layer. Every field is optional here since a client
     only sends the fields they want to change.
     """

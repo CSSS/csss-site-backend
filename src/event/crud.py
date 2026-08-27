@@ -6,7 +6,6 @@ from sqlalchemy import and_, delete, extract, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from event.tables import EventDB
-from uuid import UUID
 
 
 async def get_all_events(db_session: AsyncSession) -> Sequence[EventDB]:

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, Integer, Text, Uuid, ForeignKey, Enum
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base

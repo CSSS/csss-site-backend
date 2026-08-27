@@ -146,6 +146,52 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
     return db_event
 
 
+@router.patch(
+    "/group/{group_id}",
+    description="Update Event detail for all events with the given group_id",
+    response_model=GroupEventCreate,
+    responses={404: {"description": "Event doesn't exist."}},
+    operation_id="update_group_events",
+    dependencies=[Depends(perm_admin)],
+)
+async def update_group_events(
+        db_session: database.DBSession,
+        group_id: uuid.UUID,
+        body: EventUpdate
+    ):
+    
+    db_events = await event.crud.get_events_by_group_id(db_session, group_id)
+    if not db_events:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Events with this group_id don't exist.")
+    
+    patch_data = body.model_dump(exclude_unset=True)
+
+    validated_events = []
+    for ev in db_events:
+        db_data = Event.model_validate(ev).model_dump()
+        merged_data = {**db_data, **patch_data}
+        try:
+            Event.model_validate(merged_data)
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=jsonable_encoder(e.errors())
+            ) from e
+        validated_events.append(ev)
+
+    for ev in validated_events:
+        for key, value in patch_data.items():
+            setattr(ev, key, value)
+
+    await db_session.commit()
+    for ev in validated_events:
+        await db_session.refresh(ev)
+
+    return GroupEventCreate(
+        group_id=group_id,
+        events=validated_events
+    )
+
+
 @router.delete(
     "/{eid}",
     description="Delete an event",

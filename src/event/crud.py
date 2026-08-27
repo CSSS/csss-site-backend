@@ -6,6 +6,7 @@ from sqlalchemy import and_, delete, extract, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from event.tables import EventDB
+from uuid import UUID
 
 
 async def get_all_events(db_session: AsyncSession) -> Sequence[EventDB]:
@@ -47,6 +48,16 @@ async def get_events_for_this_year_month(
 
 async def get_event_by_eid(db_session: AsyncSession, eid: int) -> EventDB | None:
     return (await db_session.execute(select(EventDB).where(EventDB.eid == eid))).scalar_one_or_none()
+
+
+async def get_events_by_group_id(db_session: AsyncSession, group_id: UUID) -> Sequence[EventDB] | None:
+    query = select(EventDB).where(EventDB.group_id == group_id)
+
+    result = await db_session.execute(query)
+
+    event = result.scalars().all()
+
+    return event
 
 
 async def create_event(db_session: AsyncSession, info: EventDB):

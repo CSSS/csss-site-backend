@@ -90,7 +90,14 @@ class OfficerBase(BaseModel):
     biography: str | None = None
 
 
-class Officer(OfficerBase):
+class Officer(BaseModel):
+    legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
+    position: str
+    start_date: date
+    end_date: date | None = None
+    nickname: str | None = None
+    biography: str | None = None
+
     @classmethod
     def public_fields(cls, term: OfficerTermDB, info: OfficerInfoDB) -> Self:
         return cls(
@@ -110,7 +117,11 @@ class Officer(OfficerBase):
     @computed_field
     @property
     def csss_email(self) -> str | None:
-        return OfficerPosition.to_email(self.position)
+        try:
+            position = OfficerPositionEnum(self.position)
+        except ValueError:
+            return None
+        return OfficerPosition.to_email(position)
 
     term_id: int
 

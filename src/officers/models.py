@@ -117,11 +117,7 @@ class Officer(BaseModel):
     @computed_field
     @property
     def csss_email(self) -> str | None:
-        try:
-            position = OfficerPositionEnum(self.position)
-        except ValueError:
-            return None
-        return OfficerPosition.to_email(position)
+        return OfficerPosition.to_email(self.position)
 
     term_id: int
 

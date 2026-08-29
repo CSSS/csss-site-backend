@@ -123,7 +123,7 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
     if db_event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
-    db_data = Event.model_validate(db_event).model_dump()
+    db_data = {field: getattr(db_event, field) for field in Event.model_fields}
     patch_data = body.model_dump(exclude_unset=True)
 
     merged_data = {**db_data, **patch_data}
@@ -165,7 +165,7 @@ async def update_group_events(
 
     validated_events = []
     for ev in db_events:
-        db_data = Event.model_validate(ev).model_dump()
+        db_data = {field: getattr(ev, field) for field in Event.model_fields}
         merged_data = {**db_data, **patch_data}
         try:
             Event.model_validate(merged_data)

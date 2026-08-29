@@ -16,7 +16,7 @@ class EventDB(Base):
     name: Mapped[str] = mapped_column(Text)
     start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    group_id: Mapped[UUID] = mapped_column(Uuid, nullable=True)
+    group_id: Mapped[UUID] = mapped_column(Uuid, nullable=True, index=True)
     location: Mapped[str] = mapped_column(Text, nullable=True)
     organizer: Mapped[str] = mapped_column(Text, nullable=True)
     status: Mapped[EventStatusEnum] = mapped_column(

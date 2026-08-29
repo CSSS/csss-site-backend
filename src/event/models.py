@@ -1,9 +1,8 @@
 import datetime
+from collections.abc import Sequence
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, model_validator
-
-from typing import Sequence
 
 from event.constants import EventStatusEnum
 

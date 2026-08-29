@@ -9,7 +9,7 @@ from event.tables import EventDB
 
 async def get_all_events(db_session: AsyncSession) -> Sequence[EventDB] | None:
     return (await db_session.scalars(select(EventDB))).all()
-    
+
 
 
 async def get_events_for_this_year(

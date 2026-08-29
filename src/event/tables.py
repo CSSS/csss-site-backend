@@ -5,7 +5,7 @@ from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Tex
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
-from event.constants import EventFrequencyEnum, EventStatusEnum
+from event.constants import EventStatusEnum
 
 
 class EventDB(Base):

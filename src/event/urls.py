@@ -7,7 +7,7 @@ from pydantic import ValidationError
 import database
 import event.crud
 from dependencies import perm_admin
-from event.models import Event, EventCreate, EventDelete, EventUpdate, GroupEventCreate, GroupEventDelete
+from event.models import Event, EventCreate, EventDelete, EventUpdate, GroupEvent, GroupEventDeleteResponse
 from event.tables import EventDB
 from utils.shared_models import DetailModel
 
@@ -85,7 +85,7 @@ async def create_event(db_session: database.DBSession, body: EventCreate):
 @router.post(
     "/group",
     description="Creates one or more events under the same group key.",
-    response_model=GroupEventCreate,
+    response_model=GroupEvent,
     status_code=status.HTTP_201_CREATED,
     responses={
             500: {"description": "failed to fetch new event", "model": DetailModel},
@@ -94,24 +94,20 @@ async def create_event(db_session: database.DBSession, body: EventCreate):
     dependencies=[Depends(perm_admin)],
 )
 async def create_group_events(db_session: database.DBSession, body: list[EventCreate]):
-    new_event_list = []
     g_id = uuid.uuid4()
-    for e in body:
-        e.group_id = g_id
-        new_event = EventDB(**e.model_dump())
+    # Create new EventDBs by injecting group_id
+    new_event_list = [EventDB(**(e.model_dump() | {"group_id": g_id})) for e in body]
 
-        await event.crud.create_event(
-            db_session,
-            new_event,
-        )
-        new_event_list.append(new_event)
+    await event.crud.create_bulk_event(
+        db_session,
+        new_event_list,
+    )
 
     # One commit will result in all fail or all pass, avoids partial db writes
     await db_session.commit()
-    for ev in new_event_list:
-        await db_session.refresh(ev)
+    await db_session.refresh(new_event_list)
 
-    return GroupEventCreate(group_id=g_id, events=new_event_list)
+    return GroupEvent(group_id=g_id, events=new_event_list)
 
 
 @router.patch(
@@ -150,7 +146,7 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
 @router.patch(
     "/group/{group_id}",
     description="Update Event detail for all events with the given group_id",
-    response_model=GroupEventCreate,
+    response_model=GroupEvent,
     responses={404: {"description": "Event doesn't exist."}},
     operation_id="update_group_events",
     dependencies=[Depends(perm_admin)],
@@ -187,7 +183,7 @@ async def update_group_events(
     for ev in validated_events:
         await db_session.refresh(ev)
 
-    return GroupEventCreate(
+    return GroupEvent(
         group_id=group_id,
         events=validated_events
     )
@@ -202,28 +198,28 @@ async def update_group_events(
     dependencies=[Depends(perm_admin)],
 )
 async def delete_event(db_session: database.DBSession, eid: int):
-    rows_deleted = await event.crud.delete_event(db_session, eid)
+    deleted_eid = await event.crud.delete_event(db_session, eid)
 
-    if rows_deleted == 0:
+    if deleted_eid is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
     await db_session.commit()
-    return EventDelete(result=True, eid=eid)
+    return EventDelete(result=True, eid=deleted_eid)
 
 
 @router.delete(
     "/group/{group_id}",
     description="Delete event(s) with the given group_id",
-    response_model=GroupEventDelete,
+    response_model=GroupEventDeleteResponse,
     responses={404: {"description": "Event doesn't exist."}},
     operation_id="delete_group_event",
     dependencies=[Depends(perm_admin)],
 )
 async def delete_group_event(db_session: database.DBSession, group_id: uuid.UUID):
-    rows_deleted = await event.crud.delete_group_events(db_session, group_id)
+    deleted_eids = await event.crud.delete_group_events(db_session, group_id)
 
-    if rows_deleted == 0:
+    if not deleted_eids:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
     await db_session.commit()
-    return GroupEventDelete(result=True, group_id=group_id, event_deleted= rows_deleted)
+    return GroupEventDeleteResponse(result=True, group_id=group_id, deleted_eids=deleted_eids)

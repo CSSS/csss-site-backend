@@ -3,7 +3,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from event.constants import EventFrequencyEnum, EventStatusEnum
+from typing import Sequence
+
+from event.constants import EventStatusEnum
 
 
 class BaseEvent(BaseModel):
@@ -16,10 +18,11 @@ class BaseEvent(BaseModel):
     organizer: str | None = None
     status: EventStatusEnum
     url: str | None = None
+    image_id: int | None = None
 
     @model_validator(mode="after")
     def validate_time_range(self) -> "BaseEvent":
-        if self.start_datetime >= self.end_datetime:
+        if self.start_datetime > self.end_datetime:
             raise ValueError("The event start must be before the event end")
         return self
 
@@ -32,7 +35,7 @@ class Event(BaseEvent):
 class EventCreate(BaseEvent):
     pass
 
-class GroupEventCreate(BaseModel):
+class GroupEvent(BaseModel):
     group_id: UUID
     events: list[Event]
 
@@ -55,6 +58,7 @@ class EventUpdate(BaseModel):
     organizer: str | None = None
     status: EventStatusEnum | None = None
     url: str | None = None
+    image_id: int | None = None
 
 
 class EventDelete(BaseModel):
@@ -62,7 +66,7 @@ class EventDelete(BaseModel):
     eid: int
 
 
-class GroupEventDelete(BaseModel):
+class GroupEventDeleteResponse(BaseModel):
     result: bool
     group_id: UUID
-    event_deleted: int
+    deleted_eids: Sequence[int]

@@ -1,8 +1,7 @@
-import datetime
 from collections.abc import Sequence
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, model_validator
 
 from event.constants import EventStatusEnum
 
@@ -10,9 +9,8 @@ from event.constants import EventStatusEnum
 class BaseEvent(BaseModel):
     name: str
     description: str
-    start_datetime: datetime.datetime
-    end_datetime: datetime.datetime
-    group_id: UUID | None = None
+    start_datetime: AwareDatetime
+    end_datetime: AwareDatetime
     location: str | None = None
     organizer: str | None = None
     status: EventStatusEnum
@@ -22,17 +20,20 @@ class BaseEvent(BaseModel):
     @model_validator(mode="after")
     def validate_time_range(self) -> "BaseEvent":
         if self.start_datetime > self.end_datetime:
-            raise ValueError("The event start must be before the event end")
+            raise ValueError("Event start times cannot be greater than end times")
         return self
 
 
 class Event(BaseEvent):
     model_config = ConfigDict(from_attributes=True)
+
     eid: int
+    group_id: UUID | None = None
 
 
 class EventCreate(BaseEvent):
     pass
+
 
 class GroupEvent(BaseModel):
     group_id: UUID
@@ -46,13 +47,15 @@ class EventUpdate(BaseModel):
     which will caude bugs for None values, to avoid that we would need a db call. Hence,
     the validation is done in the routing layer. Every field is optional here since a client
     only sends the fields they want to change.
+
+    Group IDs cannot be modified once created, you have to create a new group of events.
     """
+
     model_config = ConfigDict(extra="forbid")
     name: str | None = None
     description: str | None = None
-    start_datetime: datetime.datetime | None = None
-    end_datetime: datetime.datetime | None = None
-    group_id: UUID | None = None
+    start_datetime: AwareDatetime | None = None
+    end_datetime: AwareDatetime | None = None
     location: str | None = None
     organizer: str | None = None
     status: EventStatusEnum | None = None

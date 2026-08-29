@@ -16,9 +16,9 @@ class EventDB(Base):
     name: Mapped[str] = mapped_column(Text)
     start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    group_id: Mapped[UUID] = mapped_column(Uuid, nullable=True, index=True)
-    location: Mapped[str] = mapped_column(Text, nullable=True)
-    organizer: Mapped[str] = mapped_column(Text, nullable=True)
+    group_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    organizer: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[EventStatusEnum] = mapped_column(
         Enum(
             EventStatusEnum,
@@ -29,8 +29,8 @@ class EventDB(Base):
             name="valid_status",
         )
     )
-    url: Mapped[str] = mapped_column(Text, nullable=True)
-    image_id: Mapped[int] = mapped_column(Integer, ForeignKey("image_asset.image_id"), nullable=True)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("image_asset.image_id"), nullable=True)
 
     __table_args__ = (
         CheckConstraint("start_datetime <= end_datetime", name="check_start_datetime_before_end_datetime"),

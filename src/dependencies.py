@@ -1,13 +1,19 @@
 from typing import Annotated
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Path, status
 
 import auth
 import auth.crud
 import database
 from auth.constants import COOKIE_SESSION_KEY
-from config import settings
 from utils.permissions import is_user_election_admin, is_user_website_admin
+
+# Dependency to ensure years in paths are valid
+# Honestly don't know if this DB will be running past year 3000
+YearPath = Annotated[int, Path(ge=2000, le=3000)]
+
+# Dependency to ensure months in paths are valid
+MonthPath = Annotated[int, Path(ge=1, le=12)]
 
 
 async def optional_user(

@@ -1,26 +1,37 @@
-from datetime import date, datetime
+from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Date, DateTime, Integer, String, Text, text
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
-from event.constants import EventFrequencyEnum
+from event.constants import EventStatusEnum
 
 
 class EventDB(Base):
     __tablename__ = "event_info"
 
     eid: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    name: Mapped[str] = mapped_column(String(64))
-    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    frequency: Mapped[EventFrequencyEnum] = mapped_column(String(64), server_default=text("'NONE'"))
-    repeat_start_date: Mapped[date] = mapped_column(Date, nullable=True)
-    repeat_end_date: Mapped[date] = mapped_column(Date, nullable=True)
+    description: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    group_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    organizer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[EventStatusEnum] = mapped_column(
+        Enum(
+            EventStatusEnum,
+            native_enum=False,
+            create_constraint=True,
+            validate_strings=True,
+            values_callable=lambda enum: [status.value for status in enum],
+            name="valid_status",
+        )
+    )
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("image_asset.image_id"), nullable=True)
 
     __table_args__ = (
-        CheckConstraint("start_time < end_time", name="check_start_time_before_end_time"),
-        CheckConstraint("repeat_start_date < repeat_end_date", name="check_repeat_start_date_before_repeat_end_date"),
-        CheckConstraint(frequency.in_([e.value for e in EventFrequencyEnum]), name="valid_frequency_value"),
+        CheckConstraint("start_datetime <= end_datetime", name="check_start_datetime_before_end_datetime"),
     )

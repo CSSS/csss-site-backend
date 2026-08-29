@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
 
 import database
 import event.crud
-from dependencies import perm_admin
-from event.models import Event, EventCreate, EventDelete, EventUpdate
+from dependencies import MonthPath, YearPath, perm_admin
+from event.models import Event, EventCreate, EventDelete, EventUpdate, GroupEvent, GroupEventDeleteResponse
 from event.tables import EventDB
 from utils.shared_models import DetailModel
 
@@ -21,37 +24,22 @@ router = APIRouter(
     response_model=list[Event],
     operation_id="get_all_events",
 )
-async def get_all_events(
-    db_session: database.DBSession,
-):
-    events_list = await event.crud.get_all_events(db_session)
-
-    return events_list
-
-
-@router.get(
-    "/{year}",
-    description="Get events that start OR end in this year",
-    response_model=list[Event],
-    operation_id="get_events_for_this_year",
-)
-async def get_events_for_this_year(
-    db_session: database.DBSession,
-    year: int,
-):
-    events_list = await event.crud.get_events_for_this_year(db_session, year)
+async def get_all_events(db_session: database.DBSession, include_cancelled: bool = False):
+    events_list = await event.crud.get_all_events(db_session, include_cancelled)
 
     return events_list
 
 
 @router.get(
     "/{year}/{month}",
-    description="Get events that start OR end in the given year and month",
+    description="Get events that overlap in the year and month.",
     response_model=list[Event],
     operation_id="get_events_for_this_year_month",
 )
-async def get_events_for_this_year_month(db_session: database.DBSession, year: int, month: int):
-    events_list = await event.crud.get_events_for_this_year_month(db_session, year, month)
+async def get_events_for_this_year_month(
+    db_session: database.DBSession, year: YearPath, month: MonthPath, include_cancelled: bool = False
+):
+    events_list = await event.crud.get_events_for_this_year_month(db_session, year, month, include_cancelled)
 
     return events_list
 
@@ -69,7 +57,7 @@ async def get_events_for_this_year_month(db_session: database.DBSession, year: i
 )
 async def create_event(db_session: database.DBSession, body: EventCreate):
     new_event = EventDB(**body.model_dump())
-    await event.crud.create_event(
+    event.crud.create_event(
         db_session,
         new_event,
     )
@@ -78,6 +66,56 @@ async def create_event(db_session: database.DBSession, body: EventCreate):
     await db_session.refresh(new_event)
 
     return new_event
+
+
+@router.post(
+    "/group",
+    description="Creates one or more events under the same group key.",
+    response_model=GroupEvent,
+    status_code=status.HTTP_201_CREATED,
+    operation_id="create_group_event",
+    dependencies=[Depends(perm_admin)],
+)
+async def create_group_events(db_session: database.DBSession, body: Annotated[list[EventCreate], Body(min_length=1)]):
+    g_id = uuid.uuid4()
+    # Create new EventDBs by injecting group_id
+    new_event_list = [EventDB(**e.model_dump(exclude={"group_id"}), group_id=g_id) for e in body]
+
+    event.crud.create_bulk_event(
+        db_session,
+        new_event_list,
+    )
+
+    await db_session.flush()
+
+    response = GroupEvent(group_id=g_id, events=[Event.model_validate(db_event) for db_event in new_event_list])
+
+    await db_session.commit()
+    return response
+
+
+@router.post(
+    "/group/{group_id}",
+    description="Adds an event to an existing group",
+    response_model=Event,
+    status_code=status.HTTP_201_CREATED,
+    responses={404: {"description": "Group doesn't exist."}},
+    operation_id="add_event_to_group",
+    dependencies=[Depends(perm_admin)],
+)
+async def add_event_to_group(db_session: database.DBSession, group_id: uuid.UUID, new_event: EventCreate):
+
+    # NOTE: There is a race condition here:
+    # If the group is deleted after the existence check this will still insert the new event.
+    group = await event.crud.get_events_by_group_id(db_session, group_id)
+    if not group:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group doesn't exist.")
+
+    create_event = EventDB(**new_event.model_dump(), group_id=group_id)
+    event.crud.create_event(db_session, create_event)
+    await db_session.commit()
+    await db_session.refresh(create_event)
+    return create_event
 
 
 @router.patch(
@@ -93,12 +131,11 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
     if db_event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
-    db_data = Event.model_validate(db_event).model_dump()
+    db_data = Event.model_validate(db_event)
     patch_data = body.model_dump(exclude_unset=True)
 
-    merged_data = {**db_data, **patch_data}
     try:
-        Event.model_validate(merged_data)
+        updated = Event.model_validate(db_data.model_dump() | patch_data)
     except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=jsonable_encoder(e.errors())
@@ -108,9 +145,8 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
         setattr(db_event, key, value)
 
     await db_session.commit()
-    await db_session.refresh(db_event)
 
-    return db_event
+    return updated
 
 
 @router.delete(
@@ -122,10 +158,28 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
     dependencies=[Depends(perm_admin)],
 )
 async def delete_event(db_session: database.DBSession, eid: int):
-    rows_deleted = await event.crud.delete_event(db_session, eid)
+    deleted_eid = await event.crud.delete_event(db_session, eid)
 
-    if rows_deleted == 0:
+    if deleted_eid is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
     await db_session.commit()
-    return EventDelete(result=True, eid=eid)
+    return EventDelete(result=True, eid=deleted_eid)
+
+
+@router.delete(
+    "/group/{group_id}",
+    description="Delete event(s) with the given group_id",
+    response_model=GroupEventDeleteResponse,
+    responses={404: {"description": "Event doesn't exist."}},
+    operation_id="delete_group_event",
+    dependencies=[Depends(perm_admin)],
+)
+async def delete_group_event(db_session: database.DBSession, group_id: uuid.UUID):
+    deleted_eids = await event.crud.delete_group_events(db_session, group_id)
+
+    if not deleted_eids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
+
+    await db_session.commit()
+    return GroupEventDeleteResponse(result=True, group_id=group_id, deleted_eids=deleted_eids)

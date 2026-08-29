@@ -1,54 +1,74 @@
-import datetime
+from collections.abc import Sequence
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, model_validator
 
-from event.constants import EventFrequencyEnum
+from event.constants import EventStatusEnum
 
 
 class BaseEvent(BaseModel):
     name: str
-    start_time: datetime.datetime
-    end_time: datetime.datetime
-    description: str | None = None
-    frequency: EventFrequencyEnum | None = None
-    repeat_start_date: datetime.date | None = None
-    repeat_end_date: datetime.date | None = None
+    description: str
+    start_datetime: AwareDatetime
+    end_datetime: AwareDatetime
+    location: str | None = None
+    organizer: str | None = None
+    status: EventStatusEnum
+    url: str | None = None
+    image_id: int | None = None
 
     @model_validator(mode="after")
     def validate_time_range(self) -> "BaseEvent":
-        if self.start_time >= self.end_time:
-            raise ValueError("The event start must be before the event end")
-
-        if self.repeat_start_date and self.repeat_end_date:
-            if self.repeat_start_date > self.repeat_end_date:
-                raise ValueError("The event repeat start date must be before the end date")
-
-        if (self.repeat_start_date is None) != (self.repeat_end_date is None):
-            raise ValueError("The event must have both repeat start and repeat end or have neither.")
-
+        if self.start_datetime > self.end_datetime:
+            raise ValueError("Event start times cannot be greater than end times")
         return self
 
 
 class Event(BaseEvent):
     model_config = ConfigDict(from_attributes=True)
+
     eid: int
+    group_id: UUID | None = None
 
 
 class EventCreate(BaseEvent):
     pass
 
 
+class GroupEvent(BaseModel):
+    group_id: UUID
+    events: list[Event]
+
+
 class EventUpdate(BaseModel):
+    """
+    Partial patch payload for PATCH-style updates. Deliberately does NOT
+    inherit from BaseEvent. Inherting from BaseEvent would also inherit the validation
+    which will caude bugs for None values, to avoid that we would need a db call. Hence,
+    the validation is done in the routing layer. Every field is optional here since a client
+    only sends the fields they want to change.
+
+    Group IDs cannot be modified once created, you have to create a new group of events.
+    """
+
     model_config = ConfigDict(extra="forbid")
     name: str | None = None
-    start_time: datetime.datetime | None = None
-    end_time: datetime.datetime | None = None
     description: str | None = None
-    frequency: EventFrequencyEnum | None = None
-    repeat_start_date: datetime.date | None = None
-    repeat_end_date: datetime.date | None = None
+    start_datetime: AwareDatetime | None = None
+    end_datetime: AwareDatetime | None = None
+    location: str | None = None
+    organizer: str | None = None
+    status: EventStatusEnum | None = None
+    url: str | None = None
+    image_id: int | None = None
 
 
 class EventDelete(BaseModel):
     result: bool
     eid: int
+
+
+class GroupEventDeleteResponse(BaseModel):
+    result: bool
+    group_id: UUID
+    deleted_eids: Sequence[int]

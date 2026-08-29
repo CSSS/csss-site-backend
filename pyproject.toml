@@ -75,6 +75,10 @@ line-ending = "lf"
 select = ["E", "F", "B", "I", "N", "UP", "A", "PTH", "W", "RUF", "C4", "PIE", "Q", "FLY"] # "ANN"
 ignore = ["E501", "F401", "N806"]
 
+# TODO: Re-enable once F401 is introduced globally
+# [tool.ruff.lint.per-file-ignores]
+# "src/load_test_db.py" = ["F401"]
+
 # [Based]Pyright: Type checker/LSP
 [tool.pyright]
 executionEnvironments = [

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Text, Uuid
@@ -26,16 +26,12 @@ class EventDB(Base):
             create_constraint=True,
             validate_strings=True,
             values_callable=lambda enum: [status.value for status in enum],
-            name="valid_status"
+            name="valid_status",
         )
     )
     url: Mapped[str] = mapped_column(Text, nullable=True)
-    image_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("image_asset.image_id"),
-        nullable=True
-        )
+    image_id: Mapped[int] = mapped_column(Integer, ForeignKey("image_asset.image_id"), nullable=True)
 
     __table_args__ = (
-        CheckConstraint("start_datetime <= end_datetime", name="check_start_time_before_end_time"),
+        CheckConstraint("start_datetime <= end_datetime", name="check_start_datetime_before_end_datetime"),
     )

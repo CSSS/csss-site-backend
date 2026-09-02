@@ -62,6 +62,27 @@ async def get_events_for_this_year_month(
     return events
 
 
+async def get_upcoming_events(db_session: AsyncSession, include_cancelled: bool) -> Sequence[EventDB]:
+    """
+    Gets events that have not ended yet and are scheduled.
+
+    Args:
+        db_session: database session
+
+    Returns:
+        A list of events.
+    """
+    query = (
+        select(EventDB)
+        .where(EventDB.end_datetime > datetime.now(tz=TZ_INFO))
+        .order_by(EventDB.start_datetime, EventDB.end_datetime)
+    )
+    if not include_cancelled:
+        query = query.where(EventDB.status != EventStatusEnum.CANCELLED)
+
+    return (await db_session.scalars(query)).all()
+
+
 async def get_event_by_eid(db_session: AsyncSession, eid: int) -> EventDB | None:
     return await db_session.get(EventDB, eid)
 

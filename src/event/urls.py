@@ -1,9 +1,9 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.encoders import jsonable_encoder
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 import database
 import event.crud
@@ -18,14 +18,22 @@ router = APIRouter(
 )
 
 
+class GetQueryParams(BaseModel):
+    include_cancelled: bool = Field(False, description="Include cancelled events in the response.")
+    current: bool = Field(False, description="Only get events that haven't ended yet.")
+
+
 @router.get(
     "",
     description="Get all events",
     response_model=list[Event],
     operation_id="get_all_events",
 )
-async def get_all_events(db_session: database.DBSession, include_cancelled: bool = False):
-    events_list = await event.crud.get_all_events(db_session, include_cancelled)
+async def get_all_events(db_session: database.DBSession, q: Annotated[GetQueryParams, Query()]):
+    if q.current:
+        events_list = await event.crud.get_upcoming_events(db_session, q.include_cancelled)
+    else:
+        events_list = await event.crud.get_all_events(db_session, q.include_cancelled)
 
     return events_list
 

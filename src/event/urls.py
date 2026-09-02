@@ -8,7 +8,15 @@ from pydantic import BaseModel, Field, ValidationError
 import database
 import event.crud
 from dependencies import MonthPath, YearPath, perm_admin
-from event.models import Event, EventCreate, EventDelete, EventUpdate, GroupEvent, GroupEventDeleteResponse
+from event.models import (
+    Event,
+    EventCreate,
+    EventDelete,
+    EventUpdate,
+    GetEventQueryParams,
+    GroupEvent,
+    GroupEventDeleteResponse,
+)
 from event.tables import EventDB
 from utils.shared_models import DetailModel
 
@@ -18,37 +26,14 @@ router = APIRouter(
 )
 
 
-class GetQueryParams(BaseModel):
-    include_cancelled: bool = Field(False, description="Include cancelled events in the response.")
-    current: bool = Field(False, description="Only get events that haven't ended yet.")
-
-
 @router.get(
     "",
-    description="Get all events",
+    description="Get events, with parameters",
     response_model=list[Event],
-    operation_id="get_all_events",
+    operation_id="get_events",
 )
-async def get_all_events(db_session: database.DBSession, q: Annotated[GetQueryParams, Query()]):
-    if q.current:
-        events_list = await event.crud.get_upcoming_events(db_session, q.include_cancelled)
-    else:
-        events_list = await event.crud.get_all_events(db_session, q.include_cancelled)
-
-    return events_list
-
-
-@router.get(
-    "/{year}/{month}",
-    description="Get events that overlap in the year and month.",
-    response_model=list[Event],
-    operation_id="get_events_for_this_year_month",
-)
-async def get_events_for_this_year_month(
-    db_session: database.DBSession, year: YearPath, month: MonthPath, include_cancelled: bool = False
-):
-    events_list = await event.crud.get_events_for_this_year_month(db_session, year, month, include_cancelled)
-
+async def get_all_events(db_session: database.DBSession, q: Annotated[GetEventQueryParams, Query()]):
+    events_list = await event.crud.get_events(db_session, q)
     return events_list
 
 

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from event.constants import EventStatusEnum
 
@@ -29,6 +29,7 @@ class Event(BaseEvent):
 
     eid: int
     group_id: UUID | None = None
+    image_url: str | None = None
 
 
 class EventCreate(BaseEvent):
@@ -72,3 +73,9 @@ class GroupEventDeleteResponse(BaseModel):
     result: bool
     group_id: UUID
     deleted_eids: Sequence[int]
+
+
+class GetEventQueryParams(BaseModel):
+    include_cancelled: bool = Field(False, description="Include cancelled events in the response.")
+    current: bool = Field(False, description="Only get events that haven't ended yet.")
+    desc: bool = Field(False, description="Sorts by descending start time and end time.")

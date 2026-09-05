@@ -1,0 +1,193 @@
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
+
+import database
+import users.crud
+from auth.models import SiteUser
+from auth.tables import SiteUserDB, SiteUserRoleDB
+from constants import TZ_INFO
+from dependencies import SiteAdmin, perm_admin
+from users.models import SiteUserCreate, SiteUserUpdate
+from utils.shared_models import DetailModel
+
+router = APIRouter(
+    prefix="/user",
+    tags=["user"],
+)
+
+
+@router.get(
+    "",
+    description="Get all site users.",
+    response_model=list[SiteUser],
+    responses={403: {"description": "need to be an admin", "model": DetailModel}},
+    operation_id="get_all_users",
+    dependencies=[Depends(perm_admin)],
+)
+async def get_all_users(
+    db_session: database.DBSession,
+):
+    users_list = await users.crud.get_all_users(db_session)
+
+    try:
+        response = [SiteUser.model_validate(user) for user in users_list]
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="validation error from database"
+        ) from e
+
+    return response
+
+
+@router.post(
+    "",
+    description="Create a site user.",
+    response_model=SiteUser,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        401: {"description": "need to be a logged in admin", "model": DetailModel},
+        403: {"description": "need to be an admin", "model": DetailModel},
+        409: {"description": "user already existed", "model": DetailModel},
+    },
+    operation_id="create_site_user",
+)
+async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, body: SiteUserCreate):
+    user_db = SiteUserDB(computing_id=body.computing_id)
+
+    users.crud.create_site_user(db_session, user_db)
+
+    if body.roles:
+        now = datetime.now(tz=TZ_INFO)
+        user_roles = [
+            SiteUserRoleDB(
+                computing_id=body.computing_id,
+                role=role,
+                added_by=admin_id,
+                created_at=now,
+            )
+            for role in body.roles
+        ]
+        users.crud.create_user_roles(db_session, user_roles)
+
+    try:
+        await db_session.flush()
+        await db_session.refresh(
+            user_db,
+            attribute_names=[
+                "computing_id",
+                "first_logged_in",
+                "last_logged_in",
+                "roles",
+            ],
+        )
+        new_user = SiteUser.model_validate(user_db)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Site user already exists",
+        ) from None
+
+    return new_user
+
+
+@router.put(
+    "/{computing_id}",
+    description="Update a site user's roles.",
+    response_model=SiteUser,
+    status_code=status.HTTP_200_OK,
+    responses={
+        401: {"description": "need to be a logged in admin", "model": DetailModel},
+        403: {"description": "need to be an admin", "model": DetailModel},
+        404: {"description": "site user not found", "model": DetailModel},
+        409: {"description": "role update conflicted with another change", "model": DetailModel},
+    },
+    operation_id="update_site_user_roles",
+)
+async def update_site_user_roles(
+    db_session: database.DBSession,
+    admin_id: SiteAdmin,
+    computing_id: str,
+    body: SiteUserUpdate,
+):
+    user = await users.crud.get_user_for_role_update(db_session, computing_id)
+
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site user not found")
+
+    existing_roles = {assignment.role for assignment in user.roles}
+
+    new_roles = set(body.roles)
+
+    roles_to_add = new_roles - existing_roles
+    roles_to_remove = existing_roles - new_roles
+
+    try:
+        if roles_to_remove:
+            await users.crud.delete_user_roles(db_session, computing_id, roles_to_remove)
+
+        if roles_to_add:
+            now = datetime.now(tz=TZ_INFO)
+            users.crud.create_user_roles(
+                db_session,
+                [
+                    SiteUserRoleDB(
+                        computing_id=computing_id,
+                        role=role,
+                        added_by=admin_id,
+                        created_at=now,
+                    )
+                    for role in roles_to_add
+                ],
+            )
+
+        await db_session.flush()
+        await db_session.refresh(
+            user,
+            attribute_names=[
+                "computing_id",
+                "first_logged_in",
+                "last_logged_in",
+                "roles",
+            ],
+        )
+        updated_user = SiteUser.model_validate(user)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Site user roles changed concurrently",
+        ) from None
+
+    return updated_user
+
+
+@router.delete(
+    "/{computing_id}",
+    description="Delete a site user's roles. Does not cascade deletes.",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: {"description": "Need to be a logged in admin", "model": DetailModel},
+        403: {"description": "Need to be an admin", "model": DetailModel},
+        404: {"description": "Site user not found", "model": DetailModel},
+        409: {"description": "Site user still referenced by another", "model": DetailModel},
+    },
+    operation_id="delete_site_user_roles",
+)
+async def delete_site_user_roles(db_session: database.DBSession, computing_id: str):
+    try:
+        await users.crud.delete_user(db_session, computing_id)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Site user {computing_id} still referenced by others.",
+        ) from None
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -31,6 +31,7 @@ from officers.crud import (
 )
 from officers.tables import OfficerInfoDB, OfficerTermDB
 from translink.tables import TransLinkStaticScheduleDB
+from users.crud import UserRole, create_site_user, create_user_roles
 
 
 async def reset_db(engine):
@@ -231,7 +232,8 @@ async def load_test_officers_data(db_session: AsyncSession):
     await db_session.commit()
 
 
-SYSADMIN_COMPUTING_ID = "pkn4"
+SYSADMIN_COMPUTING_ID = "sysadmin"
+SYSADMIN_FULL_NAME = "System Administrator"
 
 
 async def load_sysadmin(db_session: AsyncSession):
@@ -241,7 +243,7 @@ async def load_sysadmin(db_session: AsyncSession):
     await create_new_officer_info(
         db_session,
         OfficerInfoDB(
-            legal_name="Puneet North",
+            legal_name=SYSADMIN_FULL_NAME,
             discord_id=None,
             discord_name=None,
             discord_nickname=None,
@@ -300,10 +302,20 @@ async def load_sysadmin(db_session: AsyncSession):
             photo_url=None,
         ),
     )
+    user_roles = [
+        SiteUserRoleDB(
+            computing_id=SYSADMIN_COMPUTING_ID,
+            role=UserRole.ADMIN,
+            added_by=SYSADMIN_COMPUTING_ID,
+            created_at=datetime.now(UTC),
+        )
+    ]
+    create_user_roles(db_session, user_roles)
     await db_session.commit()
 
 
-WEBMASTER_COMPUTING_ID = "jbriones"
+WEBMASTER_COMPUTING_ID = "webmaster"
+WEBMASTER_FULL_NAME = "Web Master"
 
 
 async def load_webmaster(db_session: AsyncSession):
@@ -313,7 +325,7 @@ async def load_webmaster(db_session: AsyncSession):
     await create_new_officer_info(
         db_session,
         OfficerInfoDB(
-            legal_name="Jon Andre Briones",
+            legal_name=WEBMASTER_FULL_NAME,
             discord_id=None,
             discord_name=None,
             discord_nickname=None,
@@ -330,7 +342,7 @@ async def load_webmaster(db_session: AsyncSession):
             position=OfficerPositionEnum.FIRST_YEAR_REPRESENTATIVE,
             start_date=date.today() - timedelta(days=(365 * 3)),
             end_date=date.today() - timedelta(days=(365 * 2)),
-            nickname="Jon Andre Briones",
+            nickname=WEBMASTER_FULL_NAME,
             favourite_course_0="CMPT 379",
             favourite_course_1="CMPT 371",
             favourite_pl_0="TypeScript",
@@ -355,6 +367,15 @@ async def load_webmaster(db_session: AsyncSession):
             photo_url=None,
         ),
     )
+    user_roles = [
+        SiteUserRoleDB(
+            computing_id=WEBMASTER_COMPUTING_ID,
+            role=UserRole.ADMIN,
+            added_by=SYSADMIN_COMPUTING_ID,
+            created_at=datetime.now(UTC),
+        )
+    ]
+    create_user_roles(db_session, user_roles)
     await db_session.commit()
 
 
@@ -413,8 +434,8 @@ async def load_test_elections_data(db_session: AsyncSession):
     await create_nominee_info(
         db_session,
         NomineeInfoDB(
-            computing_id="pkn4",
-            full_name="Puneet North",
+            computing_id="sysadmin",
+            full_name=SYSADMIN_FULL_NAME,
             linked_in="linkedin.com/john-doe3",
             instagram="john_doe 3",
             email="john_do3e@doe.com",

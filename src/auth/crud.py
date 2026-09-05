@@ -36,7 +36,12 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
     )
     # ...or just update their "last_logged_in" time
     user_query = user_query.on_conflict_do_update(
-        index_elements=[SiteUserDB.computing_id], set_={"last_logged_in": now}
+        index_elements=[SiteUserDB.computing_id],
+        set_={
+            "last_logged_in": now,
+            # If the user's first_logged_in is null, set it to now, otherwise leave it as is.
+            "first_logged_in": sqlalchemy.func.coalesce(SiteUserDB.first_logged_in, now),
+        },
     )
     await db_session.execute(user_query)
 

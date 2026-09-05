@@ -5,8 +5,8 @@ from fastapi import Cookie, Depends, HTTPException, Path, status
 import auth
 import auth.crud
 import database
-from auth.constants import COOKIE_SESSION_KEY
-from utils.permissions import is_user_election_admin, is_user_website_admin
+from auth.constants import COOKIE_SESSION_KEY, UserRole
+from utils.permissions import is_user_election_admin, is_user_role, is_user_website_admin
 
 # Dependency to ensure years in paths are valid
 # Honestly don't know if this DB will be running past year 3000
@@ -83,7 +83,7 @@ ElectionAdmin = Annotated[str, Depends(perm_election)]
 
 
 async def perm_admin(db_session: database.DBSession, computing_id: LoggedInUser):
-    if not await is_user_website_admin(computing_id, db_session):
+    if not await is_user_role(db_session, computing_id, UserRole.ADMIN):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
 
     return computing_id

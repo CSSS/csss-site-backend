@@ -120,7 +120,7 @@ async def test__get_single_candidates(client: AsyncClient):
     response = await client.get(f"/api/candidate/{TEST_ELECTION_2}")
     assert response.status_code == 401
 
-    response = await client.get("/api/nominee/pkn4")
+    response = await client.get("/api/nominee/sysadmin")
     assert response.status_code == 401
 
 
@@ -375,7 +375,7 @@ async def test__admin_update_candidate(admin_client: AsyncClient):
     # ensure that candidates can be viewed
     # update the candidate
     response = await admin_client.patch(
-        f"/api/candidate/{TEST_ELECTION_2}/vice-president/pkn4",
+        f"/api/candidate/{TEST_ELECTION_2}/vice-president/sysadmin",
         json={"speech": "Vote for me as treasurer"},
     )
     assert response.status_code == 200
@@ -383,7 +383,7 @@ async def test__admin_update_candidate(admin_client: AsyncClient):
     # ensure that candidates can be viewed
     # try updating a non-registered election
     response = await admin_client.patch(
-        "/api/candidate/testElection4/pkn4",
+        "/api/candidate/testElection4/sysadmin",
         json={"position": "president", "speech": "Vote for me as president, I am good at valorant."},
     )
     assert response.status_code == 404
@@ -412,7 +412,7 @@ async def test__admin_update_nominee(admin_client: AsyncClient):
     response = await admin_client.patch(
         f"/api/nominee/{load_test_db.SYSADMIN_COMPUTING_ID}",
         json={
-            "full_name": "Puneet N",
+            "full_name": load_test_db.SYSADMIN_FULL_NAME,
             "linked_in": "linkedin.com/not-my-linkedin",
         },
     )

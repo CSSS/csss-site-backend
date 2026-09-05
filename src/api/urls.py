@@ -8,6 +8,7 @@ import honorary.urls
 import image_asset.urls
 import nominees.urls
 import officers.urls
+import users.urls
 from api.auth import require_trusted_origin
 
 router = APIRouter(
@@ -22,3 +23,4 @@ router.include_router(officers.urls.router)
 router.include_router(event.urls.router)
 router.include_router(honorary.urls.router)
 router.include_router(image_asset.urls.router)
+router.include_router(users.urls.router)

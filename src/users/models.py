@@ -1,10 +1,10 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from auth.constants import UserRole
 from constants import COMPUTING_ID_LEN
 
 
-class SiteUserCreate(BaseModel):
+class SiteUserBase(BaseModel):
     computing_id: str = Field(
         ...,
         min_length=1,
@@ -23,3 +23,13 @@ class SiteUserCreate(BaseModel):
         if len(roles) != len(set(roles)):
             raise ValueError("Roles must be unique")
         return roles
+
+
+class SiteUserCreate(SiteUserBase):
+    pass
+
+
+class SiteUserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    roles: set[UserRole] = Field(..., description="Complete set of roles assigned to the user")

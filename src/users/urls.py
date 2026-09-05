@@ -10,7 +10,7 @@ from auth.models import SiteUser
 from auth.tables import SiteUserDB, SiteUserRoleDB
 from constants import TZ_INFO
 from dependencies import SiteAdmin, perm_admin
-from users.models import SiteUserCreate
+from users.models import SiteUserCreate, SiteUserUpdate
 from utils.shared_models import DetailModel
 
 router = APIRouter(
@@ -93,3 +93,73 @@ async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, 
         ) from None
 
     return new_user
+
+
+@router.put(
+    "/{computing_id}",
+    description="Update a site user's roles.",
+    response_model=SiteUser,
+    status_code=status.HTTP_200_OK,
+    responses={
+        401: {"description": "need to be a logged in admin", "model": DetailModel},
+        403: {"description": "need to be an admin", "model": DetailModel},
+        404: {"description": "site user not found", "model": DetailModel},
+        409: {"description": "role update conflicted with another change", "model": DetailModel},
+    },
+    operation_id="update_site_user_roles",
+)
+async def update_site_user_roles(
+    db_session: database.DBSession,
+    admin_id: SiteAdmin,
+    computing_id: str,
+    body: SiteUserUpdate,
+):
+    user = await users.crud.get_user_for_role_update(db_session, computing_id)
+
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site user not found")
+
+    existing_roles = {assignment.role for assignment in user.roles}
+
+    roles_to_add = body.roles - existing_roles
+    roles_to_remove = existing_roles - body.roles
+
+    try:
+        if roles_to_remove:
+            await users.crud.delete_user_roles(db_session, computing_id, roles_to_remove)
+
+        if roles_to_add:
+            now = datetime.now(tz=TZ_INFO)
+            users.crud.create_user_roles(
+                db_session,
+                [
+                    SiteUserRoleDB(
+                        computing_id=computing_id,
+                        role=role,
+                        added_by=admin_id,
+                        created_at=now,
+                    )
+                    for role in roles_to_add
+                ],
+            )
+
+        await db_session.flush()
+        await db_session.refresh(
+            user,
+            attribute_names=[
+                "computing_id",
+                "first_logged_in",
+                "last_logged_in",
+                "roles",
+            ],
+        )
+        updated_user = SiteUser.model_validate(user)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Site user roles changed concurrently",
+        ) from None
+
+    return updated_user

@@ -1,12 +1,11 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 import database
 from auth.constants import UserRole
 from auth.tables import SiteUserDB, SiteUserRoleDB
-from users.models import SiteUserCreate
 
 
 def create_site_user(db_session: database.DBSession, user: SiteUserDB) -> None:
@@ -21,3 +20,25 @@ async def get_all_users(db_session: database.DBSession) -> Sequence[SiteUserDB]:
 
 def create_user_roles(db_session: database.DBSession, roles: list[SiteUserRoleDB]) -> None:
     db_session.add_all(roles)
+
+
+async def get_user_for_role_update(db_session: database.DBSession, computing_id: str) -> SiteUserDB | None:
+    query = (
+        select(SiteUserDB)
+        .where(SiteUserDB.computing_id == computing_id)
+        .options(selectinload(SiteUserDB.roles))
+        .with_for_update()
+    )
+    user = await db_session.scalar(query)
+
+    return user
+
+
+async def delete_user_roles(db_session: database.DBSession, computing_id: str, roles_to_remove: set[UserRole]) -> None:
+    query = (
+        delete(SiteUserRoleDB)
+        .where(SiteUserRoleDB.computing_id == computing_id, SiteUserRoleDB.role.in_(roles_to_remove))
+        .execution_options(synchronize_session="fetch")
+    )
+
+    await db_session.execute(query)

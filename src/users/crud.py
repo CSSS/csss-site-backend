@@ -42,3 +42,9 @@ async def delete_user_roles(db_session: database.DBSession, computing_id: str, r
     )
 
     await db_session.execute(query)
+
+
+async def delete_user(db_session: database.DBSession, computing_id: str) -> None:
+    query = delete(SiteUserDB).where(SiteUserDB.computing_id == computing_id)
+
+    await db_session.execute(query)

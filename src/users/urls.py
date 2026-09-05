@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
@@ -121,8 +121,10 @@ async def update_site_user_roles(
 
     existing_roles = {assignment.role for assignment in user.roles}
 
-    roles_to_add = body.roles - existing_roles
-    roles_to_remove = existing_roles - body.roles
+    new_roles = set(body.roles)
+
+    roles_to_add = new_roles - existing_roles
+    roles_to_remove = existing_roles - new_roles
 
     try:
         if roles_to_remove:
@@ -163,3 +165,29 @@ async def update_site_user_roles(
         ) from None
 
     return updated_user
+
+
+@router.delete(
+    "/{computing_id}",
+    description="Delete a site user's roles. Does not cascade deletes.",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: {"description": "Need to be a logged in admin", "model": DetailModel},
+        403: {"description": "Need to be an admin", "model": DetailModel},
+        404: {"description": "Site user not found", "model": DetailModel},
+        409: {"description": "Site user still referenced by another", "model": DetailModel},
+    },
+    operation_id="delete_site_user_roles",
+)
+async def delete_site_user_roles(db_session: database.DBSession, computing_id: str):
+    try:
+        await users.crud.delete_user(db_session, computing_id)
+        await db_session.commit()
+    except IntegrityError:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Site user {computing_id} still referenced by others.",
+        ) from None
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)

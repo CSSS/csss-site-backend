@@ -32,4 +32,4 @@ class SiteUserCreate(SiteUserBase):
 class SiteUserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    roles: set[UserRole] = Field(..., description="Complete set of roles assigned to the user")
+    roles: list[UserRole] = Field(..., description="Complete set of roles assigned to the user")

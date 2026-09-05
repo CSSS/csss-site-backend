@@ -3,10 +3,12 @@ import shutil
 import warnings
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from PIL import Image, UnidentifiedImageError
+from pydantic import WithJsonSchema
 
 import database
 import image_asset.crud
@@ -104,7 +106,9 @@ async def get_all_image_assets(db_session: database.DBSession):
     operation_id="create_image_asset",
     dependencies=[Depends(perm_admin)],
 )
-async def create_image_asset_from_upload(file: UploadFile, db_session: database.DBSession):
+async def create_image_asset_from_upload(
+    file: Annotated[UploadFile, WithJsonSchema({"type": "string", "format": "binary"})], db_session: database.DBSession
+):
     image_format = await validate_upload(file)
 
     storage_key = f"images/{uuid4()}.{image_format}"

@@ -4,7 +4,8 @@ import pytest
 from fastapi import HTTPException, UploadFile, status
 from PIL import Image
 
-from image_asset.urls import ALLOWED_IMAGE_TYPES, MAX_PIXELS, validate_upload
+from image_asset.constants import ALLOWED_IMAGE_TYPES, MAX_PIXELS
+from image_asset.urls import validate_upload
 
 pytestmark = pytest.mark.unit
 

@@ -15,8 +15,8 @@ import image_asset.crud
 import image_asset.urls as image_urls
 from config import settings
 from database import DBSession
+from image_asset.constants import MAX_ATTEMPTS, MAX_PIXELS, ImageAssetCategory
 from image_asset.models import ImageAsset
-from image_asset.urls import MAX_PIXELS
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -197,6 +197,119 @@ async def test__admin_upload_good_image(
 
 
 @pytest.mark.parametrize(
+    ("category", "directory"),
+    [
+        (ImageAssetCategory.EVENTS, "events"),
+        (ImageAssetCategory.EXECS, "execs"),
+        (ImageAssetCategory.PHOTOS, "photos"),
+    ],
+)
+async def test__admin_upload_image_to_category(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+    tmp_path: Path,
+    category: ImageAssetCategory,
+    directory: str,
+):
+    response = await admin_client.post(
+        "/api/image",
+        params={"category": category.value},
+        files={"file": ("test.png", make_image(), "image/png")},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    asset = ImageAsset.model_validate(response.json())
+
+    assert asset.storage_key.startswith(f"images/{directory}/")
+    assert asset.storage_key.endswith(".png")
+    assert await db_session.get(image_asset.crud.ImageAssetDB, asset.image_id) is not None
+    assert (tmp_path / asset.storage_key).is_file()
+
+
+async def test__admin_upload_invalid_category(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+    tmp_path: Path,
+):
+    response = await admin_client.post(
+        "/api/image",
+        params={"category": "invalid"},
+        files={"file": ("test.png", make_image(), "image/png")},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert await image_asset.crud.get_all_image_assets(db_session) == []
+    assert not any(path.is_file() for path in tmp_path.rglob("*"))
+
+
+async def test__admin_upload_retries_without_overwriting_existing_file(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    collision_uuid = UUID("00000000-0000-0000-0000-000000000001")
+    successful_uuid = UUID("00000000-0000-0000-0000-000000000002")
+    generated_uuids = iter((collision_uuid, successful_uuid))
+    monkeypatch.setattr(image_urls, "uuid4", lambda: next(generated_uuids))
+
+    existing_file = tmp_path / f"images/{collision_uuid}.png"
+    existing_file.parent.mkdir(parents=True)
+    existing_file.write_bytes(b"existing file")
+
+    response = await admin_client.post(
+        "/api/image",
+        files={"file": ("test.png", make_image(), "image/png")},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    asset = ImageAsset.model_validate(response.json())
+
+    assert asset.storage_key == f"images/{successful_uuid}.png"
+    assert existing_file.read_bytes() == b"existing file"
+    assert (tmp_path / asset.storage_key).is_file()
+    assert await db_session.get(image_asset.crud.ImageAssetDB, asset.image_id) is not None
+
+
+async def test__admin_upload_retries_after_storage_key_conflict(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    collision_uuid = UUID("00000000-0000-0000-0000-000000000001")
+    successful_uuid = UUID("00000000-0000-0000-0000-000000000002")
+    collision_storage_key = f"images/{collision_uuid}.png"
+
+    existing_asset = image_asset.crud.ImageAssetDB(
+        storage_key=collision_storage_key,
+        original_filename="existing.png",
+        created_at=datetime.now(UTC),
+    )
+    image_asset.crud.create_image_asset(db_session, existing_asset)
+    await db_session.commit()
+
+    generated_uuids = iter((collision_uuid, successful_uuid))
+    monkeypatch.setattr(image_urls, "uuid4", lambda: next(generated_uuids))
+
+    response = await admin_client.post(
+        "/api/image",
+        files={"file": ("test.png", make_image(), "image/png")},
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    asset = ImageAsset.model_validate(response.json())
+
+    assert asset.storage_key == f"images/{successful_uuid}.png"
+    assert not (tmp_path / collision_storage_key).exists()
+    assert (tmp_path / asset.storage_key).is_file()
+    assert len(await image_asset.crud.get_all_image_assets(db_session)) == 2
+
+
+@pytest.mark.parametrize(
     ("filename", "content", "content_type", "http_status"),
     [
         ("invalid.png", b"invalid image", "image/png", status.HTTP_400_BAD_REQUEST),
@@ -237,12 +350,18 @@ async def test__admin_upload_invalid_image(
     assert not any(path.is_file() for path in tmp_path.rglob("*"))
 
 
-async def test__admin_failed_db_insert_is_cleaned_up(
+async def test__admin_exhausted_storage_key_conflicts_are_cleaned_up(
     db_session: DBSession, admin_client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     fixed_uuid = UUID("00000000-0000-0000-0000-000000000001")
 
-    monkeypatch.setattr(image_urls, "uuid4", lambda: fixed_uuid)
+    generated_uuids = []
+
+    def generate_fixed_uuid():
+        generated_uuids.append(fixed_uuid)
+        return fixed_uuid
+
+    monkeypatch.setattr(image_urls, "uuid4", generate_fixed_uuid)
 
     storage_key = f"images/{fixed_uuid}.png"
 
@@ -263,9 +382,13 @@ async def test__admin_failed_db_insert_is_cleaned_up(
     )
 
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json() == {"detail": "Failed to make image asset, exhausted retries."}
+    assert len(generated_uuids) == MAX_ATTEMPTS
     saved_file = tmp_path / storage_key
 
     assert not saved_file.exists()
+    assets = await image_asset.crud.get_all_image_assets(db_session)
+    assert [asset.storage_key for asset in assets] == [storage_key]
 
 
 async def test__admin_delete_image_asset(db_session: DBSession, admin_client: AsyncClient, tmp_path: Path):

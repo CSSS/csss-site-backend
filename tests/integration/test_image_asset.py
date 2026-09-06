@@ -118,6 +118,11 @@ async def test__upload_image_asset(client: AsyncClient):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+async def test__delete_image_asset_requires_authentication(client: AsyncClient):
+    response = await client.delete("/api/image/1")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
 # TODO: Unauthorized client
 
 
@@ -261,3 +266,64 @@ async def test__admin_failed_db_insert_is_cleaned_up(
     saved_file = tmp_path / storage_key
 
     assert not saved_file.exists()
+
+
+async def test__admin_delete_image_asset(db_session: DBSession, admin_client: AsyncClient, tmp_path: Path):
+    upload_response = await admin_client.post(
+        "/api/image",
+        files={"file": ("test.png", make_image(), "image/png")},
+    )
+    assert upload_response.status_code == status.HTTP_201_CREATED
+
+    asset = ImageAsset.model_validate(upload_response.json())
+    saved_file = tmp_path / asset.storage_key
+    assert saved_file.is_file()
+
+    delete_response = await admin_client.delete(f"/api/image/{asset.image_id}")
+
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+    assert delete_response.content == b""
+    assert await db_session.get(image_asset.crud.ImageAssetDB, asset.image_id) is None
+    assert not saved_file.exists()
+
+
+async def test__admin_delete_missing_image_asset(admin_client: AsyncClient):
+    response = await admin_client.delete("/api/image/0")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json() == {"detail": "Image can't be found"}
+
+
+async def test__admin_cannot_delete_referenced_image_asset(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+    tmp_path: Path,
+):
+    upload_response = await admin_client.post(
+        "/api/image",
+        files={"file": ("referenced.png", make_image(), "image/png")},
+    )
+    assert upload_response.status_code == status.HTTP_201_CREATED
+
+    asset = ImageAsset.model_validate(upload_response.json())
+    saved_file = tmp_path / asset.storage_key
+
+    event_response = await admin_client.post(
+        "/api/event",
+        json={
+            "name": "Event with an image",
+            "description": "The image asset must remain available.",
+            "start_datetime": "2026-09-05T12:00:00-07:00",
+            "end_datetime": "2026-09-05T13:00:00-07:00",
+            "status": "scheduled",
+            "image_id": asset.image_id,
+        },
+    )
+    assert event_response.status_code == status.HTTP_201_CREATED
+
+    delete_response = await admin_client.delete(f"/api/image/{asset.image_id}")
+
+    assert delete_response.status_code == status.HTTP_409_CONFLICT
+    assert delete_response.json() == {"detail": "Image is still referenced by other objects and cannot be deleted."}
+    assert await db_session.get(image_asset.crud.ImageAssetDB, asset.image_id) is not None
+    assert saved_file.is_file()

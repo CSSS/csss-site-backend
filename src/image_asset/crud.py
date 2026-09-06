@@ -5,6 +5,10 @@ from config import settings
 from image_asset.tables import ImageAssetDB
 
 
+async def get_image_asset_by_id(db_session: database.DBSession, image_id: int) -> ImageAssetDB | None:
+    return await db_session.get(ImageAssetDB, image_id)
+
+
 async def get_all_image_assets(db_session: database.DBSession) -> list[ImageAssetDB]:
     query = select(ImageAssetDB).order_by(ImageAssetDB.image_id.desc())
     return list((await db_session.scalars(query)).all())

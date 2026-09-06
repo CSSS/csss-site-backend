@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from PIL import Image, UnidentifiedImageError
 from pydantic import WithJsonSchema
+from sqlalchemy.exc import IntegrityError
 
 import database
 import image_asset.crud
@@ -148,3 +149,45 @@ async def create_image_asset_from_upload(
         ) from e
 
     return new_img_asset
+
+
+@router.delete(
+    "/{image_id}",
+    description="Delete an image asset and its associated file if it's not referenced by anything else.",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        403: {"description": "Must be a website admin", "model": DetailModel},
+        404: {"description": "Image asset doesn't exist", "model": DetailModel},
+        409: {"description": "Image asset is still referenced", "model": DetailModel},
+        500: {"description": "Deleting image file failed.", "model": DetailModel},
+    },
+    operation_id="delete_image_asset",
+    dependencies=[Depends(perm_admin)],
+)
+async def delete_image_asset(db_session: database.DBSession, image_id: int):
+    db_entry = await image_asset.crud.get_image_asset_by_id(db_session, image_id)
+    if db_entry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image can't be found")
+
+    image_path = settings.media_root / db_entry.storage_key
+
+    try:
+        await image_asset.crud.delete_image_asset(db_session, db_entry)
+        await db_session.commit()
+    except IntegrityError as e:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Image is still referenced by other objects and cannot be deleted.",
+        ) from e
+
+    try:
+        image_path.unlink(missing_ok=True)
+    except OSError as e:
+        _logger.error("Failed to delete image file: %s", image_path)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database entry was deleted, but deleting the image file failed.",
+        ) from e
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -12,6 +12,11 @@ from image_asset.tables import ImageAssetDB
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+UPDATE_EVENT_START = datetime(2030, 1, 1, 18, tzinfo=UTC)
+UPDATE_EVENT_END = UPDATE_EVENT_START + timedelta(hours=2)
+ORIGINAL_IMAGE_KEY = "images/update-event-original.png"
+REPLACEMENT_IMAGE_KEY = "images/update-event-replacement.png"
+
 
 async def seed_events(db_session: DBSession) -> None:
     now = datetime.now(UTC)
@@ -56,6 +61,34 @@ async def seed_events(db_session: DBSession) -> None:
         ]
     )
     await db_session.commit()
+
+
+async def seed_event_for_update(db_session: DBSession) -> tuple[int, int, int]:
+    original_image = ImageAssetDB(
+        storage_key=ORIGINAL_IMAGE_KEY,
+        original_filename="update-event-original.png",
+    )
+    replacement_image = ImageAssetDB(
+        storage_key=REPLACEMENT_IMAGE_KEY,
+        original_filename="update-event-replacement.png",
+    )
+    db_session.add_all([original_image, replacement_image])
+    await db_session.flush()
+
+    event = EventDB(
+        name="Event to update",
+        description="Original description.",
+        start_datetime=UPDATE_EVENT_START,
+        end_datetime=UPDATE_EVENT_END,
+        status=EventStatusEnum.SCHEDULED,
+        image_id=original_image.image_id,
+    )
+    db_session.add(event)
+    await db_session.flush()
+
+    ids = event.eid, original_image.image_id, replacement_image.image_id
+    await db_session.commit()
+    return ids
 
 
 @pytest.mark.parametrize(
@@ -121,3 +154,135 @@ async def test__get_events_rejects_invalid_boolean_query_params(client: AsyncCli
     response = await client.get("/api/event", params={"current": "not-a-boolean"})
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+async def test__update_event_preserves_image_when_image_id_is_omitted(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+):
+    event_id, original_image_id, _ = await seed_event_for_update(db_session)
+
+    response = await admin_client.patch(
+        f"/api/event/{event_id}",
+        json={"name": "Updated event"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["name"] == "Updated event"
+    assert response.json()["image_id"] == original_image_id
+    assert response.json()["image_url"] == f"{settings.media_base_url.rstrip('/')}/{ORIGINAL_IMAGE_KEY}"
+
+    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    assert db_event is not None
+    assert db_event.name == "Updated event"
+    assert db_event.image_id == original_image_id
+
+
+async def test__update_event_preserves_image_when_image_id_is_unchanged(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+):
+    event_id, original_image_id, _ = await seed_event_for_update(db_session)
+
+    response = await admin_client.patch(
+        f"/api/event/{event_id}",
+        json={"image_id": original_image_id},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["image_id"] == original_image_id
+    assert response.json()["image_url"] == f"{settings.media_base_url.rstrip('/')}/{ORIGINAL_IMAGE_KEY}"
+
+    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    assert db_event is not None
+    assert db_event.image_id == original_image_id
+
+
+async def test__update_event_replaces_image(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+):
+    event_id, _, replacement_image_id = await seed_event_for_update(db_session)
+
+    response = await admin_client.patch(
+        f"/api/event/{event_id}",
+        json={"image_id": replacement_image_id},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["image_id"] == replacement_image_id
+    assert response.json()["image_url"] == f"{settings.media_base_url.rstrip('/')}/{REPLACEMENT_IMAGE_KEY}"
+
+    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    assert db_event is not None
+    assert db_event.image_id == replacement_image_id
+
+
+async def test__update_event_clears_image_when_image_id_is_null(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+):
+    event_id, _, _ = await seed_event_for_update(db_session)
+
+    response = await admin_client.patch(
+        f"/api/event/{event_id}",
+        json={"image_id": None},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["image_id"] is None
+    assert response.json()["image_url"] is None
+
+    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    assert db_event is not None
+    assert db_event.image_id is None
+
+
+async def test__update_event_rejects_missing_image_without_modifying_event(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+):
+    event_id, original_image_id, _ = await seed_event_for_update(db_session)
+
+    response = await admin_client.patch(
+        f"/api/event/{event_id}",
+        json={"image_id": 0},
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {"detail": "Image asset doesn't exist."}
+
+    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    assert db_event is not None
+    assert db_event.image_id == original_image_id
+
+
+async def test__update_event_validates_the_merged_time_range(
+    db_session: DBSession,
+    admin_client: AsyncClient,
+):
+    event_id, _, _ = await seed_event_for_update(db_session)
+
+    response = await admin_client.patch(
+        f"/api/event/{event_id}",
+        json={"start_datetime": (UPDATE_EVENT_END + timedelta(hours=1)).isoformat()},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    assert db_event is not None
+    assert db_event.start_datetime == UPDATE_EVENT_START
+
+
+async def test__update_event_returns_not_found_for_missing_event(admin_client: AsyncClient):
+    response = await admin_client.patch("/api/event/0", json={"name": "Missing event"})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json() == {"detail": "Event doesn't exist."}
+
+
+async def test__update_event_requires_authentication(client: AsyncClient):
+    response = await client.patch("/api/event/0", json={"name": "Unauthorized update"})
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED

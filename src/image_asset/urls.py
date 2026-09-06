@@ -168,7 +168,7 @@ async def create_image_asset_from_upload(
             await db_session.commit()
             committed = True
             await db_session.refresh(new_img_asset)
-            return new_img_asset
+            return ImageAsset.model_validate(new_img_asset)
         except IntegrityError:
             await db_session.rollback()
             try:

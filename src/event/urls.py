@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 import database
 import event.crud
+import image_asset.crud
 from dependencies import MonthPath, YearPath, perm_admin
 from event.models import (
     Event,
@@ -49,6 +50,10 @@ async def get_all_events(db_session: database.DBSession, q: Annotated[GetEventQu
     dependencies=[Depends(perm_admin)],
 )
 async def create_event(db_session: database.DBSession, body: EventCreate):
+    if body.image_id:
+        image = await image_asset.crud.get_image_asset_by_id(db_session, body.image_id)
+        if image is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image asset doesn't exist.")
     new_event = EventDB(**body.model_dump())
     event.crud.create_event(
         db_session,
@@ -115,7 +120,10 @@ async def add_event_to_group(db_session: database.DBSession, group_id: uuid.UUID
     "/{eid}",
     description="Update an Event detail",
     response_model=Event,
-    responses={404: {"description": "Event doesn't exist."}},
+    responses={
+        400: {"description": "Image asset doesn't exist."},
+        404: {"description": "Event doesn't exist."},
+    },
     operation_id="update_event",
     dependencies=[Depends(perm_admin)],
 )
@@ -123,6 +131,11 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
     db_event = await event.crud.get_event_by_eid(db_session, eid)
     if db_event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
+
+    if body.image_id:
+        image = await image_asset.crud.get_image_asset_by_id(db_session, body.image_id)
+        if image is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image asset doesn't exist.")
 
     db_data = Event.model_validate(db_event)
     patch_data = body.model_dump(exclude_unset=True)

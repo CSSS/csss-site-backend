@@ -46,16 +46,19 @@ async def get_all_events(db_session: database.DBSession, q: Annotated[GetEventQu
     response_model=Event,
     status_code=status.HTTP_201_CREATED,
     responses={
-        500: {"description": "failed to fetch new event", "model": DetailModel},
+        400: {"description": "Image asset doesn't exist.", "model": DetailModel},
+        500: {"description": "Failed to fetch new event", "model": DetailModel},
     },
     operation_id="create_event",
     dependencies=[Depends(perm_admin)],
 )
 async def create_event(db_session: database.DBSession, body: EventCreate):
+    image_url = None
     if body.image_id:
         image = await image_asset.crud.get_image_asset_by_id(db_session, body.image_id)
         if image is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image asset doesn't exist.")
+        image_url = event.crud.make_image_url(image.storage_key)
     new_event = EventDB(**body.model_dump())
     event.crud.create_event(
         db_session,
@@ -65,7 +68,10 @@ async def create_event(db_session: database.DBSession, body: EventCreate):
     await db_session.commit()
     await db_session.refresh(new_event)
 
-    return new_event
+    response = Event.model_validate(new_event)
+    response.image_url = image_url
+
+    return response
 
 
 @router.post(

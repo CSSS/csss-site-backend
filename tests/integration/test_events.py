@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from config import settings
 from database import DBSession
 from event.constants import EventStatusEnum
+from event.models import EventCreate
 from event.tables import EventDB
 from image_asset.tables import ImageAssetDB
 
@@ -286,3 +287,28 @@ async def test__update_event_requires_authentication(client: AsyncClient):
     response = await client.patch("/api/event/0", json={"name": "Unauthorized update"})
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+async def test__create_event_returns_url(db_session: DBSession, admin_client: AsyncClient):
+    image = ImageAssetDB(
+        storage_key="images/new-event.png",
+        original_filename="new-event.png",
+    )
+    db_session.add(image)
+    await db_session.flush()
+    now = datetime.now(UTC).isoformat()
+
+    response = await admin_client.post(
+        "/api/event",
+        json={
+            "name": "New Event",
+            "description": "Description",
+            "start_datetime": now,
+            "end_datetime": now,
+            "status": EventStatusEnum.SCHEDULED,
+            "image_id": image.image_id,
+        },
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.json()["image_url"] == f"{settings.media_base_url}/images/new-event.png"

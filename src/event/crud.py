@@ -12,6 +12,12 @@ from event.models import Event, GetEventQueryParams
 from event.tables import EventDB
 from image_asset.tables import ImageAssetDB
 
+MEDIA_BASE_URL = settings.media_base_url.rstrip("/")
+
+
+def make_image_url(storage_key: str | None) -> str | None:
+    return f"{MEDIA_BASE_URL}/{storage_key}" if storage_key is not None else None
+
 
 async def get_events(db_session: AsyncSession, q: GetEventQueryParams) -> list[Event]:
     query = select(EventDB, ImageAssetDB.storage_key).outerjoin(ImageAssetDB, EventDB.image_id == ImageAssetDB.image_id)
@@ -29,18 +35,28 @@ async def get_events(db_session: AsyncSession, q: GetEventQueryParams) -> list[E
     )
 
     rows = (await db_session.execute(query)).all()
-    media_base_url = settings.media_base_url.rstrip("/")
 
     return [
-        Event.model_validate(event).model_copy(
-            update={"image_url": f"{media_base_url}/{storage_key}" if storage_key is not None else None}
-        )
+        Event.model_validate(event).model_copy(update={"image_url": make_image_url(storage_key)})
         for event, storage_key in rows
     ]
 
 
 async def get_event_by_eid(db_session: AsyncSession, eid: int) -> EventDB | None:
     return await db_session.get(EventDB, eid)
+
+
+async def get_event_with_image_url(db_session: AsyncSession, eid: int) -> tuple[EventDB, str | None] | None:
+    query = (
+        select(EventDB, ImageAssetDB.storage_key)
+        .outerjoin(ImageAssetDB, EventDB.image_id == ImageAssetDB.image_id)
+        .where(EventDB.eid == eid)
+    )
+    row = (await db_session.execute(query)).one_or_none()
+    if row is None:
+        return None
+    db_event, storage_key = row
+    return db_event, make_image_url(storage_key)
 
 
 async def get_events_by_group_id(db_session: AsyncSession, group_id: UUID) -> Sequence[EventDB]:

@@ -4,9 +4,11 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy.exc import IntegrityError
 
 import database
 import event.crud
+import image_asset.crud
 from dependencies import MonthPath, YearPath, perm_admin
 from event.models import (
     Event,
@@ -18,6 +20,7 @@ from event.models import (
     GroupEventDeleteResponse,
 )
 from event.tables import EventDB
+from image_asset.tables import ImageAssetDB
 from utils.shared_models import DetailModel
 
 router = APIRouter(
@@ -43,12 +46,19 @@ async def get_all_events(db_session: database.DBSession, q: Annotated[GetEventQu
     response_model=Event,
     status_code=status.HTTP_201_CREATED,
     responses={
-        500: {"description": "failed to fetch new event", "model": DetailModel},
+        400: {"description": "Image asset doesn't exist.", "model": DetailModel},
+        500: {"description": "Failed to fetch new event", "model": DetailModel},
     },
     operation_id="create_event",
     dependencies=[Depends(perm_admin)],
 )
 async def create_event(db_session: database.DBSession, body: EventCreate):
+    image_url = None
+    if body.image_id:
+        image = await image_asset.crud.get_image_asset_by_id(db_session, body.image_id)
+        if image is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image asset doesn't exist.")
+        image_url = event.crud.make_image_url(image.storage_key)
     new_event = EventDB(**body.model_dump())
     event.crud.create_event(
         db_session,
@@ -58,7 +68,10 @@ async def create_event(db_session: database.DBSession, body: EventCreate):
     await db_session.commit()
     await db_session.refresh(new_event)
 
-    return new_event
+    response = Event.model_validate(new_event)
+    response.image_url = image_url
+
+    return response
 
 
 @router.post(
@@ -115,29 +128,61 @@ async def add_event_to_group(db_session: database.DBSession, group_id: uuid.UUID
     "/{eid}",
     description="Update an Event detail",
     response_model=Event,
-    responses={404: {"description": "Event doesn't exist."}},
+    responses={
+        400: {"description": "Image asset doesn't exist."},
+        404: {"description": "Event doesn't exist."},
+        409: {"description": "Concurrent change caused an issue."},
+    },
     operation_id="update_event",
     dependencies=[Depends(perm_admin)],
 )
 async def update_event(db_session: database.DBSession, eid: int, body: EventUpdate):
-    db_event = await event.crud.get_event_by_eid(db_session, eid)
-    if db_event is None:
+    result = await event.crud.get_event_with_image_url(db_session, eid)
+    if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
-    db_data = Event.model_validate(db_event)
-    patch_data = body.model_dump(exclude_unset=True)
+    db_event, image_url = result
+
+    event_data = Event.model_validate(db_event).model_copy(update={"image_url": image_url})
+    patch_data = body.model_dump(exclude_unset=True)  # does not include image_url
+    updated_data = event_data.model_dump() | patch_data
+
+    if "image_id" in patch_data and patch_data["image_id"] != db_event.image_id:
+        new_image_id = patch_data["image_id"]
+
+        # The patched data explicitly set image_id to None, so clear the image.
+        if new_image_id is None:
+            updated_data["image_url"] = None
+        else:
+            image = await db_session.get(ImageAssetDB, new_image_id, with_for_update=True)
+            if image is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Image asset doesn't exist.",
+                )
+            updated_data["image_url"] = event.crud.make_image_url(image.storage_key)
 
     try:
-        updated = Event.model_validate(db_data.model_dump() | patch_data)
+        updated = Event.model_validate(updated_data)
     except ValidationError as e:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=jsonable_encoder(e.errors())
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=jsonable_encoder(
+                e.errors(),
+            ),
         ) from e
 
     for key, value in patch_data.items():
         setattr(db_event, key, value)
 
-    await db_session.commit()
+    try:
+        await db_session.commit()
+    except IntegrityError as e:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Error when committing.",
+        ) from e
 
     return updated
 

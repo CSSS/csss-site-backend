@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 import auth.crud
 import database
 import officers.crud
-from auth.constants import COOKIE_SESSION_KEY
+from auth.constants import COOKIE_SESSION_KEY, UserRole
 from dependencies import LoggedInUser, OptionalUser, perm_admin
 from officers.models import (
     Officer,
@@ -15,7 +15,7 @@ from officers.models import (
     OfficerTermUpdate,
 )
 from permission.types import OfficerPrivateInfo
-from utils.permissions import is_user_website_admin, verify_update
+from utils.permissions import is_user_role, is_user_website_admin, verify_update
 from utils.shared_models import DetailModel, SuccessResponse
 
 router = APIRouter(
@@ -42,8 +42,7 @@ async def _has_officer_private_info_access(
     if computing_id is None:
         return False, None
 
-    # TODO: Fix this permission
-    has_private_access = await OfficerPrivateInfo.has_permission(db_session, computing_id)
+    has_private_access = await is_user_role(db_session, computing_id, UserRole.ADMIN)
     return has_private_access, computing_id
 
 

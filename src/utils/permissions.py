@@ -28,7 +28,7 @@ class AdminTypeEnum(Enum):
 
 
 async def is_user_website_admin(computing_id: str, db_session: database.DBSession) -> bool:
-    return len(await officers.crud.current_officer_positions(db_session, computing_id, WEBSITE_ADMIN_POSITIONS)) > 0
+    return await roles_satisfy(db_session, computing_id, UserRole.ADMIN)
 
 
 # Roles satisfy their key, plus any in their set.

@@ -90,13 +90,8 @@ class OfficerBase(BaseModel):
     biography: str | None = None
 
 
-class Officer(BaseModel):
-    legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
-    position: str
-    start_date: date
-    end_date: date | None = None
-    nickname: str | None = None
-    biography: str | None = None
+class Officer(OfficerBase):
+    position: str  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @classmethod
     def public_fields(cls, term: OfficerTermDB, info: OfficerInfoDB) -> Self:

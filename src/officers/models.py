@@ -83,7 +83,7 @@ class OfficerTermUpdate(BaseModel):
 class OfficerBase(BaseModel):
     # TODO (#71): compute this using SFU's API & remove from being uploaded
     legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
-    position: OfficerPositionEnum
+    position: str
     start_date: date
     end_date: date | None = None
     nickname: str | None = None
@@ -91,8 +91,6 @@ class OfficerBase(BaseModel):
 
 
 class Officer(OfficerBase):
-    position: str  # pyright: ignore[reportIncompatibleVariableOverride]
-
     @classmethod
     def public_fields(cls, term: OfficerTermDB, info: OfficerInfoDB) -> Self:
         return cls(

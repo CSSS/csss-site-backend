@@ -46,7 +46,7 @@ class OfficerPosition:
             return _LENGTH_MAP[position]
 
     @staticmethod
-    def to_email(position: OfficerPositionEnum) -> str | None:
+    def to_email(position: str) -> str | None:
         return _EMAIL_MAP.get(position, None)
 
     @staticmethod
@@ -104,7 +104,7 @@ class OfficerPosition:
         ]
 
 
-_EMAIL_MAP = {
+_EMAIL_MAP: dict[str, str] = {
     OfficerPositionEnum.PRESIDENT: "csss-president-current@sfu.ca",
     OfficerPositionEnum.VICE_PRESIDENT: "csss-vp-current@sfu.ca",
     OfficerPositionEnum.TREASURER: "csss-treasurer-current@sfu.ca",

@@ -25,6 +25,7 @@ POSITION_URL = "https://gtfsapi.translink.ca/v3/gtfsposition"
 STATIC_URL = "https://gtfs-static.translink.ca/gtfs/google_transit.zip"
 REALTIME_CACHE_ID = 1
 REALTIME_CACHE_TTL_SECONDS = 90
+ARRIVED_GRACE_SECONDS = 60
 REALTIME_CACHE_LOCK_ID = 2026062601
 STATIC_CACHE_ID = 1
 STATIC_CACHE_VERSION = 1
@@ -452,6 +453,8 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
         return [_response_from_static_row(row) for row in next_departures]
     # FeedMessage is generated at runtime, so the type checker can't find this function
 
+    now_ts = int(datetime.now(tz=TZ_INFO).timestamp())
+
     # Map all the realtime data to each bus's status
     realtime_map: dict[str, tuple[int, BusStatus]] = {}
     for entity in trip_feed.entity:
@@ -473,8 +476,7 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
         if stop is None:
             continue
 
-        first_stop = min(trip_update.stop_time_update, key=lambda s: s.stop_sequence)
-        if first_stop.stop_id == stop_id:
+        if stop.departure.time <= now_ts + ARRIVED_GRACE_SECONDS:
             status = BusStatus.Arrived
         elif stop.departure.delay > 0:
             status = BusStatus.Delayed

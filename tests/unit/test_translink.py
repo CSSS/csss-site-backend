@@ -12,6 +12,7 @@ from httpx import AsyncClient, Request, Response
 
 from constants import TZ_INFO
 from translink.crud import (
+    ARRIVED_GRACE_SECONDS,
     BUS_DATA,
     STATIC_CACHE_UNAVAILABLE_MESSAGE,
     STATIC_CACHE_VERSION,
@@ -653,6 +654,53 @@ async def test__get_departure_statuses_uses_timestamps_when_realtime_unavailable
             status=BusStatus.OnTime,
         )
     ]
+
+
+@pytest.mark.parametrize(
+    ("departure_offset", "delay", "expected_status"),
+    [
+        (-1, 0, BusStatus.Arrived),
+        (ARRIVED_GRACE_SECONDS - 1, 0, BusStatus.Arrived),
+        (ARRIVED_GRACE_SECONDS + 300, 120, BusStatus.Delayed),
+        (ARRIVED_GRACE_SECONDS + 300, 0, BusStatus.OnTime),
+    ],
+)
+async def test__get_departure_statuses_uses_realtime_departure_time_for_status(
+    departure_offset: int,
+    delay: int,
+    expected_status: BusStatus,
+):
+    now = datetime.now(tz=TZ_INFO)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    feed = gtfs_realtime_pb2.FeedMessage()  # pyright: ignore[reportAttributeAccessIssue]
+    feed.ParseFromString(
+        make_feed_bytes(
+            trip_id="trip_143",
+            route_id="6656",
+            direction_id=0,
+            stop_id="2836",
+            departure_unix=int(now.timestamp()) + departure_offset,
+            delay=delay,
+        )
+    )
+    static_schedule = [
+        {
+            "trip_id": "trip_143",
+            "route_id": "6656",
+            "bus_number": "143",
+            "departure_time": "23:00:00",
+            "departure_seconds": int((now - midnight).total_seconds()) + 300,
+        }
+    ]
+
+    with (
+        patch("translink.crud.get_static_schedule", return_value=(now.date(), static_schedule)),
+        patch("translink.crud.get_or_fetch_realtime_feed", return_value=feed),
+    ):
+        result = await get_departure_statuses(mock_db_session(), AsyncMock(spec=AsyncClient))
+
+    assert len(result) == 1
+    assert result[0].status == expected_status
 
 
 # ---------------------------------------------------------------------------

@@ -429,23 +429,33 @@ async def fetch_realtime_schedule(db_session: DBSession, client: AsyncClient) ->
     return result
 
 
-async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> list[TransLinkScheduleResponse]:
+def _response_from_static_row(row: Any, delay: int = 0, status: BusStatus = BusStatus.OnTime, arrived: bool = False):
+    scheduled_time = _scheduled_timestamp(cast(int, row["departure_seconds"]))
+    return TransLinkScheduleResponse(
+        route_number=cast(str, row["bus_number"]),
+        scheduled_departure_time=scheduled_time,
+        realtime_time=scheduled_time + delay,
+        delay_seconds=delay,
+        status=status,
+        arrived=arrived,
+    )
+
+
+async def get_departure_statuses(db_session: DBSession, client: AsyncClient, n: int) -> list[TransLinkScheduleResponse]:
     """
     Gets the real-time bus schedule from the TransLink GTFS Realtime API and merge it with the static data.
+
+    Args:
+        db_session: database session
+        client: HTTP client
+        n: number of departures to get for each route
+
+    Returns:
+        A list of the next n departures for each route.
     """
 
-    def _response_from_static_row(row: Any, delay: int = 0, status: BusStatus = BusStatus.OnTime):
-        scheduled_time = _scheduled_timestamp(cast(int, row["departure_seconds"]))
-        return TransLinkScheduleResponse(
-            route_number=cast(str, row["bus_number"]),
-            scheduled_departure_time=scheduled_time,
-            realtime_time=scheduled_time + delay,
-            delay_seconds=delay,
-            status=status,
-        )
-
     _, schedule = await get_static_schedule(db_session)
-    next_departures = get_next_departures(schedule)
+    next_departures = get_next_departures(schedule, n)
     trip_feed = await get_or_fetch_realtime_feed(db_session, client)
     # If the trip feed fails to fetch then just return information from the static schedule.
     if trip_feed is None:
@@ -453,7 +463,7 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
     # FeedMessage is generated at runtime, so the type checker can't find this function
 
     # Map all the realtime data to each bus's status
-    realtime_map: dict[str, tuple[int, BusStatus]] = {}
+    realtime_map: dict[str, tuple[int, BusStatus, bool]] = {}
     for entity in trip_feed.entity:
         if not entity.HasField("trip_update"):
             continue
@@ -464,8 +474,8 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
         if bus_data is None or trip.direction_id != bus_data[0]:
             continue
 
-        if trip.schedule_relationship == gtfs_realtime_pb2.TripDescriptor.CANCELED:  # pyright: ignore[reportAttributeAccessIssue]
-            realtime_map[trip.trip_id] = (0, BusStatus.Cancelled)
+        if trip.schedule_relationship == gtfs_realtime_pb2.TripDescriptor.CANCELED:
+            realtime_map[trip.trip_id] = (0, BusStatus.Cancelled, False)
             continue
 
         _, stop_id, _ = bus_data
@@ -474,19 +484,47 @@ async def get_departure_statuses(db_session: DBSession, client: AsyncClient) -> 
             continue
 
         first_stop = min(trip_update.stop_time_update, key=lambda s: s.stop_sequence)
-        if first_stop.stop_id == stop_id:
-            status = BusStatus.Arrived
-        elif stop.departure.delay > 0:
+        if stop.departure.delay > 0:
             status = BusStatus.Delayed
         else:
             status = BusStatus.OnTime
 
-        realtime_map[trip.trip_id] = (stop.departure.delay, status)
+        # We infer that the bus has arrived if the first stop in the trip is the same as the stop we are checking.
+        arrived = first_stop.stop_id == stop_id
+
+        realtime_map[trip.trip_id] = (stop.departure.delay, status, arrived)
+
+    # Apply realtime delays before filtering. A trip whose scheduled time has passed may still be upcoming when late.
+    static_rows = [
+        (
+            row,
+            _response_from_static_row(
+                row,
+                *realtime_map.get(cast(str, row["trip_id"]), (0, BusStatus.OnTime, False)),
+            ),
+        )
+        for row in schedule
+    ]
+
+    now = int(datetime.now(tz=TZ_INFO).timestamp())
+    upcoming = sorted(
+        ((row, response) for row, response in static_rows if response.realtime_time > now),
+        key=lambda item: item[1].realtime_time,
+    )
+
+    route_counts: dict[str, int] = {}
+    next_departures_with_realtime: list[tuple[StaticScheduleEntry, TransLinkScheduleResponse]] = []
+    for row, response in upcoming:
+        route_id = cast(str, row["route_id"])
+        if route_counts.get(route_id, 0) >= n:
+            continue
+        next_departures_with_realtime.append((row, response))
+        route_counts[route_id] = route_counts.get(route_id, 0) + 1
 
     return [
-        _response_from_static_row(
-            row,
-            *realtime_map.get(cast(str, row["trip_id"]), (0, BusStatus.OnTime)),
+        response
+        for _, response in sorted(
+            next_departures_with_realtime,
+            key=lambda item: (cast(str, item[0]["route_id"]), item[1].realtime_time),
         )
-        for row in next_departures
     ]

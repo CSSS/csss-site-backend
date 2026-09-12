@@ -2,6 +2,7 @@ import csv
 import io
 import zipfile
 from datetime import date, datetime, timedelta
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -30,6 +31,8 @@ from translink.models import BusStatus, TransLinkRealtimeResponse, TransLinkSche
 from translink.tables import TransLinkRealtimeCacheDB, TransLinkStaticScheduleDB
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+DEPARTURES_TO_FETCH = 5
 
 
 # ---------------------------------------------------------------------------
@@ -455,7 +458,7 @@ async def test__get_or_fetch_realtime_feed_uses_fresh_cache():
     result = await get_or_fetch_realtime_feed(session, client)
 
     assert result is not None
-    assert len(result.entity) == 0
+    assert len(cast(list, result.entity)) == 0
     client.get.assert_not_called()
     session.execute.assert_not_called()
     session.commit.assert_not_called()
@@ -480,7 +483,7 @@ async def test__get_or_fetch_realtime_feed_refreshes_stale_cache():
     result = await get_or_fetch_realtime_feed(session, client)
 
     assert result is not None
-    assert len(result.entity) == 1
+    assert len(cast(list, result.entity)) == 1
     client.get.assert_awaited_once()
     session.merge.assert_awaited_once()
     session.commit.assert_awaited_once()
@@ -641,7 +644,7 @@ async def test__get_departure_statuses_uses_timestamps_when_realtime_unavailable
     client = AsyncMock(spec=AsyncClient)
     client.get = AsyncMock(side_effect=httpx.ConnectError("realtime unavailable"))
 
-    result = await get_departure_statuses(session, client)
+    result = await get_departure_statuses(session, client, DEPARTURES_TO_FETCH)
 
     expected_timestamp = int((midnight + timedelta(seconds=departure_seconds)).timestamp())
     assert result == [
@@ -651,7 +654,83 @@ async def test__get_departure_statuses_uses_timestamps_when_realtime_unavailable
             realtime_time=expected_timestamp,
             delay_seconds=0,
             status=BusStatus.OnTime,
+            arrived=False,
         )
+    ]
+
+
+async def test__get_departure_statuses_keeps_delayed_departure_after_scheduled_time():
+    now = datetime.now(tz=TZ_INFO)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    current_seconds = int((now - midnight).total_seconds())
+    departure_seconds = max(0, current_seconds - 60)
+    delay = 600
+    scheduled_timestamp = int((midnight + timedelta(seconds=departure_seconds)).timestamp())
+    schedule = [
+        {
+            "trip_id": "delayed_trip_143",
+            "route_id": "6656",
+            "bus_number": "143",
+            "departure_time": "00:00:00",
+            "departure_seconds": departure_seconds,
+        }
+    ]
+    feed = gtfs_realtime_pb2.FeedMessage()  # pyright: ignore[reportAttributeAccessIssue]
+    feed.ParseFromString(
+        make_feed_bytes(
+            trip_id="delayed_trip_143",
+            route_id="6656",
+            direction_id=0,
+            stop_id="2836",
+            departure_unix=scheduled_timestamp + delay,
+            delay=delay,
+        )
+    )
+
+    with (
+        patch("translink.crud.get_static_schedule", return_value=(now.date(), schedule)),
+        patch("translink.crud.get_or_fetch_realtime_feed", return_value=feed),
+    ):
+        result = await get_departure_statuses(mock_db_session(), AsyncMock(spec=AsyncClient), DEPARTURES_TO_FETCH)
+
+    assert result == [
+        TransLinkScheduleResponse(
+            route_number="143",
+            scheduled_departure_time=scheduled_timestamp,
+            realtime_time=scheduled_timestamp + delay,
+            delay_seconds=delay,
+            status=BusStatus.Delayed,
+            arrived=True,
+        )
+    ]
+
+
+async def test__get_departure_statuses_limits_realtime_departures_per_route():
+    now = datetime.now(tz=TZ_INFO)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    current_seconds = int((now - midnight).total_seconds())
+    schedule = [
+        {
+            "trip_id": f"trip_143_{index}",
+            "route_id": "6656",
+            "bus_number": "143",
+            "departure_time": "23:00:00",
+            "departure_seconds": current_seconds + index * 600,
+        }
+        for index in range(1, 6)
+    ]
+    feed = gtfs_realtime_pb2.FeedMessage()  # pyright: ignore[reportAttributeAccessIssue]
+    feed.ParseFromString(make_empty_feed_bytes())
+
+    with (
+        patch("translink.crud.get_static_schedule", return_value=(now.date(), schedule)),
+        patch("translink.crud.get_or_fetch_realtime_feed", return_value=feed),
+    ):
+        result = await get_departure_statuses(mock_db_session(), AsyncMock(spec=AsyncClient), DEPARTURES_TO_FETCH)
+
+    assert len(result) == DEPARTURES_TO_FETCH
+    assert [response.scheduled_departure_time for response in result] == [
+        int((midnight + timedelta(seconds=current_seconds + index * 600)).timestamp()) for index in range(1, 6)
     ]
 
 
@@ -725,6 +804,7 @@ async def test__endpoint_schedule_returns_departure_list(client):
             realtime_time=1_700_000_000,
             delay_seconds=0,
             status=BusStatus.OnTime,
+            arrived=False,
         ),
         TransLinkScheduleResponse(
             route_number="144",
@@ -732,6 +812,7 @@ async def test__endpoint_schedule_returns_departure_list(client):
             realtime_time=1_700_000_720,
             delay_seconds=120,
             status=BusStatus.Delayed,
+            arrived=False,
         ),
     ]
     with patch("translink.urls.get_departure_statuses", return_value=mock_results) as mock_fn:
@@ -754,6 +835,7 @@ async def test__endpoint_schedule_on_time_when_no_realtime(client):
             realtime_time=1_700_000_000 + i * 600,
             delay_seconds=0,
             status=BusStatus.OnTime,
+            arrived=False,
         )
         for i, (_, (_, _, num)) in enumerate(BUS_DATA.items())
     ]

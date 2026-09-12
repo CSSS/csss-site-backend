@@ -54,13 +54,13 @@ async def get_static_schedule_endpoint(db_session: DBSession):
 @router.get(
     "/schedule",
     description="Get the departure schedule with bus status using the preprocessed static schedule cache.",
-    response_description="The next three depature times with bus status information.",
+    response_description="The next five depature times with bus status information.",
     response_model=list[TransLinkScheduleResponse],
     operation_id="get_departure_schedule",
 )
-async def get_departure_schedule(db_session: DBSession, request: Request):
+async def get_departure_schedule(db_session: DBSession, request: Request, n: int = 5):
     try:
-        return await get_departure_statuses(db_session, request.app.state.http_client)
+        return await get_departure_statuses(db_session, request.app.state.http_client, n)
     except StaticScheduleCacheUnavailableError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

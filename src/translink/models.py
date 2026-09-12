@@ -46,3 +46,4 @@ class TransLinkScheduleResponse(TransLinkRealtimeResponse):
         ...,
         description="Enum that indicates if the bus has arrived (1), is delayed (2), is on time (3), or cancelled (4).",
     )
+    arrived: bool = Field(..., description="Boolean indicating if its inferred the bus has arrived at the loop.")

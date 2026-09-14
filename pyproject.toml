@@ -10,7 +10,7 @@ dependencies = [
     "uvicorn[standard]==0.52.4",
     "sqlalchemy[asyncio]==2.0.52",
     "asyncpg==0.31.0",
-    "alembic==1.19.1",
+    "alembic==1.19.2",
     # minor
     "xmltodict==1.0.4",
     "httpx==0.28.1",
@@ -22,7 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff==0.16.6", # linting and formatter
+    "ruff==0.16.7", # linting and formatter
     "pre-commit",
 ]
 

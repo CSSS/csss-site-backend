@@ -23,3 +23,7 @@ class UserRole(StrEnum):
     ADMIN = "admin"  # Highest level, can manage pretty much everything
     EXEC = "exec"  # Allowed to upload media, documents, etc.
     USER = "user"  # Lowest level, can only access basic functionality
+
+    # Access roles for specific features
+    EVENT = "event"
+    ELECTION = "election"

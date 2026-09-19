@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 import database
 import event.crud
 import image_asset.crud
-from dependencies import MonthPath, YearPath, perm_admin
+from dependencies import MonthPath, YearPath, perm_event
 from event.models import (
     Event,
     EventCreate,
@@ -50,7 +50,7 @@ async def get_all_events(db_session: database.DBSession, q: Annotated[GetEventQu
         500: {"description": "Failed to fetch new event", "model": DetailModel},
     },
     operation_id="create_event",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_event)],
 )
 async def create_event(db_session: database.DBSession, body: EventCreate):
     image_url = None
@@ -80,7 +80,7 @@ async def create_event(db_session: database.DBSession, body: EventCreate):
     response_model=GroupEvent,
     status_code=status.HTTP_201_CREATED,
     operation_id="create_group_event",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_event)],
 )
 async def create_group_events(db_session: database.DBSession, body: Annotated[list[EventCreate], Body(min_length=1)]):
     g_id = uuid.uuid4()
@@ -107,7 +107,7 @@ async def create_group_events(db_session: database.DBSession, body: Annotated[li
     status_code=status.HTTP_201_CREATED,
     responses={404: {"description": "Group doesn't exist."}},
     operation_id="add_event_to_group",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_event)],
 )
 async def add_event_to_group(db_session: database.DBSession, group_id: uuid.UUID, new_event: EventCreate):
 
@@ -134,7 +134,7 @@ async def add_event_to_group(db_session: database.DBSession, group_id: uuid.UUID
         409: {"description": "Concurrent change caused an issue."},
     },
     operation_id="update_event",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_event)],
 )
 async def update_event(db_session: database.DBSession, eid: int, body: EventUpdate):
     result = await event.crud.get_event_with_image_url(db_session, eid)
@@ -193,7 +193,7 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
     response_model=EventDelete,
     responses={404: {"description": "Event doesn't exist."}},
     operation_id="delete_event",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_event)],
 )
 async def delete_event(db_session: database.DBSession, eid: int):
     deleted_eid = await event.crud.delete_event(db_session, eid)
@@ -211,7 +211,7 @@ async def delete_event(db_session: database.DBSession, eid: int):
     response_model=GroupEventDeleteResponse,
     responses={404: {"description": "Event doesn't exist."}},
     operation_id="delete_group_event",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_event)],
 )
 async def delete_group_event(db_session: database.DBSession, group_id: uuid.UUID):
     deleted_eids = await event.crud.delete_group_events(db_session, group_id)

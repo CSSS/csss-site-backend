@@ -21,20 +21,15 @@ WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
 ELECTIONS_OFFICER_POSITION = [*WEBSITE_ADMIN_POSITIONS, OfficerPositionEnum.ELECTIONS_OFFICER]
 
 
-# Permissions are granted if the Enum value >= the level needed
-class AdminTypeEnum(Enum):
-    Election = 1
-    Full = 2
-
-
 async def is_user_website_admin(computing_id: str, db_session: database.DBSession) -> bool:
     return await roles_satisfy(db_session, computing_id, UserRole.ADMIN)
 
 
 # Roles satisfy their key, plus any in their set.
 ROLE_HIERARCHY: dict[UserRole, set[UserRole]] = {
-    UserRole.ADMIN: {UserRole.EXEC, UserRole.USER},
+    UserRole.ADMIN: {UserRole.EXEC, UserRole.USER, UserRole.EVENT, UserRole.ELECTION},
     UserRole.EXEC: {UserRole.USER},
+    UserRole.EVENT: set(),
     UserRole.USER: set(),
 }
 
@@ -95,17 +90,6 @@ async def get_user(request: Request, db_session: database.DBSession) -> tuple[st
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no computing id")
 
     return session_id, session_computing_id
-
-
-async def get_admin(request: Request, db_session: database.DBSession, admin_type: AdminTypeEnum) -> tuple[str, str]:
-    session_id, computing_id = await get_user(request, db_session)
-
-    if (admin_type == AdminTypeEnum.Full and not await is_user_website_admin(computing_id, db_session)) or (
-        admin_type == AdminTypeEnum.Election and not await is_user_election_admin(computing_id, db_session)
-    ):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
-
-    return (session_id, computing_id)
 
 
 async def verify_update(computing_id: str | None, db_session: database.DBSession, target_id: str):

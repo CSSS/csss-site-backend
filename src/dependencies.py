@@ -6,7 +6,7 @@ import auth
 import auth.crud
 import database
 from auth.constants import COOKIE_SESSION_KEY, UserRole
-from utils.permissions import is_user_election_admin, is_user_role, is_user_website_admin
+from utils.permissions import is_user_election_admin, is_user_role, is_user_website_admin, roles_satisfy
 
 # Dependency to ensure years in paths are valid
 # Honestly don't know if this DB will be running past year 3000
@@ -82,6 +82,13 @@ async def perm_election(db_session: database.DBSession, computing_id: LoggedInUs
 ElectionAdmin = Annotated[str, Depends(perm_election)]
 
 
+async def perm_event(db_session: database.DBSession, computing_id: LoggedInUser) -> str:
+    if not await roles_satisfy(db_session, computing_id, UserRole.EVENT):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an event admin")
+
+    return computing_id
+
+
 async def perm_admin(db_session: database.DBSession, computing_id: LoggedInUser):
     if not await is_user_role(db_session, computing_id, UserRole.ADMIN):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
@@ -91,4 +98,4 @@ async def perm_admin(db_session: database.DBSession, computing_id: LoggedInUser)
 
 SiteAdmin = Annotated[str, Depends(perm_admin)]
 
-PERMISSION_DEPENDENCIES = [perm_election, perm_admin]
+PERMISSION_DEPENDENCIES = [perm_election, perm_admin, perm_event]

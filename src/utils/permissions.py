@@ -26,11 +26,12 @@ ELECTIONS_OFFICER_POSITION = [*WEBSITE_ADMIN_POSITIONS, OfficerPositionEnum.ELEC
 ROLE_HIERARCHY: dict[UserRole, frozenset[UserRole]] = {
     UserRole.ACCESS: frozenset(UserRole),
     UserRole.ADMIN: frozenset(set(UserRole) - {UserRole.ACCESS}),
-    UserRole.EXEC: frozenset({UserRole.USER}),
+    UserRole.EXEC: frozenset({UserRole.USER, UserRole.OFFICER}),
+    UserRole.OFFICER: frozenset({UserRole.USER}),
+    UserRole.USER: frozenset(),
     # These are more side-grade roles
     UserRole.EVENT: frozenset(),
     UserRole.ELECTION: frozenset(),
-    UserRole.USER: frozenset(),
 }
 
 

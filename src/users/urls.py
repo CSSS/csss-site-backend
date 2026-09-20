@@ -10,7 +10,7 @@ from auth.constants import UserRole
 from auth.models import SiteUser
 from auth.tables import SiteUserDB, SiteUserRoleDB
 from constants import TZ_INFO
-from dependencies import SiteAdmin, perm_admin
+from dependencies import AccessAdmin, SiteAdmin, perm_admin
 from users.models import SiteUserCreate, SiteUserUpdate
 from utils.shared_models import DetailModel
 
@@ -111,7 +111,7 @@ async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, 
 )
 async def update_site_user_roles(
     db_session: database.DBSession,
-    admin_id: SiteAdmin,
+    admin_id: AccessAdmin,
     computing_id: str,
     body: SiteUserUpdate,
 ):

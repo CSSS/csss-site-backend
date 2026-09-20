@@ -77,7 +77,9 @@ def _raise_if_bad_election_data(
     "",
     description="Return a list of all elections, their statuses and nominees (if requested)",
     response_model=list[ElectionResponse],
-    responses={status.HTTP_404_NOT_FOUND: {"description": "No election found", "model": DetailModel}},
+    responses={
+        403: {"description": "No election found", "model": DetailModel},
+    },
     operation_id="get_all_elections",
 )
 async def list_elections(
@@ -92,15 +94,11 @@ async def list_elections(
         election_responses = await elections.crud.get_all_elections_with_nominees(
             db_session, current_time, has_nominee_permission
         )
-        if not election_responses:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
         election_metadata_list = [
             election.model_dump(mode="json", exclude_none=True) for election in election_responses
         ]
     else:
         election_list = await elections.crud.get_all_elections(db_session)
-        if election_list is None or len(election_list) == 0:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
         election_metadata_list = []
         for election in election_list:
             if has_nominee_permission:
@@ -218,14 +216,7 @@ async def create_election(
 
 @router.patch(
     "/{election_name}",
-    description="""
-        Updates an election in the database.
-
-        Note that this doesn't let you change the name of an election, unless the new
-        name produces the same slug.
-
-        Returns election json on success.
-    """,
+    description="Updates an election in the database. Note that this doesn't let you change the name of an election, unless the new name produces the same slug. Returns election json on success.",
     response_model=ElectionResponse,
     responses={
         400: {"model": DetailModel},

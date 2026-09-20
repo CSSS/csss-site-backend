@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 
-import auth.crud
 import database
 import officers.crud
-from auth.constants import COOKIE_SESSION_KEY, UserRole
-from dependencies import LoggedInUser, OptionalUser, perm_admin
+from auth.constants import UserRole
+from auth.crud import SessionUser
+from dependencies import AuthenticatedUser, OptionalSessionUser, perm_admin
 from officers.models import (
     Officer,
     OfficerCreate,
@@ -14,9 +14,9 @@ from officers.models import (
     OfficerTerm,
     OfficerTermUpdate,
 )
-from permission.types import OfficerPrivateInfo
-from utils.permissions import is_user_role, is_user_website_admin, verify_update
-from utils.shared_models import DetailModel, SuccessResponse
+from officers.tables import OfficerInfoDB, OfficerTermDB
+from utils.permissions import has_role
+from utils.shared_models import DetailModel
 
 router = APIRouter(
     prefix="/officers",
@@ -27,23 +27,26 @@ router = APIRouter(
 # checks
 
 
-async def _has_officer_private_info_access(
-    request: Request, db_session: database.DBSession
-) -> tuple[
-    bool,
-    str | None,
-]:
-    """determine if the user has access to private officer info"""
-    session_id = request.cookies.get(COOKIE_SESSION_KEY, None)
-    if session_id is None:
-        return False, None
+def verify_update(user_id: SessionUser, computing_id: str):
+    if user_id.computing_id != computing_id and not has_role(user_id, UserRole.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized",
+        )
 
-    computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
-    if computing_id is None:
-        return False, None
 
-    has_private_access = await is_user_role(db_session, computing_id, UserRole.ADMIN)
-    return has_private_access, computing_id
+async def get_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfoDB:
+    officer_info = await officers.crud.get_officer_info(db_session, computing_id)
+    if officer_info is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Officer info not found")
+    return officer_info
+
+
+async def get_officer_term_or_raise(db_session: database.DBSession, term_id: int) -> OfficerTermDB:
+    officer_term = await officers.crud.get_officer_term_by_id(db_session, term_id)
+    if officer_term is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Officer term not found")
+    return officer_term
 
 
 # ---------------------------------------- #
@@ -56,11 +59,8 @@ async def _has_officer_private_info_access(
     response_model=list[Officer],
     operation_id="get_current_officers",
 )
-async def current_officers(
-    request: Request,
-    db_session: database.DBSession,
-):
-    has_private_access, _ = await _has_officer_private_info_access(request, db_session)
+async def current_officers(db_session: database.DBSession, session_user: OptionalSessionUser):
+    has_private_access = has_role(session_user, UserRole.EXEC)
 
     curr_officers = await officers.crud.current_officers(db_session, has_private_access)
 
@@ -71,19 +71,25 @@ async def current_officers(
     "/all",
     description="Information for all execs from all exec terms",
     response_model=list[Officer],
-    responses={403: {"description": "not authorized", "model": DetailModel}},
+    responses={
+        401: {"description": "Must be logged in", "model": DetailModel},
+        403: {"description": "Not authorized", "model": DetailModel},
+    },
     operation_id="get_all_officers",
 )
 async def all_officers(
-    request: Request,
     db_session: database.DBSession,
+    session_user: OptionalSessionUser,
     # Officer terms for officers which have not yet started their term yet are considered private,
-    # and may only be accessed by that officer and executives. All other officer terms are public.
+    # and may only be accessed by admins.
     include_future_terms: bool = False,
 ):
-    has_private_access, computing_id = await _has_officer_private_info_access(request, db_session)
-    if include_future_terms and (computing_id is None or not (await is_user_website_admin(computing_id, db_session))):
-        raise HTTPException(status_code=401, detail="not authorized")
+    is_admin = has_role(session_user, UserRole.ADMIN)
+    has_private_access = is_admin or has_role(session_user, UserRole.EXEC)
+
+    if include_future_terms and not is_admin:
+        status_code = status.HTTP_401_UNAUTHORIZED if session_user is None else status.HTTP_403_FORBIDDEN
+        raise HTTPException(status_code=status_code, detail="Not authorized")
 
     all_officers = await officers.crud.get_all_officers(db_session, include_future_terms, has_private_access)
 
@@ -98,16 +104,21 @@ async def all_officers(
     """,
     response_model=list[OfficerTerm],
     responses={
-        401: {"description": "not logged in", "model": DetailModel},
-        403: {"description": "not authorized to view private info", "model": DetailModel},
+        401: {"description": "Must be logged in", "model": DetailModel},
+        403: {"description": "Not authorized to view private information", "model": DetailModel},
     },
     operation_id="get_officer_terms_by_id",
 )
 async def get_officer_terms(
-    user_id: OptionalUser, db_session: database.DBSession, computing_id: str, include_future_terms: bool = False
+    session_user: OptionalSessionUser,
+    db_session: database.DBSession,
+    computing_id: str,
+    include_future_terms: bool = False,
 ):
     if include_future_terms:
-        await verify_update(user_id, db_session, computing_id)
+        if not has_role(session_user, UserRole.ADMIN):
+            status_code = status.HTTP_401_UNAUTHORIZED if session_user is None else status.HTTP_403_FORBIDDEN
+            raise HTTPException(status_code=status_code, detail="Not authorized")
 
     # all term info is public, so anyone can get any of it
     officer_terms = await officers.crud.get_officer_terms(db_session, computing_id, include_future_terms)
@@ -120,30 +131,27 @@ async def get_officer_terms(
     "/info/{computing_id}",
     description="Get officer info for the current user, if they've ever been an exec. Only admins can get info about another user.",
     response_model=OfficerInfo,
-    responses={403: {"description": "not authorized to view author user info", "model": DetailModel}},
+    responses={403: {"description": "Must be an admin", "model": DetailModel}},
     operation_id="get_officer_info_by_id",
 )
 async def get_officer_info(
     db_session: database.DBSession,
-    session_computing_id: LoggedInUser,
+    session_user: AuthenticatedUser,
     computing_id: str,
 ):
-    if computing_id != session_computing_id and not await is_user_website_admin(session_computing_id, db_session):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not authorized")
+    verify_update(session_user, computing_id)
 
-    officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
+    officer_info = await get_officer_info_or_raise(db_session, computing_id)
     return JSONResponse(OfficerInfo.model_validate(officer_info).model_dump(mode="json", exclude_unset=True))
 
 
 @router.post(
     "/term",
-    description="""
-        Only the sysadmin, president, or DoA can submit this request. It will usually be the DoA.
-        Updates the system with a new officer, and enables the user to login to the system to input their information.
-    """,
+    description="Only the SysAdmin, President, or Secretary can submit this request. It will usually be the Secretary. Updates the system with a new officer, and enables the user to login to the system to input their information. ",
     response_model=list[OfficerTerm],
     responses={
-        403: {"description": "must be a website admin", "model": DetailModel},
+        401: {"description": "Must be logged in", "model": DetailModel},
+        403: {"description": "Must be an admin", "model": DetailModel},
         500: {"model": DetailModel},
     },
     operation_id="create_officer_term",
@@ -162,38 +170,35 @@ async def create_officer_term(
 
 @router.patch(
     "/info/{computing_id}",
-    description="""
-        After election, officer computing ids are input into our system.
-        If you have been elected as a new officer, you may authenticate with SFU CAS,
-        then input your information & the valid token for us. Admins may update this info.
-    """,
+    description="Updates an officer's info.",
     response_model=OfficerInfo,
     responses={
-        403: {"description": "must be a website admin", "model": DetailModel},
-        500: {"description": "failed to fetch after update", "model": DetailModel},
+        401: {"description": "Must be logged in", "model": DetailModel},
+        403: {"description": "Must be an admin", "model": DetailModel},
+        404: {"description": "Officer info not found", "model": DetailModel},
     },
     operation_id="update_officer_info",
+    dependencies=[Depends(perm_admin)],
 )
 async def update_officer_info(
-    user_id: OptionalUser,
     db_session: database.DBSession,
     computing_id: str,
-    officer_info_upload: OfficerInfoUpdate,
+    body: OfficerInfoUpdate,
 ):
-    await verify_update(user_id, db_session, computing_id)
+    # TODO: Enable this when officers are allowed to self update
+    # verify_update(session_user, computing_id)
 
-    old_officer_info = await officers.crud.get_officer_info_or_raise(db_session, computing_id)
-    update_data = officer_info_upload.model_dump(exclude_unset=True)
-    for k, v in update_data.items():
-        setattr(old_officer_info, k, v)
-    await officers.crud.update_officer_info(db_session, old_officer_info)
+    officer_info = await get_officer_info_or_raise(db_session, computing_id)
 
-    # TODO (#27): log all important changes just to a .log file & persist them for a few years
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(officer_info, k, v)
+
+    await db_session.flush()
+
+    response = OfficerInfo.model_validate(officer_info)
 
     await db_session.commit()
-
-    updated_officer_info = await officers.crud.get_new_officer_info_or_raise(db_session, computing_id)
-    return JSONResponse(OfficerInfo.model_validate(updated_officer_info).model_dump(mode="json", exclude_unset=True))
+    return response
 
 
 @router.patch(
@@ -201,8 +206,9 @@ async def update_officer_info(
     description="Update the information for an Officer's term",
     response_model=OfficerTerm,
     responses={
-        403: {"description": "must be a website admin", "model": DetailModel},
-        500: {"description": "failed to fetch after update", "model": DetailModel},
+        401: {"description": "Must be logged in", "model": DetailModel},
+        403: {"description": "Must be an admin", "model": DetailModel},
+        404: {"description": "Officer term not found", "model": DetailModel},
     },
     operation_id="update_officer_term_by_id",
     dependencies=[Depends(perm_admin)],
@@ -213,34 +219,27 @@ async def update_officer_term(db_session: database.DBSession, term_id: int, body
     For now, only website admins can change these things.
     """
 
-    old_officer_term = await officers.crud.get_officer_term_by_id_or_raise(db_session, term_id)
+    officer_term = await get_officer_term_or_raise(db_session, term_id)
 
-    # TODO: Enable this check if we allow non-website admins to change their information
-    # if utils.is_past_term(old_officer_term):
-    #     raise HTTPException(status_code=403, detail="you may not update past terms")
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(officer_term, key, value)
 
-    new_data = body.model_dump(exclude_unset=True)
+    await db_session.flush()
 
-    for key, value in new_data.items():
-        setattr(old_officer_term, key, value)
-
-    # TODO (#27): log all important changes to a .log file
-    await officers.crud.update_officer_term(db_session, old_officer_term)
+    await db_session.refresh(officer_term)
+    response = OfficerTerm.model_validate(officer_term)
 
     await db_session.commit()
-    await db_session.refresh(old_officer_term)
-
-    return JSONResponse(OfficerTerm.model_validate(old_officer_term).model_dump(mode="json", exclude_unset=True))
+    return response
 
 
 @router.delete(
     "/term/{term_id}",
     description="Remove the specified officer term. Only website admins can run this endpoint. BE CAREFUL WITH THIS!",
-    response_model=SuccessResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        401: {"description": "must be logged in", "model": DetailModel},
-        403: {"description": "must be a website admin", "model": DetailModel},
-        500: {"description": "server error", "model": DetailModel},
+        401: {"description": "Must be logged in", "model": DetailModel},
+        403: {"description": "Must be an admin", "model": DetailModel},
     },
     operation_id="delete_officer_term_by_id",
     dependencies=[Depends(perm_admin)],
@@ -249,9 +248,7 @@ async def delete_officer_term(
     db_session: database.DBSession,
     term_id: int,
 ):
-    # TODO (#27): log all important changes to a .log file
-    # TODO: Double check that the delete was successful
     await officers.crud.delete_officer_term_by_id(db_session, term_id)
     await db_session.commit()
 
-    return SuccessResponse(success=True)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

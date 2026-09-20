@@ -6,7 +6,9 @@ import auth
 import auth.crud
 import database
 from auth.constants import COOKIE_SESSION_KEY, UserRole
-from utils.permissions import is_user_election_admin, is_user_role, is_user_website_admin, roles_satisfy
+from auth.crud import SessionUser
+from auth.tables import SiteUserRoleDB, UserSessionDB
+from utils.permissions import role_satisfies, roles_satisfy
 
 # Dependency to ensure years in paths are valid
 # Honestly don't know if this DB will be running past year 3000
@@ -16,86 +18,69 @@ YearPath = Annotated[int, Path(ge=2000, le=3000)]
 MonthPath = Annotated[int, Path(ge=1, le=12)]
 
 
-async def optional_user(
-    db_session: database.DBSession, session_id: Annotated[str | None, Cookie(alias=COOKIE_SESSION_KEY)] = None
-) -> str | None:
-    """
-    Fetches the computing ID of the user from the user session's table.
-
-    Args:
-        db_session: The database session.
-        session_id: The session ID from the request's cookie.
-
-    Returns:
-        The computing ID of the user if their session is valid.
-    """
+async def optional_session_user(
+    db_session: database.DBSession,
+    session_id: Annotated[str | None, Cookie(alias=COOKIE_SESSION_KEY)] = None,
+) -> SessionUser | None:
     if session_id is None:
         return None
 
-    session_computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
-
-    return session_computing_id
+    return await auth.crud.get_session_user(db_session, session_id)
 
 
-OptionalUser = Annotated[str | None, Depends(optional_user)]
+OptionalSessionUser = Annotated[SessionUser | None, Depends(optional_session_user)]
 
 
-async def logged_in_user(
-    db_session: database.DBSession, session_id: Annotated[str | None, Cookie(alias=COOKIE_SESSION_KEY)] = None
-) -> str:
-    """
-    Fetches the computing ID of the User from the user session's table.
-
-    Args:
-        db_session: The database session.
-        session_id: The session ID from the request's cookie.
-
-    Returns:
-        The computing ID of the user if their session is valid.
+def optional_user_id(user: OptionalSessionUser) -> str | None:
+    return user.computing_id if user else None
 
 
-    Raises:
-        HTTPException: If the user session doesn't exist or is expired.
-    """
-    if session_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session id")
-
-    session_computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
-    if session_computing_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no computing id")
-
-    return session_computing_id
+OptionalUserId = Annotated[str | None, Depends(optional_user_id)]
 
 
-LoggedInUser = Annotated[str, Depends(logged_in_user)]
+def authenticated_user(user: OptionalSessionUser) -> SessionUser:
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Must be logged in.")
+    return user
 
 
-async def perm_election(db_session: database.DBSession, computing_id: LoggedInUser) -> str:
-    if not await is_user_website_admin(computing_id, db_session) or not await is_user_election_admin(
-        computing_id, db_session
-    ):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an election admin")
-
-    return computing_id
+AuthenticatedUser = Annotated[SessionUser, Depends(authenticated_user)]
 
 
-ElectionAdmin = Annotated[str, Depends(perm_election)]
+def authenticated_user_id(user: AuthenticatedUser) -> str:
+    return user.computing_id
 
 
-async def perm_event(db_session: database.DBSession, computing_id: LoggedInUser) -> str:
-    if not await roles_satisfy(db_session, computing_id, UserRole.EVENT):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an event admin")
-
-    return computing_id
+AuthenticatedUserId = Annotated[str, Depends(authenticated_user_id)]
 
 
-async def perm_admin(db_session: database.DBSession, computing_id: LoggedInUser):
-    if not await is_user_role(db_session, computing_id, UserRole.ADMIN):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
+def require_role(required_role: UserRole, detail: str):
+    def dependency(user: AuthenticatedUser) -> str:
+        allowed = any(role_satisfies(assigned_role, required_role) for assigned_role in user.roles)
+        if not allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
-    return computing_id
+        return user.computing_id
+
+    return dependency
 
 
+perm_election = require_role(UserRole.ELECTION, "Must be an election officer")
+perm_exec = require_role(UserRole.EXEC, "Must be an executive")
+perm_event = require_role(UserRole.EVENT, "Must be an event executive")
+perm_admin = require_role(UserRole.ADMIN, "Must be an admin")
+perm_access = require_role(UserRole.ACCESS, "Not authorized")
+
+ElectionOfficer = Annotated[str, Depends(perm_election)]
+Exec = Annotated[str, Depends(perm_exec)]
+EventExec = Annotated[str, Depends(perm_event)]
 SiteAdmin = Annotated[str, Depends(perm_admin)]
+AccessAdmin = Annotated[str, Depends(perm_access)]
 
-PERMISSION_DEPENDENCIES = [perm_election, perm_admin, perm_event]
+PERMISSION_DEPENDENCIES = [
+    perm_election,
+    perm_exec,
+    perm_event,
+    perm_admin,
+    perm_access,
+]

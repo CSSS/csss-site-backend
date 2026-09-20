@@ -1,9 +1,9 @@
 from datetime import date
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
-from constants import COMPUTING_ID_LEN
+from constants import COMPUTING_ID_LEN, DISCORD_ID_LEN
 from officers.constants import OFFICER_LEGAL_NAME_MAX, OfficerPosition, OfficerPositionEnum
 from officers.tables import OfficerInfoDB, OfficerTermDB
 from utils import is_active_term
@@ -26,9 +26,11 @@ class OfficerInfo(BaseModel):
     computing_id: str = Field(..., max_length=COMPUTING_ID_LEN)
     legal_name: str = Field(..., max_length=OFFICER_LEGAL_NAME_MAX)
     phone_number: str | None = None
-    discord_id: str | None = None
-    discord_name: str | None = None
-    discord_nickname: str | None = None
+    discord_id: str | None = Field(
+        None, max_length=DISCORD_ID_LEN, description="The numerical ID that all Discord users have."
+    )
+    discord_name: str | None = Field(None, description="The unique username of the user.")
+    discord_nickname: str | None = Field(None, description="The current nickname in the Discord of the user.")
     google_drive_email: str | None = None
     github_username: str | None = None
 
@@ -77,6 +79,13 @@ class OfficerTermUpdate(BaseModel):
     favourite_pl_1: str | None = Field(None, max_length=64)
     biography: str | None = None
     photo_url: str | None = None
+
+    @field_validator("computing_id", "position", "start_date")
+    @classmethod
+    def required_columns_cannot_be_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("field cannot be null")
+        return value
 
 
 # Concatenated Officer Models
@@ -150,11 +159,9 @@ class OfficerInfoSelfUpdate(BaseModel):
     Used when an Officer is updating their own information
     """
 
-    nickname: str | None = None
     discord_id: str | None = None
     discord_name: str | None = None
     discord_nickname: str | None = None
-    biography: str | None = None
     phone_number: str | None = None
     github_username: str | None = None
     google_drive_email: str | None = None
@@ -165,7 +172,11 @@ class OfficerInfoUpdate(OfficerInfoSelfUpdate):
     Used when an admin is updating an Officer's info
     """
 
-    legal_name: str | None = Field(None, max_length=OFFICER_LEGAL_NAME_MAX)
-    position: OfficerPositionEnum | None = None
-    start_date: date | None = None
-    end_date: date | None = None
+    legal_name: str | None = Field(default=None, min_length=1, max_length=OFFICER_LEGAL_NAME_MAX)
+
+    @field_validator("legal_name")
+    @classmethod
+    def legal_name_cannot_be_null(cls, value: str) -> str:
+        if value is None:
+            raise ValueError("legal_name cannot be null")
+        return value

@@ -25,8 +25,8 @@ from auth.constants import (
 )
 from auth.models import UserInfo
 from config import settings
-from dependencies import LoggedInUser, logged_in_user
-from utils.permissions import UserRole, is_user_role, roles_satisfy
+from dependencies import AuthenticatedUser, authenticated_user, perm_election
+from utils.permissions import UserRole, roles_satisfy
 from utils.shared_models import DetailModel, MessageModel
 
 _logger = logging.getLogger(__name__)
@@ -303,7 +303,7 @@ async def get_user(
 )
 async def verify_session(
     db_session: database.DBSession,
-    computing_id: LoggedInUser,
+    session_user: AuthenticatedUser,
     x_required_role: str | None = Header(default=None, alias="X-Required-Role"),
 ):
     if x_required_role is None:
@@ -314,7 +314,7 @@ async def verify_session(
         # If you hit this then check the Nginx config
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Invalid required role") from None
 
-    if not (await roles_satisfy(db_session, computing_id, required_role)):
+    if not roles_satisfy(session_user.roles, required_role):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "User does not have the required role")
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

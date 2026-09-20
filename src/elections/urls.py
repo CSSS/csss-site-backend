@@ -9,7 +9,8 @@ import database
 import elections.crud
 import elections.tables
 import nominees.crud
-from dependencies import OptionalUser, perm_election
+from auth.constants import UserRole
+from dependencies import AuthenticatedUserId, OptionalSessionUser, perm_election
 from elections.models import (
     ElectionParams,
     ElectionResponse,
@@ -18,7 +19,7 @@ from elections.models import (
 )
 from elections.tables import ElectionDB
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
-from utils.permissions import is_user_election_admin
+from utils.permissions import has_role
 from utils.shared_models import DetailModel, SuccessResponse
 from utils.urls import slugify
 
@@ -80,16 +81,16 @@ def _raise_if_bad_election_data(
     operation_id="get_all_elections",
 )
 async def list_elections(
-    computing_id: OptionalUser,
+    session_user: OptionalSessionUser,
     db_session: database.DBSession,
     with_nominees: bool = Query(False),
 ):
     current_time = datetime.datetime.now(datetime.UTC)
-    has_permission = await is_user_election_admin(computing_id, db_session) if computing_id else False
+    has_nominee_permission = has_role(session_user, UserRole.ELECTION)
 
     if with_nominees:
         election_responses = await elections.crud.get_all_elections_with_nominees(
-            db_session, current_time, has_permission
+            db_session, current_time, has_nominee_permission
         )
         if not election_responses:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
@@ -102,7 +103,7 @@ async def list_elections(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no election found")
         election_metadata_list = []
         for election in election_list:
-            if has_permission:
+            if has_nominee_permission:
                 election_metadata_list.append(election.private_details(current_time))
             else:
                 election_metadata_list.append(election.public_details(current_time))
@@ -122,7 +123,7 @@ async def list_elections(
 )
 async def get_election(
     db_session: database.DBSession,
-    computing_id: OptionalUser,
+    session_user: OptionalSessionUser,
     election_name: str,
     with_nominees: bool = Query(False),
 ):
@@ -134,7 +135,7 @@ async def get_election(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"election with slug {slugified_name} does not exist"
         )
 
-    has_permission = await is_user_election_admin(computing_id, db_session) if computing_id else False
+    has_permission = has_role(session_user, UserRole.ELECTION)
     if has_permission:
         election_json = election.private_details(current_time)
     else:

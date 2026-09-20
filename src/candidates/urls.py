@@ -13,7 +13,7 @@ from candidates.models import (
     CandidateUpdate,
 )
 from candidates.tables import CandidateDB
-from dependencies import logged_in_user, perm_election
+from dependencies import authenticated_user, perm_election
 from elections.models import (
     ElectionStatusEnum,
 )
@@ -48,7 +48,7 @@ async def get_all_candidates(
         404: {"description": "Election with slug does not exist", "model": DetailModel},
     },
     operation_id="get_election_candidates",
-    dependencies=[Depends(logged_in_user)],
+    dependencies=[Depends(authenticated_user)],
 )
 async def get_election_candidates(db_session: database.DBSession, election_name: str):
     slugified_name = slugify(election_name)

@@ -30,7 +30,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         constraint,
         'site_user_role',
-        "role IN ('admin', 'exec', 'user', 'event', 'election')",
+        "role IN ('access', 'admin', 'exec', 'user', 'event', 'election')",
     )
 
 

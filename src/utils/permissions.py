@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from enum import Enum, StrEnum
 
 from fastapi import HTTPException, Request, status
@@ -7,6 +8,7 @@ import auth.crud
 import database
 import officers.crud
 from auth.constants import COOKIE_SESSION_KEY, UserRole
+from auth.crud import SessionUser
 from auth.tables import SiteUserRoleDB
 from officers.constants import OfficerPositionEnum
 
@@ -20,78 +22,27 @@ WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
 
 ELECTIONS_OFFICER_POSITION = [*WEBSITE_ADMIN_POSITIONS, OfficerPositionEnum.ELECTIONS_OFFICER]
 
-
-async def is_user_website_admin(computing_id: str, db_session: database.DBSession) -> bool:
-    return await roles_satisfy(db_session, computing_id, UserRole.ADMIN)
-
-
 # Roles satisfy their key, plus any in their set.
-ROLE_HIERARCHY: dict[UserRole, set[UserRole]] = {
-    UserRole.ADMIN: {UserRole.EXEC, UserRole.USER, UserRole.EVENT, UserRole.ELECTION},
-    UserRole.EXEC: {UserRole.USER},
-    UserRole.EVENT: set(),
-    UserRole.USER: set(),
+ROLE_HIERARCHY: dict[UserRole, frozenset[UserRole]] = {
+    UserRole.ACCESS: frozenset(UserRole),
+    UserRole.ADMIN: frozenset(set(UserRole) - {UserRole.ACCESS}),
+    UserRole.EXEC: frozenset({UserRole.USER}),
+    # These are more side-grade roles
+    UserRole.EVENT: frozenset(),
+    UserRole.ELECTION: frozenset(),
+    UserRole.USER: frozenset(),
 }
 
 
-def role_satisfies(user_role: UserRole, required_role: UserRole) -> bool:
-    return (user_role == required_role) or required_role in ROLE_HIERARCHY[user_role]
+def role_satisfies(assigned_role: UserRole, required_role: UserRole) -> bool:
+    return (assigned_role == required_role) or required_role in ROLE_HIERARCHY[assigned_role]
 
 
-async def roles_satisfy(db_session: database.DBSession, computing_id: str, required_role: UserRole) -> bool:
-    """
-    Check if any of the user's roles satisfy the required role.
-
-    Args:
-        db_session: The database session.
-        computing_id: The computing ID of the user.
-        required_role: The role to satisfy.
-
-    Returns:
-        True if any of the user's roles satisfies the requirement, false otherwise.
-    """
-    user_roles = await auth.crud.get_user_roles(db_session, computing_id)
-    return any(role_satisfies(user_role.role, required_role) for user_role in user_roles)
+def roles_satisfy(assigned_roles: Iterable[UserRole], required_role: UserRole) -> bool:
+    return any(role_satisfies(role, required_role) for role in assigned_roles)
 
 
-async def is_user_role(db_session: database.DBSession, computing_id: str, role: UserRole) -> bool:
-    roles = await db_session.get(SiteUserRoleDB, (computing_id, role))
-    return roles is not None
-
-
-# TODO: Add an election admin version that checks the election attempting to be modified as well
-async def is_user_election_admin(computing_id: str, db_session: database.DBSession) -> bool:
-    """
-    An current election officer has access to all election, prior election officers have no access.
-    """
-    return len(await officers.crud.current_officer_positions(db_session, computing_id, ELECTIONS_OFFICER_POSITION)) > 0
-
-
-async def get_user(request: Request, db_session: database.DBSession) -> tuple[str, str]:
-    """
-    Get the user's computing ID and session ID.
-
-    Args:
-        request: The request
-        db_session: Database session
-
-    Returns:
-        A tuple of (session_id, computing_id)
-
-    Raises:
-        HTTPException: User is not logged in
-    """
-    session_id = request.cookies.get(COOKIE_SESSION_KEY, None)
-    if session_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no session id")
-
-    session_computing_id = await auth.crud.get_session_computing_id(db_session, session_id)
-    if session_computing_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="no computing id")
-
-    return session_id, session_computing_id
-
-
-async def verify_update(computing_id: str | None, db_session: database.DBSession, target_id: str):
-    if not computing_id or (target_id != computing_id and not await is_user_website_admin(computing_id, db_session)):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be an admin")
+def has_role(user: SessionUser | None, required_role: UserRole) -> bool:
+    if user is None:
+        return False
+    return roles_satisfy(user.roles, required_role)

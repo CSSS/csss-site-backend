@@ -82,16 +82,10 @@ async def test__get_all_elections(client: AsyncClient):
 
 
 async def test__get_all_elections_with_nominees_true(client: AsyncClient):
-    # Test on election 2, because it has candidates
     response = await client.get("/api/election", params={"with_nominees": "true"})
-    assert response.status_code == 200
-    elections_list = {election["slug"]: election for election in response.json()}
-    election_2_response = elections_list[slugify(TEST_ELECTION_2)]
-    assert "survey_link" not in election_2_response
-    assert "candidates" in election_2_response
-    assert len(election_2_response["candidates"]) >= 1
-    for candidate in election_2_response["candidates"]:
-        assert_public_candidate_fields(candidate)
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Must be an election officer to view nominees"}
 
 
 async def test__get_single_election(client: AsyncClient):

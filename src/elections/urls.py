@@ -78,7 +78,7 @@ def _raise_if_bad_election_data(
     description="Return a list of all elections, their statuses and nominees (if requested)",
     response_model=list[ElectionResponse],
     responses={
-        403: {"description": "No election found", "model": DetailModel},
+        403: {"description": "Only admins can get nominees", "model": DetailModel},
     },
     operation_id="get_all_elections",
 )
@@ -91,6 +91,11 @@ async def list_elections(
     has_nominee_permission = has_role(session_user, UserRole.ELECTION)
 
     if with_nominees:
+        if not has_nominee_permission:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Must be an election officer to view nominees",
+            )
         election_responses = await elections.crud.get_all_elections_with_nominees(
             db_session, current_time, has_nominee_permission
         )

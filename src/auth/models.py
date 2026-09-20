@@ -1,10 +1,12 @@
 from datetime import datetime
+from itertools import chain
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from auth.constants import UserRole
 from auth.tables import SiteUserRoleDB
 from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
+from utils.permissions import ROLE_HIERARCHY
 
 
 class LoginBodyParams(BaseModel):
@@ -14,11 +16,6 @@ class LoginBodyParams(BaseModel):
 
 class UserBaseModel(BaseModel):
     computing_id: str = Field(..., max_length=COMPUTING_ID_LEN, description="Student's computing ID")
-
-
-class UserInfo(UserBaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     roles: list[UserRole] = Field(..., description="List of roles the user has")
 
     @field_validator("roles", mode="before")
@@ -38,7 +35,17 @@ class UserInfo(UserBaseModel):
         return result
 
 
-class SiteUser(UserInfo):
+class UserInfo(UserBaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def effective_roles(self) -> list[UserRole]:
+        effective_roles = set(chain(self.roles, *(ROLE_HIERARCHY[role] for role in self.roles)))
+        return [role for role in UserRole if role in effective_roles]
+
+
+class SiteUser(UserBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     first_logged_in: datetime | None = Field(..., description="Time the user was created")

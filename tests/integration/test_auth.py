@@ -412,6 +412,7 @@ async def test__validate_creates_session_returns_history_scrubbing_page_and_prev
     assert user_response.json() == {
         "computing_id": TEST_COMPUTING_ID,
         "roles": [],
+        "effective_roles": [],
     }
 
     verify_response = await client.get("/auth/verify")
@@ -479,7 +480,12 @@ async def test__user_returns_assigned_roles(client: AsyncClient, db_session: Asy
         UserRole.EXEC.value,
         UserRole.USER.value,
     }
-    assert set(response.json()) == {"computing_id", "roles"}
+    assert set(response.json()["effective_roles"]) == {
+        UserRole.EXEC.value,
+        UserRole.OFFICER.value,
+        UserRole.USER.value,
+    }
+    assert set(response.json()) == {"computing_id", "roles", "effective_roles"}
 
 
 async def test__logout_deletes_session_cookie_and_database_row(client: AsyncClient, db_session: AsyncSession):

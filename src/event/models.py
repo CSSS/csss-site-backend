@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
@@ -62,17 +61,6 @@ class EventUpdate(BaseModel):
     status: EventStatusEnum | None = None
     url: str | None = None
     image_id: int | None = None
-
-
-class EventDelete(BaseModel):
-    result: bool
-    eid: int
-
-
-class GroupEventDeleteResponse(BaseModel):
-    result: bool
-    group_id: UUID
-    deleted_eids: Sequence[int]
 
 
 class GetEventQueryParams(BaseModel):

@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -13,11 +13,9 @@ from dependencies import MonthPath, YearPath, perm_event
 from event.models import (
     Event,
     EventCreate,
-    EventDelete,
     EventUpdate,
     GetEventQueryParams,
     GroupEvent,
-    GroupEventDeleteResponse,
 )
 from event.tables import EventDB
 from image_asset.tables import ImageAssetDB
@@ -190,7 +188,7 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
 @router.delete(
     "/{eid}",
     description="Delete an event",
-    response_model=EventDelete,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={404: {"description": "Event doesn't exist."}},
     operation_id="delete_event",
     dependencies=[Depends(perm_event)],
@@ -202,13 +200,13 @@ async def delete_event(db_session: database.DBSession, eid: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
     await db_session.commit()
-    return EventDelete(result=True, eid=deleted_eid)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete(
     "/group/{group_id}",
     description="Delete event(s) with the given group_id",
-    response_model=GroupEventDeleteResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={404: {"description": "Event doesn't exist."}},
     operation_id="delete_group_event",
     dependencies=[Depends(perm_event)],
@@ -220,4 +218,4 @@ async def delete_group_event(db_session: database.DBSession, group_id: uuid.UUID
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
     await db_session.commit()
-    return GroupEventDeleteResponse(result=True, group_id=group_id, deleted_eids=deleted_eids)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

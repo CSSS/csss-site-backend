@@ -135,5 +135,5 @@ async def test__admin_update_nominee(db_session: DBSession, admin_client: AsyncC
 
 async def test__admin_delete_nominee(admin_client: AsyncClient):
     response = await admin_client.delete(f"/api/nominee/{TEST_NOMINEE['computing_id']}")
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json()["success"]
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.content == b""

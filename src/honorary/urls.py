@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 import database
 import honorary.crud
 from dependencies import perm_admin
 from honorary.models import HonoraryMember, HonoraryMemberCreate, HonoraryMemberUpdate
 from honorary.tables import HonoraryMemberDB
-from utils.shared_models import DetailModel, SuccessResponse
+from utils.shared_models import DetailModel
 
 router = APIRouter(
     prefix="/honorary",
@@ -122,7 +122,7 @@ async def update_honorary_member(
 @router.delete(
     "/{term_id}",
     description="Delete an honorary member term. Ended terms cannot be deleted.",
-    response_model=SuccessResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         403: {"description": "must be a website admin", "model": DetailModel},
         404: {"description": "honorary member term does not exist", "model": DetailModel},
@@ -151,4 +151,4 @@ async def delete_honorary_member(
     await honorary.crud.delete_honorary_member(db_session, honorary_member)
     await db_session.commit()
 
-    return SuccessResponse(success=True)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

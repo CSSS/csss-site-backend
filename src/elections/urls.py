@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 import candidates.crud
@@ -20,7 +20,7 @@ from elections.models import (
 from elections.tables import ElectionDB
 from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
 from utils.permissions import has_role
-from utils.shared_models import DetailModel, SuccessResponse
+from utils.shared_models import DetailModel
 from utils.urls import slugify
 
 router = APIRouter(
@@ -268,8 +268,8 @@ async def update_election(
 
 @router.delete(
     "/{election_name}",
-    description="Deletes an election from the database. Returns whether the election exists after deletion.",
-    response_model=SuccessResponse,
+    description="Deletes an election from the database.",
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         401: {"description": "Need to be logged in as an admin.", "model": DetailModel},
         409: {"description": "Election is still referenced by nominee applications.", "model": DetailModel},
@@ -290,5 +290,4 @@ async def delete_election(db_session: database.DBSession, election_name: str):
             detail=f"{election_name} is still referenced by nominee applications.",
         ) from err
 
-    old_election = await elections.crud.get_election(db_session, slugified_name)
-    return JSONResponse({"success": old_election is None})
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

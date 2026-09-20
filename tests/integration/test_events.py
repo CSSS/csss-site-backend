@@ -312,3 +312,41 @@ async def test__create_event_returns_url(db_session: DBSession, admin_client: As
 
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()["image_url"] == f"{settings.media_base_url}/images/new-event.png"
+
+
+async def test__delete_event_returns_no_content(admin_client: AsyncClient):
+    now = datetime.now(UTC).isoformat()
+    create_response = await admin_client.post(
+        "/api/event",
+        json={
+            "name": "Event to delete",
+            "description": "Description",
+            "start_datetime": now,
+            "end_datetime": now,
+            "status": EventStatusEnum.SCHEDULED,
+        },
+    )
+    assert create_response.status_code == status.HTTP_201_CREATED
+
+    delete_response = await admin_client.delete(f"/api/event/{create_response.json()['eid']}")
+
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+    assert delete_response.content == b""
+
+
+async def test__delete_group_event_returns_no_content(admin_client: AsyncClient):
+    now = datetime.now(UTC).isoformat()
+    event = {
+        "name": "Grouped event to delete",
+        "description": "Description",
+        "start_datetime": now,
+        "end_datetime": now,
+        "status": EventStatusEnum.SCHEDULED,
+    }
+    create_response = await admin_client.post("/api/event/group", json=[event, event])
+    assert create_response.status_code == status.HTTP_201_CREATED
+
+    delete_response = await admin_client.delete(f"/api/event/group/{create_response.json()['group_id']}")
+
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+    assert delete_response.content == b""

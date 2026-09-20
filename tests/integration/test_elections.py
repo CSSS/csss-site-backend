@@ -3,6 +3,7 @@ import datetime
 from datetime import timedelta
 
 import pytest
+from fastapi import status
 from httpx import AsyncClient
 
 import load_test_db
@@ -392,13 +393,15 @@ async def test__admin_update_candidate(admin_client: AsyncClient):
 async def test__admin_delete_election(admin_client: AsyncClient):
     # delete an election
     response = await admin_client.delete("/api/election/testElection4")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.content == b""
 
-    # # TODO: Move these tests to a candidates test function
-    # # ensure that candidates can be viewed
-    # # delete a candidate
-    # response = await admin_client.delete(f"/api/candidate/{TEST_ELECTION_2}/president/jdo12")
-    # assert response.status_code == 200
+    # TODO: Move this test to a candidates test function
+    response = await admin_client.delete(
+        f"/api/candidate/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}"
+    )
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.content == b""
 
 
 async def test__admin_get_nominee(admin_client: AsyncClient):

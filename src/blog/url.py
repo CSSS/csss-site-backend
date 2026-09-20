@@ -6,7 +6,6 @@ from fastapi.responses import JSONResponse
 import auth
 import blog.crud
 import database
-from permission.types import OfficerPrivateInfo
 
 _logger = logging.getLogger(__name__)
 

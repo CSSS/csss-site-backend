@@ -26,8 +26,6 @@ from officers.constants import OfficerPositionEnum
 from officers.crud import (
     create_new_officer_info,
     create_new_officer_term,
-    update_officer_info,
-    update_officer_term,
 )
 from officers.tables import OfficerInfoDB, OfficerTermDB
 from translink.tables import TransLinkStaticScheduleDB
@@ -195,38 +193,6 @@ async def load_test_officers_data(db_session: AsyncSession):
             favourite_pl_1="N/A",
             biography=None,
             photo_url=None,  # TODO: this should be replaced with a default image
-        ),
-    )
-    await db_session.commit()
-
-    await update_officer_info(
-        db_session,
-        OfficerInfoDB(
-            legal_name="Person C ----",
-            discord_id=None,
-            discord_name=None,
-            discord_nickname=None,
-            computing_id="abc33",
-            # adds a phone number
-            phone_number="123-456-7890",
-            github_username=None,
-            google_drive_email=None,
-        ),
-    )
-    await update_officer_term(
-        db_session,
-        OfficerTermDB(
-            computing_id="abc33",
-            position=OfficerPositionEnum.PRESIDENT,
-            start_date=date.today(),
-            end_date=date.today() + timedelta(days=365),
-            nickname="SEE SEE",
-            favourite_course_0="CMPT 999",
-            favourite_course_1="CMPT 354",
-            favourite_pl_0="C++",
-            favourite_pl_1="C",
-            biography="You see, I'm person C...",
-            photo_url=None,
         ),
     )
     await db_session.commit()

@@ -3,6 +3,7 @@ import datetime
 from datetime import timedelta
 
 import pytest
+from fastapi import status
 from httpx import AsyncClient
 
 import load_test_db
@@ -81,16 +82,10 @@ async def test__get_all_elections(client: AsyncClient):
 
 
 async def test__get_all_elections_with_nominees_true(client: AsyncClient):
-    # Test on election 2, because it has candidates
     response = await client.get("/api/election", params={"with_nominees": "true"})
-    assert response.status_code == 200
-    elections_list = {election["slug"]: election for election in response.json()}
-    election_2_response = elections_list[slugify(TEST_ELECTION_2)]
-    assert "survey_link" not in election_2_response
-    assert "candidates" in election_2_response
-    assert len(election_2_response["candidates"]) >= 1
-    for candidate in election_2_response["candidates"]:
-        assert_public_candidate_fields(candidate)
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Must be an election officer to view nominees"}
 
 
 async def test__get_single_election(client: AsyncClient):
@@ -392,13 +387,15 @@ async def test__admin_update_candidate(admin_client: AsyncClient):
 async def test__admin_delete_election(admin_client: AsyncClient):
     # delete an election
     response = await admin_client.delete("/api/election/testElection4")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.content == b""
 
-    # # TODO: Move these tests to a candidates test function
-    # # ensure that candidates can be viewed
-    # # delete a candidate
-    # response = await admin_client.delete(f"/api/candidate/{TEST_ELECTION_2}/president/jdo12")
-    # assert response.status_code == 200
+    # TODO: Move this test to a candidates test function
+    response = await admin_client.delete(
+        f"/api/candidate/{TEST_ELECTION_2}/vice-president/{load_test_db.SYSADMIN_COMPUTING_ID}"
+    )
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert response.content == b""
 
 
 async def test__admin_get_nominee(admin_client: AsyncClient):

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 import database
@@ -11,7 +11,7 @@ from nominees.models import (
     NomineeUpdate,
 )
 from nominees.tables import NomineeInfoDB
-from utils.shared_models import DetailModel, SuccessResponse
+from utils.shared_models import DetailModel
 
 router = APIRouter(
     prefix="/nominee",
@@ -77,7 +77,7 @@ async def get_nominee_info(db_session: database.DBSession, computing_id: str):
 @router.delete(
     "/{computing_id}",
     description="Delete a nominee",
-    response_model=SuccessResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         409: {"description": "Nominee is still referenced by election applications.", "model": DetailModel},
     },
@@ -95,7 +95,7 @@ async def delete_nominee_info(db_session: database.DBSession, computing_id: str)
             detail=f"{computing_id} is still referenced by election applications.",
         ) from err
 
-    return SuccessResponse(success=True)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch(

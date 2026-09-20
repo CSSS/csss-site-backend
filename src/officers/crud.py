@@ -1,6 +1,5 @@
 from datetime import date
 
-from fastapi import HTTPException
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +15,7 @@ from officers.tables import OfficerInfoDB, OfficerTermDB
 # NOTE: this module should not do any data validation; that should be done in the urls.py or higher layer
 
 
-async def current_officers(db_session: database.DBSession, include_private: bool = False) -> list[Officer]:
+async def current_officers(db_session: AsyncSession, include_private: bool = False) -> list[Officer]:
     """
     Get info about officers that are active. Go through all active & complete officer terms.
     """
@@ -61,7 +60,7 @@ async def current_officers(db_session: database.DBSession, include_private: bool
 
 
 async def get_current_terms_by_position(
-    db_session: database.DBSession, position: OfficerPositionEnum, computing_id: str | None = None
+    db_session: AsyncSession, position: OfficerPositionEnum, computing_id: str | None = None
 ) -> list[OfficerTermDB]:
     """
     Get current officer that holds a position
@@ -128,25 +127,12 @@ async def get_all_officers(
     return officer_list
 
 
-async def get_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfoDB:
-    officer_term = await db_session.scalar(select(OfficerInfoDB).where(OfficerInfoDB.computing_id == computing_id))
-    if officer_term is None:
-        raise HTTPException(status_code=404, detail=f"officer_info for computing_id={computing_id} does not exist yet")
-    return officer_term
-
-
-async def get_new_officer_info_or_raise(db_session: database.DBSession, computing_id: str) -> OfficerInfoDB:
-    """
-    This check is for after a create/update
-    """
-    officer_term = await db_session.scalar(select(OfficerInfoDB).where(OfficerInfoDB.computing_id == computing_id))
-    if officer_term is None:
-        raise HTTPException(status_code=500, detail=f"failed to fetch {computing_id} after update")
-    return officer_term
+async def get_officer_info(db_session: AsyncSession, computing_id: str) -> OfficerInfoDB | None:
+    return await db_session.get(OfficerInfoDB, computing_id)
 
 
 async def get_officer_terms(
-    db_session: database.DBSession,
+    db_session: AsyncSession,
     computing_id: str,
     include_future_terms: bool,
 ) -> list[OfficerTermDB]:
@@ -163,7 +149,7 @@ async def get_officer_terms(
 
 
 async def get_active_officer_terms(
-    db_session: database.DBSession, computing_id: str, positions: list[OfficerPositionEnum] | None = None
+    db_session: AsyncSession, computing_id: str, positions: list[OfficerPositionEnum] | None = None
 ) -> list[OfficerTermDB]:
     """
     Returns the list of active officer terms for a user. Returns [] if the user is not currently an officer.
@@ -183,7 +169,7 @@ async def get_active_officer_terms(
 
 
 async def current_officer_positions(
-    db_session: database.DBSession, computing_id: str, positions: list[OfficerPositionEnum] | None = None
+    db_session: AsyncSession, computing_id: str, positions: list[OfficerPositionEnum] | None = None
 ) -> list[str]:
     """
     Returns the list of officer positions a user currently has. [] if not currently an officer.
@@ -192,19 +178,12 @@ async def current_officer_positions(
     return [term.position for term in officer_term_list]
 
 
-async def get_officer_term_by_id_or_raise(
-    db_session: database.DBSession, term_id: int, is_new: bool = False
-) -> OfficerTermDB:
-    officer_term = await db_session.scalar(select(OfficerTermDB).where(OfficerTermDB.id == term_id))
-    if officer_term is None:
-        if is_new:
-            raise HTTPException(status_code=500, detail=f"could not find new officer_term with id={term_id}")
-        else:
-            raise HTTPException(status_code=404, detail=f"could not find officer_term with id={term_id}")
+async def get_officer_term_by_id(db_session: AsyncSession, term_id: int, is_new: bool = False) -> OfficerTermDB | None:
+    officer_term = await db_session.get(OfficerTermDB, term_id)
     return officer_term
 
 
-async def create_new_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfoDB) -> bool:
+async def create_new_officer_info(db_session: AsyncSession, new_officer_info: OfficerInfoDB) -> bool:
     """Return False if the officer already exists & don't do anything."""
     if not await auth.crud.site_user_exists(db_session, new_officer_info.computing_id):
         # if computing_id has not been created as a site_user yet, add them
@@ -222,7 +201,7 @@ async def create_new_officer_info(db_session: database.DBSession, new_officer_in
     return True
 
 
-async def create_new_officer_term(db_session: database.DBSession, new_officer_term: OfficerTermDB):
+async def create_new_officer_term(db_session: AsyncSession, new_officer_term: OfficerTermDB):
     position_length = OfficerPosition.length_in_semesters(new_officer_term.position)
     if position_length is not None:
         # when creating a new position, assign a default end date if one exists
@@ -233,7 +212,7 @@ async def create_new_officer_term(db_session: database.DBSession, new_officer_te
     db_session.add(new_officer_term)
 
 
-async def create_multiple_officers(db_session: database.DBSession, new_officers: list[OfficerCreate]):
+async def create_multiple_officers(db_session: AsyncSession, new_officers: list[OfficerCreate]):
     computing_ids = {term.computing_id for term in new_officers}
 
     # Prepare new officer info
@@ -320,43 +299,5 @@ async def create_multiple_officers(db_session: database.DBSession, new_officers:
     return new_officer_terms
 
 
-async def update_officer_info(db_session: database.DBSession, new_officer_info: OfficerInfoDB) -> bool:
-    """
-    Return False if the officer doesn't exist yet
-    """
-    officer_info = await db_session.scalar(
-        select(OfficerInfoDB).where(OfficerInfoDB.computing_id == new_officer_info.computing_id)
-    )
-    if officer_info is None:
-        return False
-
-    # NOTE: if there's ever an insert entry error, it will raise SQLAlchemyError
-    # see: https://stackoverflow.com/questions/2136739/how-to-check-and-handle-errors-in-sqlalchemy
-    await db_session.execute(
-        update(OfficerInfoDB)
-        .where(OfficerInfoDB.computing_id == officer_info.computing_id)
-        .values(new_officer_info.to_update_dict())
-    )
-    return True
-
-
-async def update_officer_term(
-    db_session: database.DBSession,
-    new_officer_term: OfficerTermDB,
-) -> bool:
-    """
-    Update all officer term data in `new_officer_term` based on the term id.
-    Returns false if the above entry does not exist.
-    """
-    officer_term = await db_session.scalar(select(OfficerTermDB).where(OfficerTermDB.id == new_officer_term.id))
-    if officer_term is None:
-        return False
-
-    await db_session.execute(
-        update(OfficerTermDB).where(OfficerTermDB.id == new_officer_term.id).values(new_officer_term.to_update_dict())
-    )
-    return True
-
-
-async def delete_officer_term_by_id(db_session: database.DBSession, term_id: int):
+async def delete_officer_term_by_id(db_session: AsyncSession, term_id: int):
     await db_session.execute(delete(OfficerTermDB).where(OfficerTermDB.id == term_id))

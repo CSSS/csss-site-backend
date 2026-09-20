@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 
@@ -7,10 +8,24 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from auth.constants import REDIRECT_TTL, SESSION_MAX_AGE
+from auth.constants import REDIRECT_TTL, SESSION_MAX_AGE, UserRole
 from auth.tables import AuthRedirectDB, SiteUserDB, SiteUserRoleDB, UserSessionDB
 
 _logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SessionUser:
+    """
+    The object that contains the session of the user.
+
+    Attributes:
+        computing_id: Computing ID of the user.
+        roles: Roles the user has
+    """
+
+    computing_id: str
+    roles: frozenset[UserRole]
 
 
 def _hash_session_id(session_id: str) -> bytes:
@@ -68,6 +83,23 @@ async def remove_user_session_by_hash(db_session: AsyncSession, session_hash: by
     user_session = await db_session.get(UserSessionDB, session_hash)
     if user_session is not None:
         await db_session.delete(user_session)
+
+
+async def get_session_user(db_session: AsyncSession, session_id: str) -> SessionUser | None:
+    query = (
+        sqlalchemy.select(UserSessionDB.computing_id, SiteUserRoleDB.role)
+        .outerjoin(SiteUserRoleDB, SiteUserRoleDB.computing_id == UserSessionDB.computing_id)
+        .where(
+            UserSessionDB.session_hash == _hash_session_id(session_id),
+            UserSessionDB.expires_at >= datetime.now(UTC),
+        )
+    )
+
+    rows = (await db_session.execute(query)).all()
+    if not rows:
+        return None
+
+    return SessionUser(rows[0].computing_id, frozenset(row.role for row in rows if row.role is not None))
 
 
 async def get_session_computing_id(db_session: AsyncSession, session_id: str) -> str | None:

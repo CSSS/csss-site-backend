@@ -6,10 +6,11 @@ from sqlalchemy.exc import IntegrityError
 
 import database
 import users.crud
+from auth.constants import UserRole
 from auth.models import SiteUser
 from auth.tables import SiteUserDB, SiteUserRoleDB
 from constants import TZ_INFO
-from dependencies import SiteAdmin, perm_admin
+from dependencies import AccessAdmin, SiteAdmin, perm_admin
 from users.models import SiteUserCreate, SiteUserUpdate
 from utils.shared_models import DetailModel
 
@@ -101,16 +102,16 @@ async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, 
     response_model=SiteUser,
     status_code=status.HTTP_200_OK,
     responses={
-        401: {"description": "need to be a logged in admin", "model": DetailModel},
-        403: {"description": "need to be an admin", "model": DetailModel},
-        404: {"description": "site user not found", "model": DetailModel},
-        409: {"description": "role update conflicted with another change", "model": DetailModel},
+        401: {"description": "Need to be logged in", "model": DetailModel},
+        403: {"description": "Not authorized", "model": DetailModel},
+        404: {"description": "Site user to patch not found", "model": DetailModel},
+        409: {"description": "Role update conflicted with another change", "model": DetailModel},
     },
     operation_id="update_site_user_roles",
 )
 async def update_site_user_roles(
     db_session: database.DBSession,
-    admin_id: SiteAdmin,
+    admin_id: AccessAdmin,
     computing_id: str,
     body: SiteUserUpdate,
 ):
@@ -121,8 +122,17 @@ async def update_site_user_roles(
 
     existing_roles = {assignment.role for assignment in user.roles}
 
-    new_roles = set(body.roles)
+    if UserRole.ACCESS in existing_roles:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
+    new_roles = set(body.roles)
+    if UserRole.ACCESS in new_roles:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    if existing_roles == new_roles:
+        return SiteUser.model_validate(user)
+
+    # Get a diff of what roles to add and remove
     roles_to_add = new_roles - existing_roles
     roles_to_remove = existing_roles - new_roles
 

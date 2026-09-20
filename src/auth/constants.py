@@ -20,9 +20,26 @@ SITE_USER_ROLE_MAX_LENGTH = 32  # Max length of a user permission string
 
 
 class UserRole(StrEnum):
-    ADMIN = "admin"  # Highest level, can manage pretty much everything
-    EXEC = "exec"  # Allowed to upload media, documents, etc.
-    USER = "user"  # Lowest level, can only access basic functionality
+    """
+    Roles defined for site users. Some of it is hierarchical, some of them give permissions to certain resources.
+
+    Attributes:
+        ACCESS: Can manage everything.
+        ADMIN: Can manage everything except admin status.
+        EXEC: Can view private officer info, events, honorary members, and upload media. Can't see any election material or make changes to anything.
+        OFFICER: A non-executive that has been tasked to do something and requires elevated permission e.g. Elections Officer.
+        USER: Base user, does not have permissions for anything at the moment.
+
+        EVENT: Can view and manage events.
+        ELECTION: Can view and manage elections.
+    """
+
+    # Hierarchical roles
+    ACCESS = "access"
+    ADMIN = "admin"
+    EXEC = "exec"
+    OFFICER = "officer"
+    USER = "user"
 
     # Access roles for specific features
     EVENT = "event"

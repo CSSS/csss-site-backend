@@ -92,7 +92,7 @@ async def test__get_officer_terms(client: AsyncClient):
     assert len(response.json()) == 0
 
     response = await client.get("/api/officers/terms/abc11?include_future_terms=true")
-    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     response = await client.get("/api/officers/info/abc11")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -136,7 +136,7 @@ async def test__update_officer_term(client: AsyncClient):
             "google_drive_email": None,
         },
     )
-    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     response = await client.patch(
         "/api/officers/term/1",
@@ -324,13 +324,13 @@ async def test__admin_patch_officer_term(admin_client: AsyncClient):
     assert len(response.json()) == 9
 
     response = await admin_client.delete("/api/officers/term/1")
-    assert response.status_code == 200
+    assert response.status_code == 204
     response = await admin_client.delete("/api/officers/term/2")
-    assert response.status_code == 200
+    assert response.status_code == 204
     response = await admin_client.delete("/api/officers/term/3")
-    assert response.status_code == 200
+    assert response.status_code == 204
     response = await admin_client.delete("/api/officers/term/4")
-    assert response.status_code == 200
+    assert response.status_code == 204
 
     response = await admin_client.get("/api/officers/all?include_future_terms=True")
     assert len(response.json()) == 5

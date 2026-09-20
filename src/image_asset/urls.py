@@ -15,7 +15,7 @@ from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 import database
 import image_asset.crud
 from config import settings
-from dependencies import perm_admin
+from dependencies import perm_admin, perm_event, perm_exec
 from image_asset.constants import ALLOWED_IMAGE_TYPES, IMAGE_ASSET_MAPPING, MAX_ATTEMPTS, MAX_PIXELS, ImageAssetCategory
 from image_asset.models import ImageAsset
 from image_asset.tables import ImageAssetDB
@@ -109,7 +109,7 @@ router = APIRouter(
     response_model=list[ImageAsset],
     responses={403: {"description": "must be a website admin", "model": DetailModel}},
     operation_id="get_all_image_assets",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_exec)],
 )
 async def get_all_image_assets(db_session: database.DBSession):
     return await image_asset.crud.get_all_image_assets(db_session)
@@ -128,7 +128,7 @@ async def get_all_image_assets(db_session: database.DBSession):
         500: {"description": "Server had an issue saving the image.", "model": DetailModel},
     },
     operation_id="create_image_asset",
-    dependencies=[Depends(perm_admin)],
+    dependencies=[Depends(perm_event)],
 )
 async def create_image_asset_from_upload(
     db_session: database.DBSession,

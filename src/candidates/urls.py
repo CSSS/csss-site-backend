@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 import candidates.crud
 import database
@@ -13,12 +13,12 @@ from candidates.models import (
     CandidateUpdate,
 )
 from candidates.tables import CandidateDB
-from dependencies import logged_in_user, perm_election
+from dependencies import authenticated_user, perm_election
 from elections.models import (
     ElectionStatusEnum,
 )
 from officers.constants import OfficerPositionEnum
-from utils.shared_models import DetailModel, SuccessResponse
+from utils.shared_models import DetailModel
 from utils.urls import slugify
 
 router = APIRouter(
@@ -48,7 +48,7 @@ async def get_all_candidates(
         404: {"description": "Election with slug does not exist", "model": DetailModel},
     },
     operation_id="get_election_candidates",
-    dependencies=[Depends(logged_in_user)],
+    dependencies=[Depends(authenticated_user)],
 )
 async def get_election_candidates(db_session: database.DBSession, election_name: str):
     slugified_name = slugify(election_name)
@@ -181,7 +181,7 @@ async def update_candidate(
 @router.delete(
     "/{election_name}/{position}/{computing_id}",
     description="delete the registration of a person",
-    response_model=SuccessResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         400: {"description": "Bad request", "model": DetailModel},
         401: {"description": "Not logged in", "model": DetailModel},
@@ -218,7 +218,4 @@ async def delete_candidate(
 
     await candidates.crud.delete_candidate(db_session, computing_id, slugified_name, position)
     await db_session.commit()
-    old_election = await candidates.crud.get_one_candidate_in_election(
-        db_session, computing_id, slugified_name, position
-    )
-    return JSONResponse({"success": old_election is None})
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

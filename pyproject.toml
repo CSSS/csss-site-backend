@@ -7,22 +7,22 @@ dependencies = [
     # major
     "fastapi==0.141.1",
     "gunicorn==26.2.0",
-    "uvicorn[standard]==0.52.4",
-    "sqlalchemy[asyncio]==2.0.52",
+    "uvicorn[standard]==0.53.0",
+    "sqlalchemy[asyncio]==2.0.54",
     "asyncpg==0.31.0",
-    "alembic==1.19.2",
+    "alembic==1.20.0",
     # minor
     "xmltodict==1.0.4",
     "httpx==0.28.1",
     "pydantic-settings==2.15.0",
-    "gtfs-realtime-bindings==2.2.0",
+    "gtfs-realtime-bindings==3.0.0",
     "python-multipart>=0.0.32",
     "pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff==0.16.7", # linting and formatter
+    "ruff==0.16.8", # linting and formatter
     "pre-commit",
 ]
 

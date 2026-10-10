@@ -12,7 +12,6 @@ from elections.models import (
     ElectionTypeEnum,
     ElectionUpdateParams,
 )
-from officers.constants import OfficerPositionEnum
 from utils.types import StringList
 
 MAX_ELECTION_NAME = 64
@@ -34,7 +33,7 @@ class ElectionDB(Base):
     # By giving it the type `StringList`, the database entry will automatically be marshalled to the correct form
     # DB -> Python: str -> list[str]
     # Python -> DB: list[str] -> str
-    available_positions: Mapped[list[OfficerPositionEnum]] = mapped_column(
+    available_positions: Mapped[list[str]] = mapped_column(
         StringList(),
         nullable=False,
     )

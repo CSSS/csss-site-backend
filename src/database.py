@@ -17,6 +17,7 @@ convention = {
     "ck": "ck_%(table_name)s_%(constraint_name)s",  # check
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",  # foreign key
     "pk": "pk_%(table_name)s",  # primary key
+    "ex": "ex_%(table_name)s_%(column_0_name)s",  # exclude
 }
 
 

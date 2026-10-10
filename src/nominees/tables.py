@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    CheckConstraint,
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -12,6 +13,12 @@ from database import Base
 
 class NomineeInfoDB(Base):
     __tablename__ = "election_nominee_info"
+
+    __table_args__ = (
+        CheckConstraint(
+            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
+        ),
+    )
 
     computing_id: Mapped[str] = mapped_column(String(COMPUTING_ID_LEN), primary_key=True)
     full_name: Mapped[str] = mapped_column(String(64))

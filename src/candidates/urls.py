@@ -17,7 +17,6 @@ from dependencies import authenticated_user, perm_election
 from elections.models import (
     ElectionStatusEnum,
 )
-from officers.constants import OfficerPositionEnum
 from utils.shared_models import DetailModel
 from utils.urls import slugify
 
@@ -75,8 +74,9 @@ async def get_election_candidates(db_session: database.DBSession, election_name:
     dependencies=[Depends(perm_election)],
 )
 async def register_candidate(db_session: database.DBSession, body: CandidateCreate, election_slug: str):
-    if body.position not in [o.value for o in OfficerPositionEnum]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
+    # TODO: Ensure it's in the database
+    # if body.position not in [o.value for o in OfficerPositionEnum]:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid position {body.position}")
 
     if await nominees.crud.get_nominee_info(db_session, body.computing_id) is None:
         # ensure that the user has a nominee info entry before allowing registration to occur.
@@ -142,7 +142,7 @@ async def update_candidate(
     body: CandidateUpdate,
     election_name: str,
     computing_id: str,
-    position: OfficerPositionEnum,
+    position: str,
 ):
     slugified_name = slugify(election_name)
     election = await elections.crud.get_election(db_session, slugified_name)
@@ -194,7 +194,7 @@ async def update_candidate(
 async def delete_candidate(
     db_session: database.DBSession,
     election_name: str,
-    position: OfficerPositionEnum,
+    position: str,
     computing_id: str,
 ):
     slugified_name = slugify(election_name)

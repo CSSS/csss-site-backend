@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, LargeBinary, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, LargeBinary, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from auth.constants import SITE_USER_ROLE_MAX_LENGTH, UserRole
 from constants import AUTH_REDIRECT_ID_LEN, COMPUTING_ID_LEN, SESSION_ID_LEN
@@ -10,6 +10,12 @@ from database import Base
 
 class UserSessionDB(Base):
     __tablename__ = "user_session"
+
+    __table_args__ = (
+        CheckConstraint(
+            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
+        ),
+    )
 
     session_hash: Mapped[str] = mapped_column(
         LargeBinary(32),
@@ -47,6 +53,16 @@ class SiteUserDB(Base):
         foreign_keys="SiteUserRoleDB.computing_id",
     )
 
+    @validates("computing_id")
+    def validate_computing_id(self, key: str, computing_id: str) -> str:
+        return computing_id.lower()
+
+    __table_args__ = (
+        CheckConstraint(
+            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
+        ),
+    )
+
 
 class SiteUserRoleDB(Base):
     """
@@ -61,6 +77,13 @@ class SiteUserRoleDB(Base):
     """
 
     __tablename__ = "site_user_role"
+
+    __table_args__ = (
+        CheckConstraint(
+            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
+        ),
+        CheckConstraint("added_by IS NULL OR added_by ~ '^[a-z0-9]+$'", name="added_by_format"),
+    )
 
     computing_id: Mapped[str] = mapped_column(
         String(COMPUTING_ID_LEN),

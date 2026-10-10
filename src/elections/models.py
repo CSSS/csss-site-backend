@@ -3,8 +3,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from officers.constants import OfficerPositionEnum
-
 
 class ElectionTypeEnum(StrEnum):
     GENERAL = "general_election"
@@ -21,7 +19,7 @@ class ElectionStatusEnum(StrEnum):
 
 class ElectionNomineeSummary(BaseModel):
     full_name: str
-    position: OfficerPositionEnum
+    position: str
     speech: str
     computing_id: str | None = None
     linked_in: str | None = None
@@ -37,7 +35,7 @@ class ElectionResponse(BaseModel):
     datetime_start_nominations: datetime
     datetime_start_voting: datetime
     datetime_end_voting: datetime
-    available_positions: list[OfficerPositionEnum]
+    available_positions: list[str]
     status: ElectionStatusEnum
 
     # Private fields
@@ -54,7 +52,7 @@ class ElectionParams(BaseModel):
     datetime_start_nominations: datetime
     datetime_start_voting: datetime
     datetime_end_voting: datetime
-    available_positions: list[OfficerPositionEnum] | None = None
+    available_positions: list[str] | None = None
     survey_link: str | None = None
 
 
@@ -63,5 +61,5 @@ class ElectionUpdateParams(BaseModel):
     datetime_start_nominations: datetime | None = None
     datetime_start_voting: datetime | None = None
     datetime_end_voting: datetime | None = None
-    available_positions: list[OfficerPositionEnum] | None = None
+    available_positions: list[str] | None = None
     survey_link: str | None = None

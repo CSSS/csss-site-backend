@@ -26,3 +26,7 @@ DISCORD_NICKNAME_LEN = 32
 
 # https://docs.github.com/en/enterprise-server@3.10/admin/identity-and-access-management/iam-configuration-reference/username-considerations-for-external-authentication
 GITHUB_USERNAME_LEN = 39
+
+PHONE_NUMBER_MAX_LEN = 30
+
+GMAIL_MAX_LEN = 256

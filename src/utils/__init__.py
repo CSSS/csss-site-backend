@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import re
-from datetime import date
+from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Select
 
 # we can't use and/or in sql expressions, so we must use these functions
 from sqlalchemy.sql.expression import and_, or_
 
-from officers.tables import OfficerTermDB
+from constants import TZ_INFO
+
+if TYPE_CHECKING:
+    from officers.tables import OfficerTermDB
 
 
 def is_active_officer(query: Select) -> Select:
@@ -14,6 +20,8 @@ def is_active_officer(query: Select) -> Select:
     An active officer is one who is currently part of the CSSS officer team.
     That is, they are not upcoming, or in the past.
     """
+    from officers.tables import OfficerTermDB
+
     return query.where(
         and_(
             # cannot be an officer who has not started yet
@@ -29,7 +37,9 @@ def is_active_officer(query: Select) -> Select:
 
 
 def has_started_term(query: Select) -> Select[tuple[OfficerTermDB]]:
-    return query.where(OfficerTermDB.start_date <= date.today())
+    from officers.tables import OfficerTermDB
+
+    return query.where(OfficerTermDB.start_date <= datetime.now(TZ_INFO).date())
 
 
 def is_active_term(

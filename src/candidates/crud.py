@@ -4,7 +4,6 @@ import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from candidates.tables import CandidateDB
-from officers.constants import OfficerPositionEnum
 
 
 async def get_all_candidates(db_session: AsyncSession) -> Sequence[CandidateDB]:
@@ -14,7 +13,7 @@ async def get_all_candidates(db_session: AsyncSession) -> Sequence[CandidateDB]:
 
 async def get_all_registrations_of_candidate(
     db_session: AsyncSession, computing_id: str, election_slug: str
-) -> dict[OfficerPositionEnum, CandidateDB]:
+) -> dict[str, CandidateDB]:
     """
     Get all the registrations of a candidate in one election.
 
@@ -40,7 +39,7 @@ async def get_one_candidate_in_election(
     db_session: AsyncSession,
     computing_id: str,
     election_slug: str,
-    position: OfficerPositionEnum,
+    position: str,
 ) -> CandidateDB | None:
     registration = await db_session.scalar(
         sqlalchemy.select(CandidateDB).where(
@@ -78,9 +77,7 @@ async def update_candidate(db_session: AsyncSession, initial_application: Candid
     )
 
 
-async def delete_candidate(
-    db_session: AsyncSession, computing_id: str, election_slug: str, position: OfficerPositionEnum
-):
+async def delete_candidate(db_session: AsyncSession, computing_id: str, election_slug: str, position: str):
     await db_session.execute(
         sqlalchemy.delete(CandidateDB).where(
             (CandidateDB.computing_id == computing_id)

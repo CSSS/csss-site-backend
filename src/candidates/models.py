@@ -1,23 +1,21 @@
 from pydantic import BaseModel, ConfigDict
 
-from officers.constants import OfficerPositionEnum
-
 
 class Candidate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     computing_id: str
     nominee_election: str
-    position: OfficerPositionEnum
+    position: str
     speech: str | None = None
 
 
 class CandidateCreate(BaseModel):
     computing_id: str
-    position: OfficerPositionEnum
+    position: str
     speech: str | None = None
 
 
 class CandidateUpdate(BaseModel):
-    position: OfficerPositionEnum | None = None
+    position: str | None = None
     speech: str | None = None

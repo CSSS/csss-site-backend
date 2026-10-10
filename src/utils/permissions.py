@@ -10,17 +10,16 @@ import officers.crud
 from auth.constants import COOKIE_SESSION_KEY, UserRole
 from auth.crud import SessionUser
 from auth.tables import SiteUserRoleDB
-from officers.constants import OfficerPositionEnum
 
-WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
-    OfficerPositionEnum.PRESIDENT,
-    OfficerPositionEnum.VICE_PRESIDENT,
-    OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
-    OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
-    OfficerPositionEnum.WEBMASTER,
-]
-
-ELECTIONS_OFFICER_POSITION = [*WEBSITE_ADMIN_POSITIONS, OfficerPositionEnum.ELECTIONS_OFFICER]
+# WEBSITE_ADMIN_POSITIONS: list[OfficerPositionEnum] = [
+#     OfficerPositionEnum.PRESIDENT,
+#     OfficerPositionEnum.VICE_PRESIDENT,
+#     OfficerPositionEnum.DIRECTOR_OF_ARCHIVES,
+#     OfficerPositionEnum.SYSTEM_ADMINISTRATOR,
+#     OfficerPositionEnum.WEBMASTER,
+# ]
+#
+# ELECTIONS_OFFICER_POSITION = [*WEBSITE_ADMIN_POSITIONS, OfficerPositionEnum.ELECTIONS_OFFICER]
 
 # Roles satisfy their key, plus any in their set.
 ROLE_HIERARCHY: dict[UserRole, frozenset[UserRole]] = {

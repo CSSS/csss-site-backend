@@ -18,7 +18,6 @@ from elections.models import (
     ElectionUpdateParams,
 )
 from elections.tables import ElectionDB
-from officers.constants import COUNCIL_REP_ELECTION_POSITIONS, GENERAL_ELECTION_POSITIONS, OfficerPositionEnum
 from utils.permissions import has_role
 from utils.shared_models import DetailModel
 from utils.urls import slugify
@@ -29,13 +28,13 @@ router = APIRouter(
 )
 
 
-def _default_election_positions(election_type: ElectionTypeEnum) -> list[OfficerPositionEnum]:
+def _default_election_positions(election_type: ElectionTypeEnum) -> list[str]:
     if election_type == ElectionTypeEnum.GENERAL:
-        available_positions = GENERAL_ELECTION_POSITIONS
+        available_positions = []
     elif election_type == ElectionTypeEnum.BY_ELECTION:
-        available_positions = GENERAL_ELECTION_POSITIONS
+        available_positions = []
     elif election_type == ElectionTypeEnum.COUNCIL_REP:
-        available_positions = COUNCIL_REP_ELECTION_POSITIONS
+        available_positions = []
     return available_positions
 
 
@@ -45,7 +44,7 @@ def _raise_if_bad_election_data(
     datetime_start_nominations: datetime.datetime,
     datetime_start_voting: datetime.datetime,
     datetime_end_voting: datetime.datetime,
-    available_positions: list[OfficerPositionEnum],
+    available_positions: list[str],
 ):
     if election_type not in [e.value for e in ElectionTypeEnum]:
         raise HTTPException(
@@ -59,12 +58,13 @@ def _raise_if_bad_election_data(
             detail="dates must be in order from earliest to latest",
         )
 
-    for position in available_positions:
-        if position not in [p.value for p in OfficerPositionEnum]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"unknown position found in position list {position}",
-            )
+    # TODO: Add some validation for sent in lists
+    # for position in available_positions:
+    #     if position not in [p.value for p in OfficerPositionEnum]:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail=f"unknown position found in position list {position}",
+    #         )
 
     if len(slug) > elections.tables.MAX_ELECTION_SLUG:
         raise HTTPException(

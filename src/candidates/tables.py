@@ -1,9 +1,8 @@
-from sqlalchemy import ForeignKey, PrimaryKeyConstraint, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, PrimaryKeyConstraint, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from candidates.models import CandidateUpdate
 from database import Base
-from officers.constants import OfficerPositionEnum
 
 
 class CandidateDB(Base):
@@ -11,11 +10,16 @@ class CandidateDB(Base):
 
     computing_id: Mapped[str] = mapped_column(ForeignKey("election_nominee_info.computing_id"), primary_key=True)
     nominee_election: Mapped[str] = mapped_column(ForeignKey("election.slug"), primary_key=True)
-    position: Mapped[OfficerPositionEnum] = mapped_column(String(64), primary_key=True)
+    position: Mapped[str] = mapped_column(String(64), primary_key=True)
 
     speech: Mapped[str | None] = mapped_column(Text)
 
-    __table_args__ = (PrimaryKeyConstraint(computing_id, nominee_election, position),)
+    __table_args__ = (
+        PrimaryKeyConstraint(computing_id, nominee_election, position),
+        CheckConstraint(
+            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
+        ),
+    )
 
     def serialize(self) -> dict:
         return {

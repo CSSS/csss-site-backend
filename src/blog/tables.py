@@ -1,14 +1,19 @@
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, String, Text
 
 from constants import COMPUTING_ID_LEN
 from database import Base
-from officers import tables
 
 
 # blog table
 class BlogPostsDB(Base):
     # table name
     __tablename__ = "blog_posts"
+
+    __table_args__ = (
+        CheckConstraint(
+            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
+        ),
+    )
 
     # title of post ( meant to be an unique key but for simplicity,
     # using already defined primay_key )

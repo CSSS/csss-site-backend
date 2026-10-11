@@ -194,8 +194,8 @@ class OfficerPositionVersionDB(Base):
         ),
         CheckConstraint(
             "CASE "
-            "WHEN category = 'executive' THEN multiple_allowed IS NOT NULL "
-            "WHEN category IN ('elected_representative', 'appointed_representative') "
+            "WHEN type = 'executive' THEN multiple_allowed IS NOT NULL "
+            "WHEN type IN ('elected_representative', 'appointed_representative') "
             "THEN multiple_allowed IS NULL "
             "ELSE FALSE END",
             name="multiple_allowed_by_category",

@@ -26,7 +26,7 @@ class BaseEvent(BaseModel):
 class Event(BaseEvent):
     model_config = ConfigDict(from_attributes=True)
 
-    eid: int
+    eid: str
     group_id: UUID | None = None
     image_url: str | None = None
 

@@ -42,11 +42,11 @@ async def get_events(db_session: AsyncSession, q: GetEventQueryParams) -> list[E
     ]
 
 
-async def get_event_by_eid(db_session: AsyncSession, eid: int) -> EventDB | None:
-    return await db_session.get(EventDB, eid)
+async def get_event_by_eid(db_session: AsyncSession, eid: str) -> EventDB | None:
+    return await db_session.scalar(select(EventDB).where(EventDB.eid == eid))
 
 
-async def get_event_with_image_url(db_session: AsyncSession, eid: int) -> tuple[EventDB, str | None] | None:
+async def get_event_with_image_url(db_session: AsyncSession, eid: str) -> tuple[EventDB, str | None] | None:
     query = (
         select(EventDB, ImageAssetDB.storage_key)
         .outerjoin(ImageAssetDB, EventDB.image_id == ImageAssetDB.image_id)
@@ -75,12 +75,12 @@ def create_bulk_event(db_session: AsyncSession, events: list[EventDB]) -> None:
     db_session.add_all(events)
 
 
-async def delete_event(db_session: AsyncSession, eid: int) -> int | None:
-    query = delete(EventDB).where(EventDB.eid == eid).returning(EventDB.eid)
+async def delete_event(db_session: AsyncSession, eid: str) -> int | None:
+    query = delete(EventDB).where(EventDB.eid == eid).returning(EventDB.id)
     return await db_session.scalar(query)
 
 
 async def delete_group_events(db_session: AsyncSession, group_id: UUID) -> Sequence[int]:
-    query = delete(EventDB).where(EventDB.group_id == group_id).returning(EventDB.eid)
+    query = delete(EventDB).where(EventDB.group_id == group_id).returning(EventDB.id)
 
     return (await db_session.scalars(query)).all()

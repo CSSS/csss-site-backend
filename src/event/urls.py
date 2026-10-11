@@ -134,7 +134,7 @@ async def add_event_to_group(db_session: database.DBSession, group_id: uuid.UUID
     operation_id="update_event",
     dependencies=[Depends(perm_event)],
 )
-async def update_event(db_session: database.DBSession, eid: int, body: EventUpdate):
+async def update_event(db_session: database.DBSession, eid: str, body: EventUpdate):
     result = await event.crud.get_event_with_image_url(db_session, eid)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
@@ -193,10 +193,10 @@ async def update_event(db_session: database.DBSession, eid: int, body: EventUpda
     operation_id="delete_event",
     dependencies=[Depends(perm_event)],
 )
-async def delete_event(db_session: database.DBSession, eid: int):
-    deleted_eid = await event.crud.delete_event(db_session, eid)
+async def delete_event(db_session: database.DBSession, eid: str):
+    deleted_id = await event.crud.delete_event(db_session, eid)
 
-    if deleted_eid is None:
+    if deleted_id is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
     await db_session.commit()
@@ -212,9 +212,9 @@ async def delete_event(db_session: database.DBSession, eid: int):
     dependencies=[Depends(perm_event)],
 )
 async def delete_group_event(db_session: database.DBSession, group_id: uuid.UUID):
-    deleted_eids = await event.crud.delete_group_events(db_session, group_id)
+    deleted_ids = await event.crud.delete_group_events(db_session, group_id)
 
-    if not deleted_eids:
+    if not deleted_ids:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event doesn't exist.")
 
     await db_session.commit()

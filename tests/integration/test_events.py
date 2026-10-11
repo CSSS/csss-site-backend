@@ -3,6 +3,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi import status
 from httpx import AsyncClient
+from sqlalchemy import select
+from ulid import ULID
 
 from config import settings
 from database import DBSession
@@ -64,7 +66,7 @@ async def seed_events(db_session: DBSession) -> None:
     await db_session.commit()
 
 
-async def seed_event_for_update(db_session: DBSession) -> tuple[int, int, int]:
+async def seed_event_for_update(db_session: DBSession) -> tuple[str, int, int]:
     original_image = ImageAssetDB(
         storage_key=ORIGINAL_IMAGE_KEY,
         original_filename="update-event-original.png",
@@ -173,7 +175,9 @@ async def test__update_event_preserves_image_when_image_id_is_omitted(
     assert response.json()["image_id"] == original_image_id
     assert response.json()["image_url"] == f"{settings.media_base_url.rstrip('/')}/{ORIGINAL_IMAGE_KEY}"
 
-    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    db_event = await db_session.scalar(
+        select(EventDB).where(EventDB.eid == event_id).execution_options(populate_existing=True)
+    )
     assert db_event is not None
     assert db_event.name == "Updated event"
     assert db_event.image_id == original_image_id
@@ -194,7 +198,9 @@ async def test__update_event_preserves_image_when_image_id_is_unchanged(
     assert response.json()["image_id"] == original_image_id
     assert response.json()["image_url"] == f"{settings.media_base_url.rstrip('/')}/{ORIGINAL_IMAGE_KEY}"
 
-    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    db_event = await db_session.scalar(
+        select(EventDB).where(EventDB.eid == event_id).execution_options(populate_existing=True)
+    )
     assert db_event is not None
     assert db_event.image_id == original_image_id
 
@@ -214,7 +220,9 @@ async def test__update_event_replaces_image(
     assert response.json()["image_id"] == replacement_image_id
     assert response.json()["image_url"] == f"{settings.media_base_url.rstrip('/')}/{REPLACEMENT_IMAGE_KEY}"
 
-    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    db_event = await db_session.scalar(
+        select(EventDB).where(EventDB.eid == event_id).execution_options(populate_existing=True)
+    )
     assert db_event is not None
     assert db_event.image_id == replacement_image_id
 
@@ -234,7 +242,9 @@ async def test__update_event_clears_image_when_image_id_is_null(
     assert response.json()["image_id"] is None
     assert response.json()["image_url"] is None
 
-    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    db_event = await db_session.scalar(
+        select(EventDB).where(EventDB.eid == event_id).execution_options(populate_existing=True)
+    )
     assert db_event is not None
     assert db_event.image_id is None
 
@@ -253,7 +263,9 @@ async def test__update_event_rejects_missing_image_without_modifying_event(
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json() == {"detail": "Image asset doesn't exist."}
 
-    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    db_event = await db_session.scalar(
+        select(EventDB).where(EventDB.eid == event_id).execution_options(populate_existing=True)
+    )
     assert db_event is not None
     assert db_event.image_id == original_image_id
 
@@ -271,7 +283,9 @@ async def test__update_event_validates_the_merged_time_range(
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    db_event = await db_session.get(EventDB, event_id, populate_existing=True)
+    db_event = await db_session.scalar(
+        select(EventDB).where(EventDB.eid == event_id).execution_options(populate_existing=True)
+    )
     assert db_event is not None
     assert db_event.start_datetime == UPDATE_EVENT_START
 
@@ -312,6 +326,8 @@ async def test__create_event_returns_url(db_session: DBSession, admin_client: As
 
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()["image_url"] == f"{settings.media_base_url}/images/new-event.png"
+    assert str(ULID.from_str(response.json()["eid"])) == response.json()["eid"]
+    assert "id" not in response.json()
 
 
 async def test__delete_event_returns_no_content(admin_client: AsyncClient):
@@ -332,6 +348,8 @@ async def test__delete_event_returns_no_content(admin_client: AsyncClient):
 
     assert delete_response.status_code == status.HTTP_204_NO_CONTENT
     assert delete_response.content == b""
+    repeated_delete = await admin_client.delete(f"/api/event/{create_response.json()['eid']}")
+    assert repeated_delete.status_code == status.HTTP_404_NOT_FOUND
 
 
 async def test__delete_group_event_returns_no_content(admin_client: AsyncClient):
@@ -346,7 +364,45 @@ async def test__delete_group_event_returns_no_content(admin_client: AsyncClient)
     create_response = await admin_client.post("/api/event/group", json=[event, event])
     assert create_response.status_code == status.HTTP_201_CREATED
 
+    eids = [event["eid"] for event in create_response.json()["events"]]
+    assert len(set(eids)) == 2
+    assert all(str(ULID.from_str(eid)) == eid for eid in eids)
+
     delete_response = await admin_client.delete(f"/api/event/group/{create_response.json()['group_id']}")
 
     assert delete_response.status_code == status.HTTP_204_NO_CONTENT
     assert delete_response.content == b""
+
+
+async def test__event_endpoints_do_not_accept_internal_ids(db_session: DBSession, admin_client: AsyncClient):
+    eid, _, _ = await seed_event_for_update(db_session)
+    db_event = await db_session.scalar(select(EventDB).where(EventDB.eid == eid))
+    assert db_event is not None
+
+    update_response = await admin_client.patch(f"/api/event/{db_event.id}", json={"name": "Wrong ID"})
+    delete_response = await admin_client.delete(f"/api/event/{db_event.id}")
+
+    assert update_response.status_code == status.HTTP_404_NOT_FOUND
+    assert delete_response.status_code == status.HTTP_404_NOT_FOUND
+    await db_session.refresh(db_event)
+    assert db_event.name == "Event to update"
+
+
+async def test__add_event_to_group_generates_public_id(admin_client: AsyncClient):
+    now = datetime.now(UTC).isoformat()
+    payload = {
+        "name": "Grouped event",
+        "description": "Description",
+        "start_datetime": now,
+        "end_datetime": now,
+        "status": EventStatusEnum.SCHEDULED,
+    }
+    group_response = await admin_client.post("/api/event/group", json=[payload])
+    assert group_response.status_code == status.HTTP_201_CREATED
+    group = group_response.json()
+
+    response = await admin_client.post(f"/api/event/group/{group['group_id']}", json=payload)
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert str(ULID.from_str(response.json()["eid"])) == response.json()["eid"]
+    assert response.json()["eid"] != group["events"][0]["eid"]

@@ -18,6 +18,7 @@ dependencies = [
     "gtfs-realtime-bindings==3.0.0",
     "python-multipart>=0.0.32",
     "pillow>=12.3.0",
+    "python-ulid>=4.0.1",
 ]
 
 [project.optional-dependencies]

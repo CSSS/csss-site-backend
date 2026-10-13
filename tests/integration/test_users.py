@@ -1,11 +1,10 @@
 from uuid import UUID, uuid4
 
 import pytest
-import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
 
-from auth.constants import UserRole
+from auth.constants import COOKIE_SESSION_KEY, UserRole
 from auth.crud import (
     create_user_session,
     get_session_computing_id,
@@ -19,18 +18,8 @@ from database import DBSession
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-@pytest_asyncio.fixture(loop_scope="session")
-async def access_client(db_session: DBSession, admin_client: AsyncClient):
-    response = await admin_client.get("/auth/user")
-    assert response.status_code == status.HTTP_200_OK
-    uid = UUID(response.json()["uid"])
-    db_session.add(SiteUserRoleDB(uid=uid, role=UserRole.ACCESS, added_by=uid))
-    await db_session.commit()
-    yield admin_client
-
-
-async def test__user_endpoints_use_public_uid(db_session: DBSession, access_client: AsyncClient):
-    response = await access_client.post("/api/user", json={"computing_id": "uidtarget"})
+async def test__user_endpoints_use_public_uid(db_session: DBSession, admin_client: AsyncClient):
+    response = await admin_client.post("/api/user", json={"computing_id": "uidtarget"})
     assert response.status_code == status.HTTP_201_CREATED
     uid = response.json()["uid"]
     assert UUID(uid).version == 4
@@ -40,39 +29,47 @@ async def test__user_endpoints_use_public_uid(db_session: DBSession, access_clie
     assert str(db_user.uid) == uid
     assert await db_session.get(SiteUserDB, UUID(uid)) is db_user
 
-    list_response = await access_client.get("/api/user")
+    list_response = await admin_client.get("/api/user")
     assert list_response.status_code == status.HTTP_200_OK
     assert any(user["uid"] == uid for user in list_response.json())
 
-    update_response = await access_client.put(f"/api/user/{uid}", json={"roles": ["user"]})
+    update_response = await admin_client.put(f"/api/user/{uid}", json={"roles": ["user"]})
     assert update_response.status_code == status.HTTP_200_OK
     assert update_response.json()["uid"] == uid
     assert update_response.json()["roles"] == ["user"]
 
-    clear_response = await access_client.put(f"/api/user/{uid}", json={"roles": []})
+    clear_response = await admin_client.put(f"/api/user/{uid}", json={"roles": []})
     assert clear_response.status_code == status.HTTP_200_OK
-    delete_response = await access_client.delete(f"/api/user/{uid}")
+    delete_response = await admin_client.delete(f"/api/user/{uid}")
     assert delete_response.status_code == status.HTTP_204_NO_CONTENT
     assert delete_response.content == b""
 
-    repeated_delete = await access_client.delete(f"/api/user/{uid}")
+    repeated_delete = await admin_client.delete(f"/api/user/{uid}")
     assert repeated_delete.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test__user_endpoints_reject_computing_id_paths(access_client: AsyncClient):
-    update_response = await access_client.put("/api/user/uidtarget", json={"roles": []})
-    delete_response = await access_client.delete("/api/user/uidtarget")
+async def test__user_endpoints_reject_computing_id_paths(admin_client: AsyncClient):
+    update_response = await admin_client.put("/api/user/uidtarget", json={"roles": []})
+    delete_response = await admin_client.delete("/api/user/uidtarget")
     assert update_response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert delete_response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
-async def test__update_user_returns_not_found_for_unknown_uid(access_client: AsyncClient):
-    response = await access_client.put(f"/api/user/{uuid4()}", json={"roles": []})
+async def test__update_user_returns_not_found_for_unknown_uid(admin_client: AsyncClient):
+    response = await admin_client.put(f"/api/user/{uuid4()}", json={"roles": []})
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-async def test__update_user_requires_access_role(admin_client: AsyncClient):
-    response = await admin_client.put(f"/api/user/{uuid4()}", json={"roles": []})
+async def test__update_user_requires_access_role(db_session: DBSession, client: AsyncClient):
+    session_id = "uid-admin-session"
+    await create_user_session(db_session, session_id, "uidadmin")
+    user = await get_site_user_by_computing_id(db_session, "uidadmin")
+    assert user is not None
+    db_session.add(SiteUserRoleDB(uid=user.uid, role=UserRole.ADMIN, added_by=user.uid))
+    await db_session.commit()
+    client.cookies.set(COOKIE_SESSION_KEY, session_id, domain="test.local", path="/")
+
+    response = await client.put(f"/api/user/{uuid4()}", json={"roles": []})
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -136,6 +133,7 @@ async def test__auth_references_survive_computing_id_change(db_session: DBSessio
 async def test__create_user_roles_reference_user_and_admin_uids(db_session: DBSession, admin_client: AsyncClient):
     admin_response = await admin_client.get("/auth/user")
     assert admin_response.status_code == status.HTTP_200_OK
+    assert admin_response.json()["roles"] == [UserRole.ACCESS.value]
     admin_uid = UUID(admin_response.json()["uid"])
     response = await admin_client.post("/api/user", json={"computing_id": "uidwithroles", "roles": ["user"]})
     assert response.status_code == status.HTTP_201_CREATED

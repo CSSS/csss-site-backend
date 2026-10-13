@@ -1,7 +1,8 @@
 from datetime import datetime
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import ValidationError
+from pydantic import UUID4, ValidationError
 from sqlalchemy.exc import IntegrityError
 
 import database
@@ -56,7 +57,7 @@ async def get_all_users(
     operation_id="create_site_user",
 )
 async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, body: SiteUserCreate):
-    user_db = SiteUserDB(computing_id=body.computing_id)
+    user_db = SiteUserDB(uid=uuid4(), computing_id=body.computing_id)
 
     users.crud.create_site_user(db_session, user_db)
 
@@ -64,7 +65,7 @@ async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, 
         now = datetime.now(tz=TZ_INFO)
         user_roles = [
             SiteUserRoleDB(
-                computing_id=body.computing_id,
+                uid=user_db.uid,
                 role=role,
                 added_by=admin_id,
                 created_at=now,
@@ -97,7 +98,7 @@ async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, 
 
 
 @router.put(
-    "/{computing_id}",
+    "/{uid}",
     description="Update a site user's roles.",
     response_model=SiteUser,
     status_code=status.HTTP_200_OK,
@@ -112,10 +113,10 @@ async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, 
 async def update_site_user_roles(
     db_session: database.DBSession,
     admin_id: AccessAdmin,
-    computing_id: str,
+    uid: UUID4,
     body: SiteUserUpdate,
 ):
-    user = await users.crud.get_user_for_role_update(db_session, computing_id)
+    user = await users.crud.get_user_for_role_update(db_session, uid)
 
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site user not found")
@@ -138,7 +139,7 @@ async def update_site_user_roles(
 
     try:
         if roles_to_remove:
-            await users.crud.delete_user_roles(db_session, computing_id, roles_to_remove)
+            await users.crud.delete_user_roles(db_session, user.uid, roles_to_remove)
 
         if roles_to_add:
             now = datetime.now(tz=TZ_INFO)
@@ -146,7 +147,7 @@ async def update_site_user_roles(
                 db_session,
                 [
                     SiteUserRoleDB(
-                        computing_id=computing_id,
+                        uid=user.uid,
                         role=role,
                         added_by=admin_id,
                         created_at=now,
@@ -178,7 +179,7 @@ async def update_site_user_roles(
 
 
 @router.delete(
-    "/{computing_id}",
+    "/{uid}",
     description="Delete a site user's roles. Does not cascade deletes.",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
@@ -189,15 +190,17 @@ async def update_site_user_roles(
     },
     operation_id="delete_site_user_roles",
 )
-async def delete_site_user_roles(db_session: database.DBSession, computing_id: str):
+async def delete_site_user_roles(db_session: database.DBSession, uid: UUID4):
     try:
-        await users.crud.delete_user(db_session, computing_id)
+        deleted_uid = await users.crud.delete_user(db_session, uid)
+        if deleted_uid is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site user not found")
         await db_session.commit()
     except IntegrityError:
         await db_session.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Site user {computing_id} still referenced by others.",
+            detail=f"Site user {uid} still referenced by others.",
         ) from None
 
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

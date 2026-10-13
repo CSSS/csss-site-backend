@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, LargeBinary, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, LargeBinary, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from auth.constants import SITE_USER_ROLE_MAX_LENGTH, UserRole
@@ -11,22 +12,12 @@ from database import Base
 class UserSessionDB(Base):
     __tablename__ = "user_session"
 
-    __table_args__ = (
-        CheckConstraint(
-            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
-        ),
-    )
-
     session_hash: Mapped[str] = mapped_column(
         LargeBinary(32),
         primary_key=True,
     )
 
-    computing_id: Mapped[str] = mapped_column(
-        String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id"),
-        index=True,
-    )
+    uid: Mapped[UUID] = mapped_column(Uuid, ForeignKey("site_user.uid"), index=True)
 
     # TODO: Make all timestamps uneditable later
     # time the CAS ticket was issued
@@ -39,9 +30,13 @@ class SiteUserDB(Base):
     # see: https://stackoverflow.com/questions/22256124/cannot-create-a-database-table-named-user-in-postgresql
     __tablename__ = "site_user"
 
-    computing_id: Mapped[str] = mapped_column(
+    uid: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+
+    # In the future, we may need to track people who don't have a active SFU Computing ID
+    computing_id: Mapped[str | None] = mapped_column(
         String(COMPUTING_ID_LEN),
-        primary_key=True,
+        unique=True,
+        nullable=True,
     )
 
     # first and last time logged into the CSSS API
@@ -50,12 +45,12 @@ class SiteUserDB(Base):
 
     roles: Mapped[list["SiteUserRoleDB"]] = relationship(
         back_populates="user",
-        foreign_keys="SiteUserRoleDB.computing_id",
+        foreign_keys="SiteUserRoleDB.uid",
     )
 
     @validates("computing_id")
-    def validate_computing_id(self, key: str, computing_id: str) -> str:
-        return computing_id.lower()
+    def validate_computing_id(self, key: str, computing_id: str | None) -> str | None:
+        return computing_id.lower() if computing_id is not None else None
 
     __table_args__ = (
         CheckConstraint(
@@ -70,26 +65,15 @@ class SiteUserRoleDB(Base):
 
     Attributes:
         __tablename__: site_user_role
-        computing_id: computing ID of the user, references site_user
+        uid: UUID of the user, references site_user.uid
         role: the role of the user on the site
-        added_by: the computing ID of the site user who added this user, references site_user
+        added_by: UUID of the site user who assigned this role, references site_user.uid
         created_at: the datetimetz of when this role was added
     """
 
     __tablename__ = "site_user_role"
 
-    __table_args__ = (
-        CheckConstraint(
-            "computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name="computing_id_format"
-        ),
-        CheckConstraint("added_by IS NULL OR added_by ~ '^[a-z0-9]+$'", name="added_by_format"),
-    )
-
-    computing_id: Mapped[str] = mapped_column(
-        String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id"),
-        primary_key=True,
-    )
+    uid: Mapped[UUID] = mapped_column(Uuid, ForeignKey("site_user.uid"), primary_key=True)
 
     role: Mapped[UserRole] = mapped_column(
         Enum(
@@ -104,9 +88,9 @@ class SiteUserRoleDB(Base):
         index=True,
     )
 
-    added_by: Mapped[str | None] = mapped_column(
-        String(COMPUTING_ID_LEN),
-        ForeignKey("site_user.computing_id", ondelete="SET NULL"),
+    added_by: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("site_user.uid", ondelete="SET NULL"),
         nullable=True,
     )
 
@@ -117,7 +101,7 @@ class SiteUserRoleDB(Base):
 
     user: Mapped["SiteUserDB"] = relationship(
         back_populates="roles",
-        foreign_keys=[computing_id],
+        foreign_keys=[uid],
     )
 
 

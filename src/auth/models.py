@@ -1,7 +1,7 @@
 from datetime import datetime
 from itertools import chain
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import UUID4, BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from auth.constants import UserRole
 from auth.tables import SiteUserRoleDB
@@ -15,7 +15,8 @@ class LoginBodyParams(BaseModel):
 
 
 class UserBaseModel(BaseModel):
-    computing_id: str = Field(..., max_length=COMPUTING_ID_LEN, description="Student's computing ID")
+    uid: UUID4 = Field(description="Public user ID")
+    computing_id: str | None = Field(None, max_length=COMPUTING_ID_LEN, description="Student's computing ID")
     roles: list[UserRole] = Field(..., description="List of roles the user has")
 
     @field_validator("roles", mode="before")

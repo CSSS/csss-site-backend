@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 
 from auth.constants import UserRole
@@ -37,6 +39,6 @@ def test__effective_roles_include_all_granted_permissions(
     assigned_roles: list[UserRole],
     expected_roles: list[UserRole],
 ):
-    user = UserInfo(computing_id="test", roles=assigned_roles)
+    user = UserInfo(uid=uuid4(), computing_id="test", roles=assigned_roles)
 
     assert user.effective_roles == expected_roles

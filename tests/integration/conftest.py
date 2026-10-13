@@ -1,6 +1,5 @@
 # Configuration of Pytest
 from collections.abc import AsyncGenerator
-from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -8,7 +7,6 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from auth.constants import COOKIE_SESSION_KEY
-from auth.crud import create_user_session, remove_user_session_by_id
 from config import settings
 from database import SQLALCHEMY_TEST_DATABASE_URL, DatabaseSessionManager, get_db_session
 from load_test_db import SYSADMIN_COMPUTING_ID, async_main

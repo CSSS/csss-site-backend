@@ -4,6 +4,7 @@ from hashlib import sha256
 from http import HTTPStatus
 from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, urlsplit
+from uuid import UUID
 
 import httpx
 import pytest
@@ -21,8 +22,8 @@ from auth.constants import (
     REDIRECT_TTL,
     UserRole,
 )
-from auth.crud import create_user_session
-from auth.tables import AuthRedirectDB, SiteUserRoleDB, UserSessionDB
+from auth.crud import create_user_session, get_site_user_by_computing_id
+from auth.tables import AuthRedirectDB, SiteUserDB, SiteUserRoleDB, UserSessionDB
 from config import settings
 from main import app
 
@@ -101,7 +102,9 @@ async def _create_logged_in_client(
 ) -> bytes:
     session_hash = await create_user_session(db_session, session_id, computing_id)
     if role is not None:
-        db_session.add(SiteUserRoleDB(computing_id=computing_id, role=role, added_by=None))
+        user = await get_site_user_by_computing_id(db_session, computing_id)
+        assert user is not None
+        db_session.add(SiteUserRoleDB(uid=user.uid, role=role, added_by=None))
     await db_session.commit()
     client.cookies.set(COOKIE_SESSION_KEY, session_id, domain="test.local", path="/")
     return session_hash
@@ -404,12 +407,16 @@ async def test__validate_creates_session_returns_history_scrubbing_page_and_prev
     assert await db_session.get(AuthRedirectDB, token) is None
     user_session = await db_session.get(UserSessionDB, _session_hash(session_id))
     assert user_session is not None
-    assert user_session.computing_id == TEST_COMPUTING_ID
+    user = await get_site_user_by_computing_id(db_session, TEST_COMPUTING_ID)
+    assert user is not None
+    assert user_session.uid == user.uid
     assert user_session.expires_at > datetime.now(UTC)
 
     user_response = await client.get("/auth/user")
     assert user_response.status_code == HTTPStatus.OK
+    assert UUID(user_response.json()["uid"]).version == 4
     assert user_response.json() == {
+        "uid": user_response.json()["uid"],
         "computing_id": TEST_COMPUTING_ID,
         "roles": [],
         "effective_roles": [],
@@ -455,7 +462,7 @@ async def test__authenticated_endpoints_reject_expired_session(
 
 
 async def test__user_returns_assigned_roles(client: AsyncClient, db_session: AsyncSession):
-    computing_id = "user-info"
+    computing_id = "userinfo"
     await _create_logged_in_client(
         db_session,
         client,
@@ -463,9 +470,11 @@ async def test__user_returns_assigned_roles(client: AsyncClient, db_session: Asy
         computing_id,
         UserRole.EXEC,
     )
+    user = await get_site_user_by_computing_id(db_session, computing_id)
+    assert user is not None
     db_session.add(
         SiteUserRoleDB(
-            computing_id=computing_id,
+            uid=user.uid,
             role=UserRole.USER,
             added_by=None,
         )
@@ -485,7 +494,7 @@ async def test__user_returns_assigned_roles(client: AsyncClient, db_session: Asy
         UserRole.OFFICER.value,
         UserRole.USER.value,
     }
-    assert set(response.json()) == {"computing_id", "roles", "effective_roles"}
+    assert set(response.json()) == {"uid", "computing_id", "roles", "effective_roles"}
 
 
 async def test__logout_deletes_session_cookie_and_database_row(client: AsyncClient, db_session: AsyncSession):

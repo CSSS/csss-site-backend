@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException, status
@@ -14,15 +15,17 @@ pytestmark = pytest.mark.unit
 
 
 def make_user(computing_id: str, roles: set[UserRole]) -> SiteUserDB:
+    uid = uuid4()
     return SiteUserDB(
+        uid=uid,
         computing_id=computing_id,
-        roles=[SiteUserRoleDB(computing_id=computing_id, role=role) for role in roles],
+        roles=[SiteUserRoleDB(uid=uid, role=role) for role in roles],
     )
 
 
 async def test__update_site_user_roles_replaces_role_set(monkeypatch: pytest.MonkeyPatch):
     computing_id = "target"
-    admin_id = "admin"
+    admin_id = uuid4()
     user = make_user(computing_id, {UserRole.USER, UserRole.EXEC})
     desired_roles = {UserRole.EXEC, UserRole.ADMIN}
 
@@ -31,9 +34,7 @@ async def test__update_site_user_roles_replaces_role_set(monkeypatch: pytest.Mon
     async def refresh_user(instance: SiteUserDB, *, attribute_names: list[str]):
         assert instance is user
         assert "roles" in attribute_names
-        instance.roles = [
-            SiteUserRoleDB(computing_id=computing_id, role=role, added_by=admin_id) for role in desired_roles
-        ]
+        instance.roles = [SiteUserRoleDB(uid=user.uid, role=role, added_by=admin_id) for role in desired_roles]
 
     db_session.refresh.side_effect = refresh_user
 
@@ -47,11 +48,13 @@ async def test__update_site_user_roles_replaces_role_set(monkeypatch: pytest.Mon
     result = await update_site_user_roles(
         db_session=db_session,
         admin_id=admin_id,
-        computing_id=computing_id,
+        uid=user.uid,
         body=SiteUserUpdate(roles=desired_roles),
     )
 
-    delete_roles.assert_awaited_once_with(db_session, computing_id, {UserRole.USER})
+    get_user.assert_awaited_once_with(db_session, user.uid)
+    assert result.uid == user.uid
+    delete_roles.assert_awaited_once_with(db_session, user.uid, {UserRole.USER})
     created_assignments = create_roles.call_args.args[1]
     assert {assignment.role for assignment in created_assignments} == {UserRole.ADMIN}
     assert all(assignment.added_by == admin_id for assignment in created_assignments)
@@ -68,8 +71,8 @@ async def test__update_site_user_roles_returns_not_found(monkeypatch: pytest.Mon
     with pytest.raises(HTTPException) as exc_info:
         await update_site_user_roles(
             db_session=db_session,
-            admin_id="admin",
-            computing_id="missing",
+            admin_id=uuid4(),
+            uid=uuid4(),
             body=SiteUserUpdate(roles=set()),
         )
 

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
@@ -22,29 +23,24 @@ def create_user_roles(db_session: database.DBSession, roles: list[SiteUserRoleDB
     db_session.add_all(roles)
 
 
-async def get_user_for_role_update(db_session: database.DBSession, computing_id: str) -> SiteUserDB | None:
-    query = (
-        select(SiteUserDB)
-        .where(SiteUserDB.computing_id == computing_id)
-        .options(selectinload(SiteUserDB.roles))
-        .with_for_update()
-    )
+async def get_user_for_role_update(db_session: database.DBSession, uid: UUID) -> SiteUserDB | None:
+    query = select(SiteUserDB).where(SiteUserDB.uid == uid).options(selectinload(SiteUserDB.roles)).with_for_update()
     user = await db_session.scalar(query)
 
     return user
 
 
-async def delete_user_roles(db_session: database.DBSession, computing_id: str, roles_to_remove: set[UserRole]) -> None:
+async def delete_user_roles(db_session: database.DBSession, uid: UUID, roles_to_remove: set[UserRole]) -> None:
     query = (
         delete(SiteUserRoleDB)
-        .where(SiteUserRoleDB.computing_id == computing_id, SiteUserRoleDB.role.in_(roles_to_remove))
+        .where(SiteUserRoleDB.uid == uid, SiteUserRoleDB.role.in_(roles_to_remove))
         .execution_options(synchronize_session="fetch")
     )
 
     await db_session.execute(query)
 
 
-async def delete_user(db_session: database.DBSession, computing_id: str) -> None:
-    query = delete(SiteUserDB).where(SiteUserDB.computing_id == computing_id)
+async def delete_user(db_session: database.DBSession, uid: UUID) -> UUID | None:
+    query = delete(SiteUserDB).where(SiteUserDB.uid == uid).returning(SiteUserDB.uid)
 
-    await db_session.execute(query)
+    return await db_session.scalar(query)

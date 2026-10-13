@@ -4,15 +4,19 @@
 
 import asyncio
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import sqlalchemy
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from alembic.script import ScriptDirectory
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import honorary.tables
 
 # NOTE: make sure you import from a file in your module which (at least) indirectly contains those
 # tables, or the current python context will not be able to find them & they won't be loaded
-from auth.crud import create_user_session
+from auth.crud import create_user_session, get_site_user_by_computing_id
 from auth.tables import AuthRedirectDB, SiteUserDB, SiteUserRoleDB, UserSessionDB
 from candidates.crud import add_candidate
 from candidates.tables import CandidateDB
@@ -50,9 +54,15 @@ async def reset_db(engine):
 
     # fill with tables
     async with engine.connect() as connection:
-        # TODO: need to make sure that everything that would create a table is imported...
-        # TODO: come up with a better solution - https://github.com/sqlalchemy/sqlalchemy/discussions/8650
-        await connection.run_sync(Base.metadata.create_all)
+
+        def migrate(sync_connection: sqlalchemy.Connection):
+            # Use the real schema, including officer triggers absent from ORM metadata.
+            scripts = ScriptDirectory(str(Path(__file__).resolve().parent / "alembic"))
+            with Operations.context(MigrationContext.configure(sync_connection)):
+                for revision in reversed(list(scripts.walk_revisions())):
+                    revision.module.upgrade()
+
+        await connection.run_sync(migrate)
         await connection.commit()
 
     # check tables in db
@@ -263,11 +273,13 @@ async def load_sysadmin(db_session: AsyncSession):
     #         photo_url=None,
     #     ),
     # )
+    sysadmin = await get_site_user_by_computing_id(db_session, SYSADMIN_COMPUTING_ID)
+    assert sysadmin is not None
     user_roles = [
         SiteUserRoleDB(
-            computing_id=SYSADMIN_COMPUTING_ID,
+            uid=sysadmin.uid,
             role=UserRole.ADMIN,
-            added_by=SYSADMIN_COMPUTING_ID,
+            added_by=sysadmin.uid,
             created_at=datetime.now(UTC),
         )
     ]
@@ -328,11 +340,14 @@ async def load_webmaster(db_session: AsyncSession):
     #         photo_url=None,
     #     ),
     # )
+    webmaster = await get_site_user_by_computing_id(db_session, WEBMASTER_COMPUTING_ID)
+    sysadmin = await get_site_user_by_computing_id(db_session, SYSADMIN_COMPUTING_ID)
+    assert webmaster is not None and sysadmin is not None
     user_roles = [
         SiteUserRoleDB(
-            computing_id=WEBMASTER_COMPUTING_ID,
+            uid=webmaster.uid,
             role=UserRole.ADMIN,
-            added_by=SYSADMIN_COMPUTING_ID,
+            added_by=sysadmin.uid,
             created_at=datetime.now(UTC),
         )
     ]

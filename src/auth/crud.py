@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+from uuid import UUID
 
 import sqlalchemy
 from sqlalchemy.dialects.postgresql import insert
@@ -21,10 +22,12 @@ class SessionUser:
 
     Attributes:
         computing_id: Computing ID of the user.
+        uid: Public UUID of the user.
         roles: Roles the user has
     """
 
-    computing_id: str
+    computing_id: str | None
+    uid: UUID
     roles: frozenset[UserRole]
 
 
@@ -58,12 +61,12 @@ async def create_user_session(db_session: AsyncSession, session_id: str, computi
             "first_logged_in": sqlalchemy.func.coalesce(SiteUserDB.first_logged_in, now),
         },
     )
-    await db_session.execute(user_query)
+    uid = await db_session.scalar(user_query.returning(SiteUserDB.uid))
 
     # Create a new session
     user_session = UserSessionDB(
         session_hash=session_hash,
-        computing_id=computing_id,
+        uid=uid,
         created_at=now,
         expires_at=now + SESSION_MAX_AGE,
     )
@@ -87,8 +90,10 @@ async def remove_user_session_by_hash(db_session: AsyncSession, session_hash: by
 
 async def get_session_user(db_session: AsyncSession, session_id: str) -> SessionUser | None:
     query = (
-        sqlalchemy.select(UserSessionDB.computing_id, SiteUserRoleDB.role)
-        .outerjoin(SiteUserRoleDB, SiteUserRoleDB.computing_id == UserSessionDB.computing_id)
+        sqlalchemy.select(SiteUserDB.computing_id, SiteUserDB.uid, SiteUserRoleDB.role)
+        .select_from(UserSessionDB)
+        .join(SiteUserDB, SiteUserDB.uid == UserSessionDB.uid)
+        .outerjoin(SiteUserRoleDB, SiteUserRoleDB.uid == UserSessionDB.uid)
         .where(
             UserSessionDB.session_hash == _hash_session_id(session_id),
             UserSessionDB.expires_at >= datetime.now(UTC),
@@ -99,7 +104,7 @@ async def get_session_user(db_session: AsyncSession, session_id: str) -> Session
     if not rows:
         return None
 
-    return SessionUser(rows[0].computing_id, frozenset(row.role for row in rows if row.role is not None))
+    return SessionUser(rows[0].computing_id, rows[0].uid, frozenset(row.role for row in rows if row.role is not None))
 
 
 async def get_session_computing_id(db_session: AsyncSession, session_id: str) -> str | None:
@@ -119,7 +124,7 @@ async def get_session_computing_id(db_session: AsyncSession, session_id: str) ->
     if not user_session or user_session.expires_at < datetime.now(UTC):
         return None
 
-    return user_session.computing_id
+    return await db_session.scalar(sqlalchemy.select(SiteUserDB.computing_id).where(SiteUserDB.uid == user_session.uid))
 
 
 # remove all out of date user sessions
@@ -138,17 +143,19 @@ async def get_site_user(db_session: AsyncSession, session_id: str) -> SiteUserDB
         return None
 
     result = await db_session.execute(
-        sqlalchemy.select(SiteUserDB)
-        .options(selectinload(SiteUserDB.roles))
-        .where(SiteUserDB.computing_id == user_session.computing_id)
+        sqlalchemy.select(SiteUserDB).options(selectinload(SiteUserDB.roles)).where(SiteUserDB.uid == user_session.uid)
     )
 
     return result.scalar_one_or_none()
 
 
 async def site_user_exists(db_session: AsyncSession, computing_id: str) -> bool:
-    user = await db_session.get(SiteUserDB, computing_id)
+    user = await get_site_user_by_computing_id(db_session, computing_id)
     return user is not None
+
+
+async def get_site_user_by_computing_id(db_session: AsyncSession, computing_id: str) -> SiteUserDB | None:
+    return await db_session.scalar(sqlalchemy.select(SiteUserDB).where(SiteUserDB.computing_id == computing_id))
 
 
 def create_auth_redirect(db_session: AsyncSession, token: str, return_to: str) -> None:
@@ -183,9 +190,7 @@ async def delete_auth_redirect(db_session: AsyncSession, token: str) -> str | No
     return await db_session.scalar(query)
 
 
-async def get_user_roles(db_session: AsyncSession, computing_id: str) -> list[SiteUserRoleDB]:
-    roles = await db_session.execute(
-        sqlalchemy.select(SiteUserRoleDB).where(SiteUserRoleDB.computing_id == computing_id)
-    )
+async def get_user_roles(db_session: AsyncSession, uid: UUID) -> list[SiteUserRoleDB]:
+    roles = await db_session.execute(sqlalchemy.select(SiteUserRoleDB).where(SiteUserRoleDB.uid == uid))
 
     return list(roles.scalars().all())

@@ -418,6 +418,9 @@ async def test__validate_creates_session_returns_history_scrubbing_page_and_prev
     assert user_response.json() == {
         "uid": user_response.json()["uid"],
         "computing_id": TEST_COMPUTING_ID,
+        "first_name": None,
+        "last_name": None,
+        "preferred_name": None,
         "roles": [],
         "effective_roles": [],
     }
@@ -494,7 +497,15 @@ async def test__user_returns_assigned_roles(client: AsyncClient, db_session: Asy
         UserRole.OFFICER.value,
         UserRole.USER.value,
     }
-    assert set(response.json()) == {"uid", "computing_id", "roles", "effective_roles"}
+    assert set(response.json()) == {
+        "uid",
+        "computing_id",
+        "roles",
+        "effective_roles",
+        "first_name",
+        "last_name",
+        "preferred_name",
+    }
 
 
 async def test__logout_deletes_session_cookie_and_database_row(client: AsyncClient, db_session: AsyncSession):

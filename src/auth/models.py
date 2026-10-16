@@ -1,53 +1,6 @@
-from datetime import datetime
-from itertools import chain
-
-from pydantic import UUID4, BaseModel, ConfigDict, Field, computed_field, field_validator
-
-from auth.constants import UserRole
-from auth.tables import SiteUserRoleDB
-from constants import COMPUTING_ID_LEN, SESSION_ID_LEN
-from utils.permissions import ROLE_HIERARCHY
+from pydantic import BaseModel, Field
 
 
 class LoginBodyParams(BaseModel):
     service: str = Field(description="Service URL used for SFU's CAS system")
     ticket: str = Field(description="Ticket return from SFU's CAS system")
-
-
-class UserBaseModel(BaseModel):
-    uid: UUID4 = Field(description="Public user ID")
-    computing_id: str | None = Field(None, max_length=COMPUTING_ID_LEN, description="Student's computing ID")
-    roles: list[UserRole] = Field(..., description="List of roles the user has")
-
-    @field_validator("roles", mode="before")
-    @classmethod
-    def flatten_roles(cls, roles: list[UserRole] | list[object]) -> list[UserRole]:
-        if not isinstance(roles, list):
-            raise TypeError("`roles` must be a list")
-        result: list[UserRole] = []
-
-        for role in roles:
-            if isinstance(role, UserRole):
-                result.append(role)
-            elif isinstance(role, SiteUserRoleDB):
-                result.append(role.role)
-            else:
-                raise TypeError(f"Unexpected type in `roles`: {type(role)}")
-        return result
-
-
-class UserInfo(UserBaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    @computed_field
-    @property
-    def effective_roles(self) -> list[UserRole]:
-        effective_roles = set(chain(self.roles, *(ROLE_HIERARCHY[role] for role in self.roles)))
-        return [role for role in UserRole if role in effective_roles]
-
-
-class SiteUser(UserBaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    first_logged_in: datetime | None = Field(..., description="Time the user was created")
-    last_logged_in: datetime | None = Field(..., description="Time the user last logged in")

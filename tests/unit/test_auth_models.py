@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 
 from auth.constants import UserRole
-from auth.models import UserInfo
+from users.models import UserInfo
 
 pytestmark = pytest.mark.unit
 

@@ -8,11 +8,10 @@ from sqlalchemy.exc import IntegrityError
 import database
 import users.crud
 from auth.constants import UserRole
-from auth.models import SiteUser
 from auth.tables import SiteUserDB, SiteUserRoleDB
 from constants import TZ_INFO
 from dependencies import AccessAdmin, SiteAdmin, perm_admin
-from users.models import SiteUserCreate, SiteUserUpdate
+from users.models import SiteUser, SiteUserCreate, SiteUserUpdate
 from utils.shared_models import DetailModel
 
 router = APIRouter(
@@ -57,7 +56,7 @@ async def get_all_users(
     operation_id="create_site_user",
 )
 async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, body: SiteUserCreate):
-    user_db = SiteUserDB(uid=uuid4(), computing_id=body.computing_id)
+    user_db = SiteUserDB(uid=uuid4(), **body.model_dump(exclude={"roles"}))
 
     users.crud.create_site_user(db_session, user_db)
 
@@ -83,6 +82,9 @@ async def create_site_user(db_session: database.DBSession, admin_id: SiteAdmin, 
                 "first_logged_in",
                 "last_logged_in",
                 "roles",
+                "first_name",
+                "last_name",
+                "preferred_name",
             ],
         )
         new_user = SiteUser.model_validate(user_db)
@@ -121,21 +123,21 @@ async def update_site_user_roles(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site user not found")
 
-    existing_roles = {assignment.role for assignment in user.roles}
+    roles_to_add: set[UserRole] = set()
+    roles_to_remove: set[UserRole] = set()
+    if body.roles is not None:
+        existing_roles = {assignment.role for assignment in user.roles}
 
-    if UserRole.ACCESS in existing_roles:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+        if UserRole.ACCESS in existing_roles:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
-    new_roles = set(body.roles)
-    if UserRole.ACCESS in new_roles:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+        new_roles = set(body.roles)
+        if UserRole.ACCESS in new_roles:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
-    if existing_roles == new_roles:
-        return SiteUser.model_validate(user)
-
-    # Get a diff of what roles to add and remove
-    roles_to_add = new_roles - existing_roles
-    roles_to_remove = existing_roles - new_roles
+        # Get a diff of what roles to add and remove
+        roles_to_add = new_roles - existing_roles
+        roles_to_remove = existing_roles - new_roles
 
     try:
         if roles_to_remove:
@@ -156,6 +158,9 @@ async def update_site_user_roles(
                 ],
             )
 
+        for k, v in body.model_dump(exclude_unset=True, exclude={"roles"}).items():
+            setattr(user, k, v)
+
         await db_session.flush()
         await db_session.refresh(
             user,
@@ -164,6 +169,9 @@ async def update_site_user_roles(
                 "first_logged_in",
                 "last_logged_in",
                 "roles",
+                "first_name",
+                "last_name",
+                "preferred_name",
             ],
         )
         updated_user = SiteUser.model_validate(user)

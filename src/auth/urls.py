@@ -23,9 +23,9 @@ from auth.constants import (
     COOKIE_SESSION_KEY,
     REDIRECT_TTL,
 )
-from auth.models import UserInfo
 from config import settings
 from dependencies import AuthenticatedUser, authenticated_user, perm_election
+from users.models import UserInfo
 from utils.permissions import UserRole, roles_satisfy
 from utils.shared_models import DetailModel, MessageModel
 

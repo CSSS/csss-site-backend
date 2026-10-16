@@ -5,7 +5,7 @@ from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, LargeBinary,
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from auth.constants import SITE_USER_ROLE_MAX_LENGTH, UserRole
-from constants import AUTH_REDIRECT_ID_LEN, COMPUTING_ID_LEN, SESSION_ID_LEN
+from constants import AUTH_REDIRECT_ID_LEN, COMPUTING_ID_LEN, SESSION_ID_LEN, SPLIT_NAME_MAX_LEN
 from database import Base
 
 
@@ -38,6 +38,12 @@ class SiteUserDB(Base):
         unique=True,
         nullable=True,
     )
+
+    first_name: Mapped[str | None] = mapped_column(String(SPLIT_NAME_MAX_LEN), nullable=True)
+
+    last_name: Mapped[str | None] = mapped_column(String(SPLIT_NAME_MAX_LEN), nullable=True)
+
+    preferred_name: Mapped[str | None] = mapped_column(String(SPLIT_NAME_MAX_LEN), nullable=True)
 
     # first and last time logged into the CSSS API
     first_logged_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

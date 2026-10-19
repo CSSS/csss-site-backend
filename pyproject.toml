@@ -5,7 +5,7 @@ requires-python = "~=3.13.0"
 
 dependencies = [
     # major
-    "fastapi==0.143.0",
+    "fastapi==0.143.3",
     "gunicorn==26.2.0",
     "uvicorn[standard]==0.54.0",
     "sqlalchemy[asyncio]==2.1.4",
@@ -14,7 +14,7 @@ dependencies = [
     # minor
     "xmltodict==1.0.4",
     "httpx==0.28.1",
-    "pydantic-settings==2.15.0",
+    "pydantic-settings==2.16.0",
     "gtfs-realtime-bindings==3.0.0",
     "python-multipart>=0.0.32",
     "pillow>=12.3.0",
@@ -22,7 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff==0.17.0", # linting and formatter
+    "ruff==0.17.1", # linting and formatter
     "pre-commit",
 ]
 

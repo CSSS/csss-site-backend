@@ -17,7 +17,7 @@ dependencies = [
     "pydantic-settings==2.15.0",
     "gtfs-realtime-bindings==3.0.0",
     "python-multipart>=0.0.32",
-    "pillow>=12.3.0",
+    "pillow>=13.0.0",
 ]
 
 [project.optional-dependencies]

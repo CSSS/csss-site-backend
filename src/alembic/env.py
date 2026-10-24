@@ -1,3 +1,4 @@
+import event_check_in.tables
 import asyncio
 from logging.config import fileConfig
 

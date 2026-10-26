@@ -1,3 +1,4 @@
+# Register the check-in table in Base.metadata for Albemic autogeneration
 import event_check_in.tables
 import asyncio
 from logging.config import fileConfig

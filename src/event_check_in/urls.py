@@ -27,6 +27,7 @@ router = APIRouter(
 
 
 async def _get_event_id(db_session: database.DBSession, eid: str) -> int:
+    # Convert the public event ID from the URL into the database's internal ID
     db_event = await event.crud.get_event_by_eid(db_session, eid)
     if db_event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found.")
@@ -38,8 +39,11 @@ async def _save_check_in(
     check_in: EventCheckInDB,
 ) -> EventCheckIn:
     try:
+        # Write pending changes and load database-generated IDs and timestamps
         await db_session.flush()
         await db_session.refresh(check_in)
+
+        # Copy values into the response model before commit expires in the database object
         response = EventCheckIn.model_validate(check_in)
         await db_session.commit()
     except IntegrityError as error:
@@ -119,9 +123,12 @@ async def update_check_in(
         )
 
     current = EventCheckInCreate.model_validate(check_in, from_attributes=True)
+
+    # Apply only supplied fields; explicit nulls can clear the optional time limits
     updated_data = current.model_dump() | body.model_dump(exclude_unset=True)
 
     try:
+        # Check the complete time range, including any unchanged opening or closing time
         validated = EventCheckInCreate.model_validate(updated_data)
     except ValidationError as error:
         raise HTTPException(
@@ -144,6 +151,8 @@ async def delete_check_in(
     check_in_id: CheckInIdPath,
 ):
     event_id = await _get_event_id(db_session, eid)
+
+    # For an existing event, deletion succeeds even if the configuration is already absent
     await event_check_in.crud.delete_check_in(db_session, event_id, check_in_id)
     await db_session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

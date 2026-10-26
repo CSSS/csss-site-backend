@@ -20,11 +20,12 @@ async def get_check_in(
     *,
     for_update: bool = False,
 ) -> EventCheckInDB | None:
+    # Check both IDs so a configuration cannot be accessed through another event
     query = select(EventCheckInDB).where(
         EventCheckInDB.event_id == event_id,
         EventCheckInDB.id == check_in_id,
     )
-
+    # Lock this row during PATCH so another update waits until this transaction finishes
     if for_update:
         query = query.with_for_update()
 
@@ -37,6 +38,7 @@ def create_check_in(
     data: EventCheckInCreate,
 ) -> EventCheckInDB:
     check_in = EventCheckInDB(event_id=event_id, **data.model_dump())
+    # Let the endpoint control when changes are committed or rolled back
     db_session.add(check_in)
     return check_in
 

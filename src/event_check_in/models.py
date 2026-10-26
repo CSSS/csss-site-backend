@@ -19,6 +19,7 @@ class EventCheckInCreate(BaseModel):
         return self
 
 
+# IDs and audit timestamps are returned to clients but are not writable inputs
 class EventCheckIn(EventCheckInCreate):
     model_config = ConfigDict(from_attributes=True)
 
@@ -27,6 +28,7 @@ class EventCheckIn(EventCheckInCreate):
     updated_at: AwareDatetime
 
 
+# PATCH keeps omitted fields unchanged; null can clear opens_at or closes_at
 class EventCheckInUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -35,6 +37,7 @@ class EventCheckInUpdate(BaseModel):
     opens_at: AwareDatetime | None = None
     closes_at: AwareDatetime | None = None
 
+    # Name and enabled can be omitted from PATCH, but must have a value when provided
     @field_validator("name", "enabled")
     @classmethod
     def reject_null_values(cls, value: object) -> object:

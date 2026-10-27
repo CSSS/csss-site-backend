@@ -7,8 +7,9 @@ Revises: f06f13097539
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from ulid import ULID
+
+from alembic import op
 
 revision: str = "8a4b2d6e901c"
 down_revision: str | None = "f06f13097539"

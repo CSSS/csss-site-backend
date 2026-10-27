@@ -8,8 +8,9 @@ from collections.abc import Sequence
 from uuid import uuid4
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.engine.interfaces import ReflectedForeignKeyConstraint
+
+from alembic import op
 
 revision: str = "c7e41a0b926d"
 down_revision: str | None = "8a4b2d6e901c"
@@ -41,8 +42,11 @@ def _replace_primary_key(columns: list[str], *, drop_computing_id_unique: bool =
         if name is None:
             raise ValueError(f"Cannot replace an unnamed foreign key on {table}")
         op.create_foreign_key(
-            op.f(name), table, "site_user",
-            foreign_key["constrained_columns"], foreign_key["referred_columns"],
+            op.f(name),
+            table,
+            "site_user",
+            foreign_key["constrained_columns"],
+            foreign_key["referred_columns"],
             **foreign_key.get("options", {}),
         )
 

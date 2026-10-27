@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('id', sa.String(length=43), nullable=False),
     sa.Column('return_to', sa.Text(), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_auth_redirect'))
     )
     op.create_table('election',
@@ -61,7 +61,7 @@ def upgrade() -> None:
     sa.Column('image_id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('storage_key', sa.Text(), nullable=False),
     sa.Column('original_filename', sa.Text(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('image_id', name=op.f('pk_image_asset')),
     sa.UniqueConstraint('storage_key', name=op.f('uq_image_asset_storage_key'))
     )
@@ -141,7 +141,7 @@ def upgrade() -> None:
     sa.Column('multiple_allowed', sa.Boolean(), nullable=True),
     sa.Column('effective_from', sa.Date(), nullable=False),
     sa.Column('effective_to', sa.Date(), nullable=True),
-    postgresql.ExcludeConstraint((sa.column('position_id'), '='), (sa.text("daterange(effective_from, effective_to, '[]')"), '&&'), using='gist', name='no_overlapping_versions'),
+    postgresql.ExcludeConstraint((sa.column('position_id'), '='), (sa.func.daterange(sa.column('effective_from'), sa.column('effective_to'), '[]'), '&&'), using='gist', name='no_overlapping_versions'),
     sa.CheckConstraint("CASE WHEN type = 'executive' THEN multiple_allowed IS NOT NULL WHEN type IN ('elected_representative', 'appointed_representative') THEN multiple_allowed IS NULL ELSE FALSE END", name=op.f('ck_officer_position_version_multiple_allowed_by_type')),
     sa.CheckConstraint('effective_to IS NULL OR effective_to >= effective_from', name=op.f('ck_officer_position_version_effective_end_after_start')),
     sa.ForeignKeyConstraint(['position_id'], ['officer_position.id'], name=op.f('fk_officer_position_version_position_id_officer_position')),
@@ -151,7 +151,7 @@ def upgrade() -> None:
     sa.Column('computing_id', sa.String(length=16), nullable=False),
     sa.Column('role', sa.Enum('access', 'admin', 'exec', 'officer', 'user', 'event', 'election', name='role_valid', native_enum=False, create_constraint=True), nullable=False),
     sa.Column('added_by', sa.String(length=16), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.CheckConstraint("added_by IS NULL OR added_by ~ '^[a-z0-9]+$'", name=op.f('ck_site_user_role_added_by_format')),
     sa.CheckConstraint("computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name=op.f('ck_site_user_role_computing_id_format')),
     sa.ForeignKeyConstraint(['added_by'], ['site_user.computing_id'], name=op.f('fk_site_user_role_added_by_site_user'), ondelete='SET NULL'),
@@ -162,7 +162,7 @@ def upgrade() -> None:
     op.create_table('user_session',
     sa.Column('session_hash', sa.LargeBinary(length=32), nullable=False),
     sa.Column('computing_id', sa.String(length=16), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.CheckConstraint("computing_id ~ '^[a-z0-9]+$' AND computing_id = lower(computing_id)", name=op.f('ck_user_session_computing_id_format')),
     sa.ForeignKeyConstraint(['computing_id'], ['site_user.computing_id'], name=op.f('fk_user_session_computing_id_site_user')),

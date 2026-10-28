@@ -1,5 +1,3 @@
-# Register the check-in table in Base.metadata for Albemic autogeneration
-import event_check_in.tables
 import asyncio
 from logging.config import fileConfig
 
@@ -13,6 +11,7 @@ import candidates.tables
 import database
 import elections.tables
 import event.tables
+import event_check_in.tables  # Register the check-in table for Alembic autogeneration.
 import honorary.tables
 import image_asset.tables
 import nominees.tables

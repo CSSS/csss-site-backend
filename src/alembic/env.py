@@ -14,10 +14,10 @@ import database
 import elections.tables
 import event.tables
 import honorary.tables
+import image_asset.tables
 import nominees.tables
 import officers.tables
 import translink.tables
-import image_asset.tables
 from alembic import context
 
 # this is the Alembic Config object, which provides

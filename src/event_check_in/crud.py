@@ -1,6 +1,7 @@
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from event.tables import EventDB
 from event_check_in.models import EventCheckInCreate
 from event_check_in.tables import EventCheckInDB
 
@@ -15,19 +16,22 @@ async def get_check_ins(
 
 async def get_check_in(
     db_session: AsyncSession,
-    event_id: int,
+    eid: str,
     check_in_id: int,
     *,
     for_update: bool = False,
 ) -> EventCheckInDB | None:
-    # Check both IDs so a configuration cannot be accessed through another event
-    query = select(EventCheckInDB).where(
-        EventCheckInDB.event_id == event_id,
-        EventCheckInDB.id == check_in_id,
+    query = (
+        select(EventCheckInDB)
+        .join(EventDB, EventCheckInDB.event_id == EventDB.id)
+        .where(
+            EventDB.eid == eid,
+            EventCheckInDB.id == check_in_id,
+        )
     )
-    # Lock this row during PATCH so another update waits until this transaction finishes
+
     if for_update:
-        query = query.with_for_update()
+        query = query.with_for_update(of=EventCheckInDB)
 
     return await db_session.scalar(query)
 

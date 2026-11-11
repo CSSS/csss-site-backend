@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.constants import COOKIE_SESSION_KEY, UserRole
@@ -10,6 +11,7 @@ from auth.crud import create_user_session, get_site_user_by_computing_id
 from auth.tables import SiteUserRoleDB
 from event.constants import EventStatusEnum
 from event.tables import EventDB
+from event_check_in.tables import EventCheckInDB
 
 pytestmark = [
     pytest.mark.integration,
@@ -149,13 +151,23 @@ async def test_update_can_clear_time_limits(
 
 
 @pytest.mark.parametrize(
-    ("method", "suffix", "payload"),
+    ("method", "suffix", "payload", "expected_detail"),
     [
-        ("GET", "", None),
-        ("GET", "/1", None),
-        ("POST", "", {"name": "Main check-in"}),
-        ("PATCH", "/1", {"enabled": False}),
-        ("DELETE", "/1", None),
+        ("GET", "", None, "Event not found."),
+        (
+            "GET",
+            "/1",
+            None,
+            "Event or event check-in configuration is missing",
+        ),
+        ("POST", "", {"name": "Main check-in"}, "Event not found."),
+        (
+            "PATCH",
+            "/1",
+            {"enabled": False},
+            "Event or event check-in configuration is missing",
+        ),
+        ("DELETE", "/1", None, "Event not found."),
     ],
 )
 async def test_missing_event_returns_not_found(
@@ -163,13 +175,14 @@ async def test_missing_event_returns_not_found(
     method: str,
     suffix: str,
     payload: dict | None,
+    expected_detail: str,
 ):
     url = f"/api/event/00000000000000000000000000/check-in{suffix}"
 
     response = await admin_client.request(method, url, json=payload)
 
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Event not found."}
+    assert response.status_code == 404, response.text
+    assert response.json() == {"detail": expected_detail}
 
 
 @pytest.mark.parametrize(
@@ -279,3 +292,151 @@ async def test_check_in_cannot_be_accessed_through_another_event(
     response = await admin_client.get(f"/api/event/{other_eid}/check-in")
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.parametrize(
+    "closes_at",
+    [
+        "2030-01-01T16:00:00Z",
+        "2030-01-01T17:00:00Z",
+    ],
+)
+async def test_create_rejects_invalid_time_ranges(
+    admin_client: AsyncClient,
+    event_eid: str,
+    closes_at: str,
+):
+    url = f"/api/event/{event_eid}/check-in"
+
+    response = await admin_client.post(
+        url,
+        json={
+            "name": "Invalid check-in",
+            "opens_at": "2030-01-01T17:00:00Z",
+            "closes_at": closes_at,
+        },
+    )
+
+    assert response.status_code == 422, response.text
+
+    response = await admin_client.get(url)
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_update_rejects_null_name(
+    admin_client: AsyncClient,
+    event_eid: str,
+    check_in: dict,
+):
+    url = f"/api/event/{event_eid}/check-in/{check_in['id']}"
+
+    response = await admin_client.patch(url, json={"name": None})
+
+    assert response.status_code == 422, response.text
+
+    response = await admin_client.get(url)
+    assert response.status_code == 200
+    assert response.json() == check_in
+
+
+async def test_multiple_check_ins_for_one_event_are_independent(
+    admin_client: AsyncClient,
+    event_eid: str,
+    check_in: dict,
+):
+    collection = f"/api/event/{event_eid}/check-in"
+    first_url = f"{collection}/{check_in['id']}"
+
+    response = await admin_client.post(
+        collection,
+        json={"name": "Secondary check-in"},
+    )
+    assert response.status_code == 201, response.text
+    second = response.json()
+    assert second["id"] != check_in["id"]
+
+    response = await admin_client.get(collection)
+    assert response.status_code == 200
+    assert {item["id"] for item in response.json()} == {
+        check_in["id"],
+        second["id"],
+    }
+
+    response = await admin_client.patch(
+        first_url,
+        json={"name": "Updated main check-in"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["name"] == "Updated main check-in"
+
+    response = await admin_client.get(f"{collection}/{second['id']}")
+    assert response.status_code == 200
+    assert response.json() == second
+
+    response = await admin_client.delete(first_url)
+    assert response.status_code == 204, response.text
+
+    response = await admin_client.get(collection)
+    assert response.status_code == 200
+    assert response.json() == [second]
+
+    response = await admin_client.get(first_url)
+    assert response.status_code == 404
+
+
+async def test_deleting_event_cascades_to_check_ins(
+    db_session: AsyncSession,
+    admin_client: AsyncClient,
+    event_eid: str,
+    check_in: dict,
+):
+    response = await admin_client.post(
+        f"/api/event/{event_eid}/check-in",
+        json={"name": "Secondary check-in"},
+    )
+    assert response.status_code == 201, response.text
+    check_in_ids = [check_in["id"], response.json()["id"]]
+
+    response = await admin_client.delete(f"/api/event/{event_eid}")
+    assert response.status_code == 204, response.text
+
+    # Query the child table directly so a missing parent cannot hide orphaned rows.
+    query = select(EventCheckInDB.id).where(EventCheckInDB.id.in_(check_in_ids))
+    remaining_ids = (await db_session.scalars(query)).all()
+    assert remaining_ids == []
+
+
+async def test_update_preserves_created_at_and_changes_updated_at(
+    db_session: AsyncSession,
+    admin_client: AsyncClient,
+    event_eid: str,
+    check_in: dict,
+):
+    url = f"/api/event/{event_eid}/check-in/{check_in['id']}"
+
+    # Seed an older record because now() stays fixed within the test transaction.
+    past = datetime(2000, 1, 1, tzinfo=UTC)
+    stored = await db_session.get(EventCheckInDB, check_in["id"])
+    assert stored is not None
+    stored.created_at = past
+    stored.updated_at = past
+    await db_session.commit()
+
+    response = await admin_client.get(url)
+    assert response.status_code == 200
+    before = response.json()
+    assert datetime.fromisoformat(before["created_at"]) == past
+    assert datetime.fromisoformat(before["updated_at"]) == past
+
+    response = await admin_client.patch(url, json={"enabled": False})
+    assert response.status_code == 200, response.text
+    updated = response.json()
+
+    assert updated["enabled"] is False
+    assert updated["created_at"] == before["created_at"]
+    assert datetime.fromisoformat(updated["updated_at"]) > past
+
+    response = await admin_client.get(url)
+    assert response.status_code == 200
+    assert response.json() == updated

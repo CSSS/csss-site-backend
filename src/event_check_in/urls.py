@@ -8,12 +8,13 @@ from sqlalchemy.exc import IntegrityError
 import database
 import event.crud
 import event_check_in.crud
+from constants import INT64_MAX
 from dependencies import perm_event, perm_exec
 from event_check_in.models import EventCheckIn, EventCheckInCreate, EventCheckInUpdate
 from event_check_in.tables import EventCheckInDB
 from utils.shared_models import DetailModel
 
-CheckInIdPath = Annotated[int, Path(ge=1, le=9223372036854775807)]
+CheckInIdPath = Annotated[int, Path(ge=1, le=INT64_MAX)]
 
 router = APIRouter(
     prefix="/event/{eid}/check-in",
@@ -57,6 +58,7 @@ async def _save_check_in(
 
 @router.get(
     "",
+    operation_id="get_check_ins",
     response_model=list[EventCheckIn],
     dependencies=[Depends(perm_exec)],
 )
@@ -67,6 +69,7 @@ async def list_check_ins(db_session: database.DBSession, eid: str):
 
 @router.get(
     "/{check_in_id}",
+    operation_id="get_check_in",
     response_model=EventCheckIn,
     dependencies=[Depends(perm_exec)],
 )
@@ -75,18 +78,18 @@ async def get_check_in(
     eid: str,
     check_in_id: CheckInIdPath,
 ):
-    event_id = await _get_event_id(db_session, eid)
-    check_in = await event_check_in.crud.get_check_in(db_session, event_id, check_in_id)
+    check_in = await event_check_in.crud.get_check_in(db_session, eid, check_in_id)
     if check_in is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Check-in configuration not found.",
+            detail="Event or event check-in configuration is missing",
         )
     return check_in
 
 
 @router.post(
     "",
+    operation_id="create_check_in",
     response_model=EventCheckIn,
     status_code=status.HTTP_201_CREATED,
     responses={409: {"model": DetailModel, "description": "Database conflict"}},
@@ -104,6 +107,7 @@ async def create_check_in(
 
 @router.patch(
     "/{check_in_id}",
+    operation_id="update_check_in",
     response_model=EventCheckIn,
     responses={409: {"model": DetailModel, "description": "Database conflict"}},
     dependencies=[Depends(perm_event)],
@@ -114,12 +118,11 @@ async def update_check_in(
     check_in_id: CheckInIdPath,
     body: EventCheckInUpdate,
 ):
-    event_id = await _get_event_id(db_session, eid)
-    check_in = await event_check_in.crud.get_check_in(db_session, event_id, check_in_id, for_update=True)
+    check_in = await event_check_in.crud.get_check_in(db_session, eid, check_in_id, for_update=True)
     if check_in is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Check-in configuration not found.",
+            detail="Event or event check-in configuration is missing",
         )
 
     current = EventCheckInCreate.model_validate(check_in, from_attributes=True)
@@ -142,6 +145,7 @@ async def update_check_in(
 
 @router.delete(
     "/{check_in_id}",
+    operation_id="delete_check_in",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(perm_event)],
 )

@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
+from event_check_in.constants import EVENT_CHECK_IN_NAME_MAX_LEN
 
 
 # Each row defines a checkin period, separate from individual attendance records
@@ -33,7 +34,7 @@ class EventCheckInDB(Base):
         index=True,
     )
 
-    name: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(EVENT_CHECK_IN_NAME_MAX_LEN))
 
     enabled: Mapped[bool] = mapped_column(
         Boolean,

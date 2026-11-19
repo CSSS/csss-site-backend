@@ -4,6 +4,7 @@ import candidates.urls
 import database
 import elections.urls
 import event.urls
+import event_check_in.urls
 import honorary.urls
 import image_asset.urls
 import nominees.urls
@@ -21,6 +22,7 @@ router.include_router(candidates.urls.router)
 router.include_router(nominees.urls.router)
 router.include_router(officers.urls.router)
 router.include_router(event.urls.router)
+router.include_router(event_check_in.urls.router)
 router.include_router(honorary.urls.router)
 router.include_router(image_asset.urls.router)
 router.include_router(users.urls.router)
